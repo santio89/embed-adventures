@@ -2659,6 +2659,14 @@ function drawBackground() {
       const spacing = bushR * 1.5;
       const totalW = (bp.bumps - 1) * spacing + bushR * 2;
       if (bsx + totalW < -40 || bsx > VIEW_W + 40) continue;
+      const bushStartTile = Math.floor((base + bp.tx * T) / T);
+      const bushTileSpan = Math.ceil(totalW / T) + 1;
+      let bushOnGround = true;
+      for (let bt = 0; bt < bushTileSpan; bt++) {
+        const cx = bushStartTile + bt;
+        if (cx < 0 || cx >= LEVEL_WIDTH || getTile(cx, 13) === 0) { bushOnGround = false; break; }
+      }
+      if (!bushOnGround) continue;
       for (let i = 0; i < bp.bumps; i++) {
         const bcx = bsx + i * spacing + bushR;
         const buGrad = bx.createRadialGradient(bcx - 2, GY - 1 - bushR * 0.4, bushR * 0.15, bcx, GY - 1, bushR + 1);
@@ -2685,6 +2693,8 @@ function drawBackground() {
     for (const tp of treePositions) {
       const tsx = Math.floor((base + tp.tx * T) - camera.rx);
       if (tsx < -30 || tsx > VIEW_W + 30) continue;
+      const treeTileX = Math.floor((base + tp.tx * T) / T);
+      if (treeTileX < 0 || treeTileX >= LEVEL_WIDTH || getTile(treeTileX, 13) === 0) continue;
       const s = tp.s;
       const trunkW = Math.floor(4 * s);
       const trunkH = Math.floor(12 * s);
@@ -2720,6 +2730,13 @@ function drawBackground() {
     for (const ftx of fencePositions) {
       const fsx = Math.floor((base + ftx * T) - camera.rx);
       if (fsx < -40 || fsx > VIEW_W + 40) continue;
+      const fenceTileX = Math.floor((base + ftx * T) / T);
+      let fenceOnGround = true;
+      for (let fp = 0; fp < 4; fp++) {
+        const checkX = fenceTileX + fp;
+        if (checkX < 0 || checkX >= LEVEL_WIDTH || getTile(checkX, 13) === 0) { fenceOnGround = false; break; }
+      }
+      if (!fenceOnGround) continue;
       for (let p = 0; p < 4; p++) {
         const fpx = fsx + p * 8;
         const pGrad = bx.createLinearGradient(fpx, 0, fpx + 3, 0);
