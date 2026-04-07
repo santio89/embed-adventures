@@ -1826,11 +1826,7 @@ function updateEntities() {
       e.frameTimer++;
       if (e.frameTimer > 12) { e.frameTimer = 0; e.frame = (e.frame + 1) % 2; }
 
-      // Don't emerge if Mario is near the pipe
-      const nearPipe = Math.abs(mario.x - e.pipeX * TILE) < 32;
-      if (nearPipe && e.emergeOffset >= 0) {
-        // stay hidden
-      } else if (e.waitTimer > 0) {
+      if (e.waitTimer > 0) {
         e.waitTimer--;
         if (e.waitTimer <= 0) {
           e.emergeDir = e.emergeOffset < -10 ? 1 : -1;
