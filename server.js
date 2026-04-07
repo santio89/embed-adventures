@@ -1,7 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { WebSocketServer } = require('ws');
+const { Server } = require('socket.io');
 
 const PORT = process.env.PORT || 3000;
 const MIME = {
@@ -23,25 +23,8 @@ function genCode() {
   return code;
 }
 
-function broadcast(room, msg, exclude) {
-  const data = JSON.stringify(msg);
-  for (const [pid, client] of room.clients) {
-    if (pid !== exclude && client.readyState === 1) {
-      client.send(data);
-    }
-  }
-}
-
-function broadcastAll(room, msg) {
-  const data = JSON.stringify(msg);
-  for (const [, client] of room.clients) {
-    if (client.readyState === 1) client.send(data);
-  }
-}
-
 function roomSnapshot(room) {
   return {
-    type: 'room_state',
     code: room.code,
     hostId: room.hostId,
     state: room.state,
@@ -52,9 +35,8 @@ function roomSnapshot(room) {
   };
 }
 
-function removePlayer(room, playerId) {
+function removePlayer(io, room, playerId) {
   room.players.delete(playerId);
-  room.clients.delete(playerId);
 
   if (room.players.size === 0) {
     rooms.delete(room.code);
@@ -62,11 +44,10 @@ function removePlayer(room, playerId) {
   }
 
   if (room.hostId === playerId) {
-    const first = room.players.keys().next().value;
-    room.hostId = first;
+    room.hostId = room.players.keys().next().value;
   }
 
-  broadcastAll(room, roomSnapshot(room));
+  io.to(room.code).emit('room_state', roomSnapshot(room));
 }
 
 const server = http.createServer((req, res) => {
@@ -85,199 +66,170 @@ const server = http.createServer((req, res) => {
   });
 });
 
-const wss = new WebSocketServer({ server });
+const io = new Server(server, {
+  cors: { origin: '*' },
+  pingInterval: 10000,
+  pingTimeout: 5000,
+});
 
-wss.on('connection', (ws) => {
+io.on('connection', (socket) => {
   let playerId = null;
   let roomCode = null;
 
-  ws.on('message', (raw) => {
-    let msg;
-    try { msg = JSON.parse(raw); } catch { return; }
+  socket.on('create_room', (msg, ack) => {
+    let code = genCode();
+    while (rooms.has(code)) code = genCode();
 
-    switch (msg.type) {
-      case 'create_room': {
-        let code = genCode();
-        while (rooms.has(code)) code = genCode();
+    const playerData = {
+      id: msg.playerId,
+      name: (msg.name || 'Blobby').substring(0, 12),
+      color: msg.color || 'lavender',
+      progress: 0, finished: false, finishTime: null,
+      alive: true, coins: 0, gameScore: 0,
+    };
 
-        const playerData = {
-          id: msg.playerId,
-          name: (msg.name || 'Blobby').substring(0, 12),
-          color: msg.color || 'lavender',
-          progress: 0, finished: false, finishTime: null,
-          alive: true, coins: 0, gameScore: 0,
-        };
+    const room = {
+      code,
+      hostId: msg.playerId,
+      state: 'waiting',
+      startTime: null,
+      matchDuration: msg.matchDuration || 300,
+      rankings: null,
+      players: new Map([[msg.playerId, playerData]]),
+      createdAt: Date.now(),
+    };
 
-        const room = {
-          code,
-          hostId: msg.playerId,
-          state: 'waiting',
-          startTime: null,
-          matchDuration: msg.matchDuration || 300,
-          rankings: null,
-          players: new Map([[msg.playerId, playerData]]),
-          clients: new Map([[msg.playerId, ws]]),
-          createdAt: Date.now(),
-        };
+    rooms.set(code, room);
+    playerId = msg.playerId;
+    roomCode = code;
+    socket.join(code);
 
-        rooms.set(code, room);
-        playerId = msg.playerId;
-        roomCode = code;
+    if (typeof ack === 'function') ack({ ok: true, code });
+    socket.emit('room_state', roomSnapshot(room));
+  });
 
-        ws.send(JSON.stringify({ type: 'room_created', code }));
-        ws.send(JSON.stringify(roomSnapshot(room)));
-        break;
-      }
+  socket.on('join_room', (msg, ack) => {
+    const code = (msg.code || '').toUpperCase();
+    const room = rooms.get(code);
 
-      case 'join_room': {
-        const code = (msg.code || '').toUpperCase();
-        const room = rooms.get(code);
+    if (!room) { if (typeof ack === 'function') ack({ ok: false, error: 'Room not found' }); return; }
+    if (room.state !== 'waiting') { if (typeof ack === 'function') ack({ ok: false, error: 'Game already started' }); return; }
+    if (room.players.size >= MAX_PLAYERS) { if (typeof ack === 'function') ack({ ok: false, error: 'Room full (max 10)' }); return; }
 
-        if (!room) {
-          ws.send(JSON.stringify({ type: 'error', message: 'Room not found' }));
-          return;
-        }
-        if (room.state !== 'waiting') {
-          ws.send(JSON.stringify({ type: 'error', message: 'Game already started' }));
-          return;
-        }
-        if (room.players.size >= MAX_PLAYERS) {
-          ws.send(JSON.stringify({ type: 'error', message: 'Room full (max 10)' }));
-          return;
-        }
+    const takenColors = [...room.players.values()].map(p => p.color);
+    let color = msg.color || 'lavender';
+    if (takenColors.includes(color)) color = msg.fallbackColor || color;
 
-        const takenColors = [...room.players.values()].map(p => p.color);
-        let color = msg.color || 'lavender';
-        if (takenColors.includes(color)) {
-          color = msg.fallbackColor || color;
-        }
+    const playerData = {
+      id: msg.playerId,
+      name: (msg.name || 'Blobby').substring(0, 12),
+      color,
+      progress: 0, finished: false, finishTime: null,
+      alive: true, coins: 0, gameScore: 0,
+    };
 
-        const playerData = {
-          id: msg.playerId,
-          name: (msg.name || 'Blobby').substring(0, 12),
-          color,
-          progress: 0, finished: false, finishTime: null,
-          alive: true, coins: 0, gameScore: 0,
-        };
+    room.players.set(msg.playerId, playerData);
+    playerId = msg.playerId;
+    roomCode = code;
+    socket.join(code);
 
-        room.players.set(msg.playerId, playerData);
-        room.clients.set(msg.playerId, ws);
-        playerId = msg.playerId;
-        roomCode = code;
+    if (typeof ack === 'function') ack({ ok: true, code, color });
+    io.to(code).emit('room_state', roomSnapshot(room));
+  });
 
-        ws.send(JSON.stringify({ type: 'room_joined', code, color }));
-        broadcastAll(room, roomSnapshot(room));
-        break;
-      }
-
-      case 'update_color': {
-        const room = rooms.get(roomCode);
-        if (!room || !playerId) return;
-        const p = room.players.get(playerId);
-        if (p) {
-          p.color = msg.color;
-          broadcastAll(room, roomSnapshot(room));
-        }
-        break;
-      }
-
-      case 'start_game': {
-        const room = rooms.get(roomCode);
-        if (!room || room.hostId !== playerId) return;
-
-        room.state = 'countdown';
-        broadcastAll(room, roomSnapshot(room));
-
-        setTimeout(() => {
-          if (room.state !== 'countdown') return;
-          room.state = 'playing';
-          room.startTime = Date.now();
-          for (const [, p] of room.players) {
-            p.progress = 0;
-            p.finished = false;
-            p.finishTime = null;
-            p.alive = true;
-            p.coins = 0;
-            p.gameScore = 0;
-          }
-          broadcastAll(room, roomSnapshot(room));
-        }, 3000);
-        break;
-      }
-
-      case 'progress': {
-        const room = rooms.get(roomCode);
-        if (!room || !playerId) return;
-        const p = room.players.get(playerId);
-        if (!p || p.finished || !p.alive) return;
-        p.progress = Math.min(1, msg.progress || 0);
-        p.coins = msg.coins || 0;
-        p.gameScore = msg.gameScore || 0;
-        broadcast(room, roomSnapshot(room), playerId);
-        break;
-      }
-
-      case 'player_finished': {
-        const room = rooms.get(roomCode);
-        if (!room || !playerId) return;
-        const p = room.players.get(playerId);
-        if (!p) return;
-        p.finished = true;
-        p.finishTime = msg.finishTime || (Date.now() - (room.startTime || Date.now()));
-        p.progress = 1;
-        p.coins = msg.coins || 0;
-        p.gameScore = msg.gameScore || 0;
-        broadcastAll(room, roomSnapshot(room));
-        checkMatchEnd(room);
-        break;
-      }
-
-      case 'player_died': {
-        const room = rooms.get(roomCode);
-        if (!room || !playerId) return;
-        const p = room.players.get(playerId);
-        if (!p) return;
-        p.alive = false;
-        p.coins = msg.coins || 0;
-        p.gameScore = msg.gameScore || 0;
-        p.progress = Math.min(1, msg.progress || 0);
-        broadcastAll(room, roomSnapshot(room));
-        checkMatchEnd(room);
-        break;
-      }
-
-      case 'return_to_lobby': {
-        const room = rooms.get(roomCode);
-        if (!room || room.hostId !== playerId) return;
-        room.state = 'waiting';
-        room.startTime = null;
-        room.rankings = null;
-        for (const [, p] of room.players) {
-          p.progress = 0;
-          p.finished = false;
-          p.finishTime = null;
-          p.alive = true;
-          p.coins = 0;
-          p.gameScore = 0;
-        }
-        broadcastAll(room, roomSnapshot(room));
-        break;
-      }
-
-      case 'leave_room': {
-        const room = rooms.get(roomCode);
-        if (room && playerId) removePlayer(room, playerId);
-        playerId = null;
-        roomCode = null;
-        break;
-      }
+  socket.on('update_color', (msg) => {
+    const room = rooms.get(roomCode);
+    if (!room || !playerId) return;
+    const p = room.players.get(playerId);
+    if (p) {
+      p.color = msg.color;
+      io.to(roomCode).emit('room_state', roomSnapshot(room));
     }
   });
 
-  ws.on('close', () => {
+  socket.on('start_game', () => {
+    const room = rooms.get(roomCode);
+    if (!room || room.hostId !== playerId) return;
+
+    room.state = 'countdown';
+    io.to(roomCode).emit('room_state', roomSnapshot(room));
+
+    setTimeout(() => {
+      if (room.state !== 'countdown') return;
+      room.state = 'playing';
+      room.startTime = Date.now();
+      for (const [, p] of room.players) {
+        p.progress = 0; p.finished = false; p.finishTime = null;
+        p.alive = true; p.coins = 0; p.gameScore = 0;
+      }
+      io.to(roomCode).emit('room_state', roomSnapshot(room));
+    }, 3000);
+  });
+
+  socket.on('progress', (msg) => {
+    const room = rooms.get(roomCode);
+    if (!room || !playerId) return;
+    const p = room.players.get(playerId);
+    if (!p || p.finished || !p.alive) return;
+    p.progress = Math.min(1, msg.progress || 0);
+    p.coins = msg.coins || 0;
+    p.gameScore = msg.gameScore || 0;
+    socket.to(roomCode).emit('room_state', roomSnapshot(room));
+  });
+
+  socket.on('player_finished', (msg) => {
+    const room = rooms.get(roomCode);
+    if (!room || !playerId) return;
+    const p = room.players.get(playerId);
+    if (!p) return;
+    p.finished = true;
+    p.finishTime = msg.finishTime || (Date.now() - (room.startTime || Date.now()));
+    p.progress = 1;
+    p.coins = msg.coins || 0;
+    p.gameScore = msg.gameScore || 0;
+    io.to(roomCode).emit('room_state', roomSnapshot(room));
+    checkMatchEnd(room);
+  });
+
+  socket.on('player_died', (msg) => {
+    const room = rooms.get(roomCode);
+    if (!room || !playerId) return;
+    const p = room.players.get(playerId);
+    if (!p) return;
+    p.alive = false;
+    p.coins = msg.coins || 0;
+    p.gameScore = msg.gameScore || 0;
+    p.progress = Math.min(1, msg.progress || 0);
+    io.to(roomCode).emit('room_state', roomSnapshot(room));
+    checkMatchEnd(room);
+  });
+
+  socket.on('return_to_lobby', () => {
+    const room = rooms.get(roomCode);
+    if (!room || room.hostId !== playerId) return;
+    room.state = 'waiting';
+    room.startTime = null;
+    room.rankings = null;
+    for (const [, p] of room.players) {
+      p.progress = 0; p.finished = false; p.finishTime = null;
+      p.alive = true; p.coins = 0; p.gameScore = 0;
+    }
+    io.to(roomCode).emit('room_state', roomSnapshot(room));
+  });
+
+  socket.on('leave_room', () => {
+    if (!roomCode || !playerId) return;
+    const room = rooms.get(roomCode);
+    socket.leave(roomCode);
+    if (room) removePlayer(io, room, playerId);
+    playerId = null;
+    roomCode = null;
+  });
+
+  socket.on('disconnect', () => {
     if (roomCode && playerId) {
       const room = rooms.get(roomCode);
-      if (room) removePlayer(room, playerId);
+      if (room) removePlayer(io, room, playerId);
     }
   });
 });
@@ -286,15 +238,13 @@ function checkMatchEnd(room) {
   if (room.state !== 'playing') return;
   const players = [...room.players.values()];
   if (players.length === 0) return;
-  const anyFinished = players.some(p => p.finished);
-  const allDone = players.every(p => p.finished || !p.alive);
-  if (anyFinished || allDone) {
+  if (players.some(p => p.finished) || players.every(p => p.finished || !p.alive)) {
     endMatch(room);
   }
 }
 
 function endMatch(room) {
-  const MATCH_DURATION = room.matchDuration || 300;
+  const dur = room.matchDuration || 300;
   const players = [...room.players.values()];
   const finished = players.filter(p => p.finished).sort((a, b) => a.finishTime - b.finishTime);
   const alive = players.filter(p => !p.finished && p.alive).sort((a, b) => b.progress - a.progress);
@@ -303,7 +253,7 @@ function endMatch(room) {
 
   const rankings = [...finished, ...alive, ...dead].map((p, i) => {
     let s = posBonus[i] || 50;
-    if (p.finished && p.finishTime) s += Math.max(0, Math.floor((MATCH_DURATION * 1000 - p.finishTime) / 50));
+    if (p.finished && p.finishTime) s += Math.max(0, Math.floor((dur * 1000 - p.finishTime) / 50));
     s += (p.coins || 0) * 200;
     s += (p.gameScore || 0);
     if (!p.finished) s += Math.floor((p.progress || 0) * 2000);
@@ -317,19 +267,18 @@ function endMatch(room) {
 
   room.state = 'finished';
   room.rankings = rankings;
-  broadcastAll(room, roomSnapshot(room));
+  io.to(room.code).emit('room_state', roomSnapshot(room));
 }
 
 setInterval(() => {
   const now = Date.now();
   for (const [code, room] of rooms) {
     if (now - room.createdAt > ROOM_TTL && room.state !== 'playing') {
-      broadcastAll(room, { type: 'room_closed' });
+      io.to(code).emit('room_closed');
       rooms.delete(code);
     }
     if (room.state === 'playing' && room.startTime) {
-      const elapsed = (now - room.startTime) / 1000;
-      if (elapsed >= (room.matchDuration || 300)) {
+      if ((now - room.startTime) / 1000 >= (room.matchDuration || 300)) {
         endMatch(room);
       }
     }

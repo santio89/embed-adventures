@@ -3805,66 +3805,19 @@ function renderColorPicker(containerId, takenColors) {
 function selectColor(containerId, colorId) {
   mySelectedColor = colorId;
   if (containerId === 'lobbyColorPicker' && ws) {
-    wsSend({ type: 'update_color', color: colorId });
+    ws.emit('update_color', { color: colorId });
   }
   renderColorPicker(containerId, []);
 }
 
-function getWsUrl() {
-  var loc = window.location;
-  var proto = loc.protocol === 'https:' ? 'wss:' : 'ws:';
-  return proto + '//' + loc.host;
-}
+var prevRoomState = null;
 
-function wsSend(msg) {
-  if (ws && ws.readyState === 1) ws.send(JSON.stringify(msg));
-}
+function connectSocket() {
+  if (ws && ws.connected) return;
+  ws = io({ reconnection: true, reconnectionDelay: 500, reconnectionAttempts: 10 });
 
-function connectWs(onOpen) {
-  if (ws && ws.readyState <= 1) {
-    if (onOpen) onOpen();
-    return;
-  }
-  ws = new WebSocket(getWsUrl());
-  ws.onopen = function() { if (onOpen) onOpen(); };
-  ws.onclose = function() { ws = null; };
-  ws.onerror = function() { ws = null; };
-
-  var prevRoomState = null;
-
-  ws.onmessage = function(ev) {
-    var msg;
-    try { msg = JSON.parse(ev.data); } catch { return; }
-
-    if (msg.type === 'room_created') {
-      currentRoomCode = msg.code;
-      return;
-    }
-
-    if (msg.type === 'room_joined') {
-      currentRoomCode = msg.code;
-      if (msg.color) mySelectedColor = msg.color;
-      return;
-    }
-
-    if (msg.type === 'error') {
-      var createErr = document.getElementById('createError');
-      var joinErr = document.getElementById('joinError');
-      if (createErr && createErr.closest('[style*="display"]') === null) createErr.textContent = msg.message;
-      if (joinErr) joinErr.textContent = msg.message;
-      return;
-    }
-
-    if (msg.type === 'room_closed') {
-      leaveRoom();
-      return;
-    }
-
-    if (msg.type !== 'room_state') return;
-
-    var data = msg;
+  ws.on('room_state', function(data) {
     var playersList = Object.values(data.players || {});
-
     isHost = data.hostId === myPlayerId;
 
     switch (data.state) {
@@ -3925,7 +3878,11 @@ function connectWs(onOpen) {
     }
 
     prevRoomState = data.state;
-  };
+  });
+
+  ws.on('room_closed', function() {
+    leaveRoom();
+  });
 }
 
 function writeProgress() {
@@ -3933,8 +3890,7 @@ function writeProgress() {
   var now = Date.now();
   if (now - lastProgressWrite < 500) return;
   lastProgressWrite = now;
-  wsSend({
-    type: 'progress',
+  ws.emit('progress', {
     progress: Math.min(1, mario.x / ((LEVEL_WIDTH - 15) * TILE)),
     coins: coins,
     gameScore: score,
@@ -3942,8 +3898,8 @@ function writeProgress() {
 }
 
 function writePlayerFinished() {
-  wsSend({
-    type: 'player_finished',
+  if (!ws) return;
+  ws.emit('player_finished', {
     finishTime: Date.now() - roomStartTime,
     coins: coins,
     gameScore: score,
@@ -3951,8 +3907,8 @@ function writePlayerFinished() {
 }
 
 function writePlayerDied() {
-  wsSend({
-    type: 'player_died',
+  if (!ws) return;
+  ws.emit('player_died', {
     coins: coins,
     gameScore: score,
     progress: Math.min(1, mario.x / ((LEVEL_WIDTH - 15) * TILE)),
@@ -3960,7 +3916,8 @@ function writePlayerDied() {
 }
 
 function cleanupRoom() {
-  wsSend({ type: 'leave_room' });
+  if (ws) ws.emit('leave_room');
+  prevRoomState = null;
   roomStartTime = 0;
   matchEnding = false;
   lastProgressWrite = 0;
@@ -3968,7 +3925,7 @@ function cleanupRoom() {
 
 window.addEventListener('beforeunload', function() {
   if (ws && multiplayerMode) {
-    wsSend({ type: 'leave_room' });
+    ws.emit('leave_room');
   }
 });
 
@@ -4123,34 +4080,23 @@ function createRoom() {
   document.getElementById('createError').textContent = '';
   mySelectedColor = MARIO_COLOR_OPTIONS[Math.floor(Math.random() * MARIO_COLOR_OPTIONS.length)].id;
 
-  connectWs(function() {
-    wsSend({
-      type: 'create_room',
-      playerId: myPlayerId,
-      name: name.substring(0, 12),
-      color: mySelectedColor,
-      matchDuration: MATCH_DURATION,
-    });
-
-    var checkInterval = setInterval(function() {
-      if (currentRoomCode) {
-        clearInterval(checkInterval);
-        isHost = true;
-        multiplayerMode = true;
-        showLobby(currentRoomCode, [{ id: myPlayerId, name: name.substring(0, 12), color: mySelectedColor }]);
-        btn.disabled = false;
-        btn.innerHTML = 'CREATE';
-      }
-    }, 100);
-
-    setTimeout(function() {
-      clearInterval(checkInterval);
-      if (!currentRoomCode) {
-        document.getElementById('createError').textContent = 'Failed to create room';
-        btn.disabled = false;
-        btn.innerHTML = 'CREATE';
-      }
-    }, 5000);
+  connectSocket();
+  ws.emit('create_room', {
+    playerId: myPlayerId,
+    name: name.substring(0, 12),
+    color: mySelectedColor,
+    matchDuration: MATCH_DURATION,
+  }, function(res) {
+    btn.disabled = false;
+    btn.innerHTML = 'CREATE';
+    if (res.ok) {
+      currentRoomCode = res.code;
+      isHost = true;
+      multiplayerMode = true;
+      showLobby(res.code, [{ id: myPlayerId, name: name.substring(0, 12), color: mySelectedColor }]);
+    } else {
+      document.getElementById('createError').textContent = res.error || 'Failed to create room';
+    }
   });
 }
 
@@ -4166,44 +4112,35 @@ function joinRoom() {
   var availableColors = MARIO_COLOR_OPTIONS.map(function(c) { return c.id; });
   var fallback = availableColors[Math.floor(Math.random() * availableColors.length)];
 
-  connectWs(function() {
-    wsSend({
-      type: 'join_room',
-      code: code,
-      playerId: myPlayerId,
-      name: name.substring(0, 12),
-      color: mySelectedColor,
-      fallbackColor: fallback,
-    });
-
-    var checkInterval = setInterval(function() {
-      if (currentRoomCode) {
-        clearInterval(checkInterval);
-        isHost = false;
-        multiplayerMode = true;
-        btn.disabled = false;
-        btn.innerHTML = 'JOIN';
-      }
-    }, 100);
-
-    setTimeout(function() {
-      clearInterval(checkInterval);
-      if (!currentRoomCode) {
-        btn.disabled = false;
-        btn.innerHTML = 'JOIN';
-      }
-    }, 5000);
+  connectSocket();
+  ws.emit('join_room', {
+    code: code,
+    playerId: myPlayerId,
+    name: name.substring(0, 12),
+    color: mySelectedColor,
+    fallbackColor: fallback,
+  }, function(res) {
+    btn.disabled = false;
+    btn.innerHTML = 'JOIN';
+    if (res.ok) {
+      currentRoomCode = res.code;
+      if (res.color) mySelectedColor = res.color;
+      isHost = false;
+      multiplayerMode = true;
+    } else {
+      document.getElementById('joinError').textContent = res.error || 'Failed to join room';
+    }
   });
 }
 
 function startMultiplayerGame() {
   if (!ws || !isHost) return;
-  wsSend({ type: 'start_game' });
+  ws.emit('start_game');
 }
 
 function returnToLobby() {
   if (!ws || !isHost) return;
-  wsSend({ type: 'return_to_lobby' });
+  ws.emit('return_to_lobby');
 }
 
 function leaveRoom() {
