@@ -1,0 +1,12 @@
+{
+  "name": "embeddablob-adventures",
+  "version": "1.0.0",
+  "description": "Embeddablob Adventures - a platformer browser game with online multiplayer racing",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
