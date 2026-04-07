@@ -1121,7 +1121,7 @@ window.addEventListener('keydown', e => {
     jumpBufferTimer = JUMP_BUFFER_FRAMES;
   }
 
-  if (e.code === 'KeyX' && gameState === 'playing' && mario.fire && !mario.dead && !paused) {
+  if ((e.code === 'KeyX' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') && gameState === 'playing' && mario.fire && !mario.dead && !paused) {
     if (fireballCooldown <= 0 && marioFireballs.length < 2) {
       marioFireballs.push({
         x: mario.x + (mario.facing === 1 ? mario.w : -8),
@@ -1160,7 +1160,7 @@ window.addEventListener('keyup', e => {
 });
 
 function setupMobileControls() {
-  const mapping = { mLeft: 'ArrowLeft', mRight: 'ArrowRight', mA: 'Space', mB: 'KeyZ' };
+  const mapping = { mLeft: 'ArrowLeft', mRight: 'ArrowRight', mA: 'Space', mB: 'KeyX' };
   Object.entries(mapping).forEach(([id, key]) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -1563,7 +1563,7 @@ function updateMario() {
   mario.crouching = wantCrouch;
 
   // Horizontal input
-  const running = keys['KeyZ'] || keys['ShiftLeft'] || keys['ShiftRight'];
+  const running = keys['KeyX'] || keys['ShiftLeft'] || keys['ShiftRight'];
   const maxSpeed = running ? MAX_RUN : MAX_WALK;
   const accel = running ? RUN_ACCEL : WALK_ACCEL;
 
@@ -3896,6 +3896,18 @@ function connectWs(onOpen) {
           roomMatchDuration = data.matchDuration || MATCH_DURATION;
           matchTimeRemaining = roomMatchDuration;
           matchEnding = false;
+        }
+        if (!eliminated) {
+          var localProgress = Math.min(1, mario.x / ((LEVEL_WIDTH - 15) * TILE));
+          for (var pi = 0; pi < playersList.length; pi++) {
+            if (playersList[pi].id === myPlayerId) {
+              playersList[pi].progress = localProgress;
+              playersList[pi].coins = coins;
+              playersList[pi].gameScore = score;
+              playersList[pi].alive = !mario.dead && lives > 0;
+              break;
+            }
+          }
         }
         racePlayers = playersList;
         updateTimeline(playersList);

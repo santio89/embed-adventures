@@ -213,7 +213,7 @@ wss.on('connection', (ws) => {
         p.progress = Math.min(1, msg.progress || 0);
         p.coins = msg.coins || 0;
         p.gameScore = msg.gameScore || 0;
-        broadcastAll(room, roomSnapshot(room));
+        broadcast(room, roomSnapshot(room), playerId);
         break;
       }
 
