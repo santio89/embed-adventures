@@ -3,7 +3,6 @@ const fs = require('fs');
 const path = require('path');
 const { Server } = require('socket.io');
 
-const PORT = process.env.PORT || 3000;
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
   '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg',
@@ -285,6 +284,30 @@ setInterval(() => {
   }
 }, 5000);
 
-server.listen(PORT, () => {
-  console.log(`Embeddablob Adventures server running on port ${PORT}`);
+function findFreePort(startPort, retries) {
+  return new Promise((resolve, reject) => {
+    const probe = require('net').createServer();
+    probe.once('error', (err) => {
+      if (err.code === 'EADDRINUSE' && retries > 0) {
+        console.log(`Port ${startPort} in use, trying ${startPort + 1}...`);
+        resolve(findFreePort(startPort + 1, retries - 1));
+      } else {
+        reject(err);
+      }
+    });
+    probe.once('listening', () => {
+      probe.close(() => resolve(startPort));
+    });
+    probe.listen(startPort);
+  });
+}
+
+const startPort = parseInt(process.env.PORT, 10) || 3000;
+findFreePort(startPort, 20).then((port) => {
+  server.listen(port, () => {
+    console.log(`Embeddablob Adventures server running on http://localhost:${port}`);
+  });
+}).catch((err) => {
+  console.error(`Could not find a free port: ${err.message}`);
+  process.exit(1);
 });

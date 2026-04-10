@@ -746,6 +746,15 @@ function playSound(type) {
         gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.18);
         osc.start(c.currentTime); osc.stop(c.currentTime + 0.18);
         break;
+      case 'doublejump':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(520, c.currentTime);
+        osc.frequency.linearRampToValueAtTime(980, c.currentTime + 0.08);
+        osc.frequency.linearRampToValueAtTime(1200, c.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.05, c.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.2);
+        osc.start(c.currentTime); osc.stop(c.currentTime + 0.2);
+        break;
       case 'coin':
         osc.type = 'square';
         osc.frequency.setValueAtTime(988, c.currentTime);
@@ -814,19 +823,21 @@ function playSound(type) {
         break;
       case 'bosshit':
         osc.type = 'sawtooth';
-        gain.gain.setValueAtTime(0.08, c.currentTime);
-        osc.frequency.setValueAtTime(200, c.currentTime);
-        osc.frequency.linearRampToValueAtTime(80, c.currentTime + 0.15);
-        gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.25);
-        osc.start(c.currentTime); osc.stop(c.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.1, c.currentTime);
+        osc.frequency.setValueAtTime(250, c.currentTime);
+        osc.frequency.linearRampToValueAtTime(60, c.currentTime + 0.2);
+        gain.gain.linearRampToValueAtTime(0.12, c.currentTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.35);
+        osc.start(c.currentTime); osc.stop(c.currentTime + 0.35);
         break;
       case 'bossdie':
         osc.type = 'sawtooth';
-        gain.gain.setValueAtTime(0.08, c.currentTime);
-        osc.frequency.setValueAtTime(300, c.currentTime);
-        osc.frequency.linearRampToValueAtTime(40, c.currentTime + 0.8);
-        gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 1.0);
-        osc.start(c.currentTime); osc.stop(c.currentTime + 1.0);
+        gain.gain.setValueAtTime(0.1, c.currentTime);
+        osc.frequency.setValueAtTime(350, c.currentTime);
+        osc.frequency.linearRampToValueAtTime(25, c.currentTime + 1.2);
+        gain.gain.linearRampToValueAtTime(0.12, c.currentTime + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 1.5);
+        osc.start(c.currentTime); osc.stop(c.currentTime + 1.5);
         break;
       case 'fireball':
         osc.type = 'sawtooth';
@@ -873,7 +884,7 @@ function stopStarMusic() {
 // ================================================================
 // LEVEL BUILDER
 // ================================================================
-const LEVEL_WIDTH = 395;
+const LEVEL_WIDTH = 470;
 const LEVEL_HEIGHT = 15;
 
 function buildLevel() {
@@ -902,197 +913,154 @@ function buildLevel() {
 
   // === SECTION 1: GREEN FIELDS (0-55) ===
   ground(0, 55);
-
   map[9][16] = 3;
-  map[9][22] = 2;
-  map[9][23] = 4;
-  map[9][24] = 2;
-  map[9][25] = 3;
-  map[9][26] = 2;
+  map[9][22] = 2; map[9][23] = 4; map[9][24] = 2; map[9][25] = 3; map[9][26] = 2;
   map[5][22] = 3;
+  map[9][30] = 2; map[9][31] = 3; map[9][32] = 2;
+  map[9][40] = 3;
+  map[9][45] = 2; map[9][46] = 3; map[9][47] = 2;
+  map[5][46] = 3;
+  stairUp(50, 3);
 
   // === SECTION 2: PIPE VALLEY (55-100) ===
   ground(56, 100);
-  addPipe(58, 2);
-  addPipe(68, 3);
-  addPipe(78, 3);
-  addPipe(88, 4);
-  map[9][62] = 3;
-  map[9][73] = 3;
-  map[9][83] = 3;
-  map[9][84] = 4;
+  addPipe(58, 2); addPipe(68, 3); addPipe(78, 3); addPipe(88, 4);
+  map[9][62] = 3; map[9][73] = 3; map[9][83] = 3; map[9][84] = 4;
+  map[7][59] = 3; map[7][69] = 3; map[7][79] = 3; map[7][89] = 3;
+  map[9][64] = 2; map[9][65] = 3; map[9][66] = 2;
+  map[9][94] = 2; map[9][95] = 3; map[9][96] = 2;
+  map[7][55] = 7;
 
   // === SECTION 3: BLOCK PLAYGROUND (100-155) ===
-  ground(101, 130);
-  ground(134, 155);
-  // gap at 131-133
-  map[9][105] = 2;
-  map[9][106] = 3;
-  map[9][107] = 2;
-  map[9][108] = 3;
-  map[9][109] = 2;
+  ground(101, 130); ground(134, 155);
+  map[9][105] = 2; map[9][106] = 3; map[9][107] = 2; map[9][108] = 3; map[9][109] = 2;
   map[5][107] = 4;
-  map[9][115] = 2;
-  map[9][116] = 2;
-  map[9][117] = 3;
-  map[9][118] = 2;
-  map[5][116] = 2;
-  map[5][117] = 2;
-  map[5][118] = 2;
-  map[9][124] = 3;
-  map[9][125] = 2;
-  map[9][126] = 3;
-  map[9][127] = 2;
+  map[9][115] = 2; map[9][116] = 2; map[9][117] = 3; map[9][118] = 2;
+  map[5][116] = 2; map[5][117] = 2; map[5][118] = 2;
+  map[9][124] = 3; map[9][125] = 2; map[9][126] = 3; map[9][127] = 2;
   map[5][125] = 3;
+  map[7][112] = 2; map[7][113] = 3; map[7][114] = 2;
+  map[9][138] = 2; map[9][139] = 3; map[9][140] = 2;
+  map[7][140] = 2; map[7][141] = 3;
+  map[9][150] = 3; map[9][151] = 2; map[9][152] = 3;
+  map[5][107] = 6;
 
   // === SECTION 4: ELEVATED CHALLENGE (155-210) ===
-  ground(156, 164);
-  ground(180, 210);
-  // Big gap 165-179 with brick bridge at row 9
+  ground(156, 164); ground(180, 210);
   for (let x = 165; x <= 179; x++) map[9][x] = 2;
-  map[9][170] = 3;
-  map[9][175] = 4;
+  map[9][170] = 3; map[9][175] = 4;
+  map[9][171] = 0; map[9][172] = 0;
   map[9][185] = 3;
-  map[9][190] = 2;
-  map[9][191] = 3;
-  map[9][192] = 2;
-  map[5][190] = 2;
-  map[5][191] = 2;
-  addPipe(200, 2);
-  addPipe(207, 3);
+  map[9][190] = 2; map[9][191] = 3; map[9][192] = 2;
+  map[5][190] = 2; map[5][191] = 2;
+  map[7][183] = 3; map[7][184] = 2;
+  map[9][195] = 2; map[9][196] = 3; map[9][197] = 2;
+  addPipe(200, 2); addPipe(207, 3);
+  map[7][200] = 7;
 
-  // === SECTION 5: ENEMY GAUNTLET (210-260) ===
-  ground(211, 255);
-  ground(259, 260);
-  // gap at 256-258
-  map[9][215] = 2;
-  map[9][216] = 3;
-  map[9][217] = 2;
-  map[9][218] = 2;
-  map[9][225] = 3;
-  map[9][226] = 3;
-  map[9][230] = 2;
-  map[9][231] = 2;
-  map[9][232] = 3;
-  map[9][233] = 2;
+  // === SECTION 5: GAUNTLET (210-260) ===
+  ground(211, 255); ground(259, 260);
+  map[9][215] = 2; map[9][216] = 3; map[9][217] = 2;
+  map[9][225] = 3; map[9][226] = 3;
+  map[9][230] = 2; map[9][231] = 2; map[9][232] = 3; map[9][233] = 2;
   map[5][231] = 4;
-  map[9][240] = 2;
-  map[9][241] = 3;
-  map[9][242] = 2;
+  map[9][240] = 2; map[9][241] = 3; map[9][242] = 2;
   map[9][248] = 3;
-  map[9][249] = 3;
   addPipe(245, 2);
+  map[7][220] = 3; map[7][221] = 2; map[7][222] = 3;
+  map[9][236] = 3; map[9][237] = 2;
 
   // === SECTION 6: SKY WALK (260-305) ===
   ground(261, 262);
-  // floating platforms over gap
   for (let x = 265; x <= 270; x++) map[10][x] = 5;
   for (let x = 274; x <= 279; x++) map[10][x] = 5;
   for (let x = 283; x <= 288; x++) map[10][x] = 5;
   for (let x = 292; x <= 297; x++) map[10][x] = 5;
-  // coins above platforms as guides
-  map[7][267] = 3;
-  map[7][276] = 3;
-  map[7][285] = 3;
-  map[7][294] = 4;
-  ground(300, 305);
-
-  // === SECTION 7: SPRINT & PIPES (305-335) ===
-  ground(306, 335);
-  addPipe(310, 2);
-  addPipe(320, 3);
-  map[9][313] = 3;
-  map[9][314] = 2;
-  map[9][315] = 3;
-  map[9][325] = 2;
-  map[9][326] = 3;
-  map[9][327] = 2;
-  map[5][326] = 2;
-
-  // === SECTION 8: GRAND FINALE (335-394) ===
-  ground(336, 394);
-  stairUp(338, 4);
-  stairDown(343, 4);
-
-  // Boss arena: flat ground 347-358, gate at 359
-  for (let y = 6; y <= 12; y++) map[y][359] = 5;  // gate wall
-
-  // Victory staircase after boss (classic Mario ending)
-  stairUp(367, 8);
-
-  // === ADDITIONAL FEATURES FOR DIVERSITY ===
-
-  // Section 1: Extra blocks and small staircase
-  map[9][30] = 2; map[9][31] = 3; map[9][32] = 2; map[9][33] = 2;
-  map[9][40] = 3;
-  map[9][45] = 2; map[9][46] = 3; map[9][47] = 2; map[9][48] = 2;
-  map[5][46] = 3;
-  stairUp(50, 3);
-
-  // Section 2: Coin guides above pipes + blocks between pipes
-  map[7][59] = 3; map[7][69] = 3; map[7][79] = 3; map[7][89] = 3;
-  map[9][64] = 2; map[9][65] = 3; map[9][66] = 2;
-  map[9][94] = 2; map[9][95] = 3; map[9][96] = 2;
-
-  // Section 3: Elevated block formations
-  map[7][112] = 2; map[7][113] = 3; map[7][114] = 2;
-  map[9][138] = 2; map[9][139] = 3; map[9][140] = 2; map[9][141] = 2;
-  map[7][140] = 2; map[7][141] = 3;
-  map[9][150] = 3; map[9][151] = 2; map[9][152] = 3;
-
-  // Section 4: Bridge gap + extra blocks
-  map[9][171] = 0; map[9][172] = 0;
-  map[7][183] = 3; map[7][184] = 2;
-  map[9][195] = 2; map[9][196] = 3; map[9][197] = 2;
-
-  // Section 5: Elevated coin platforms
-  map[7][220] = 3; map[7][221] = 2; map[7][222] = 3;
-  map[9][236] = 3; map[9][237] = 2;
-
-  // Section 6: Multi-height platforms
+  map[7][267] = 3; map[7][276] = 3; map[7][285] = 3; map[7][294] = 4;
   for (let x = 269; x <= 271; x++) map[8][x] = 5;
   for (let x = 280; x <= 282; x++) map[7][x] = 5;
+  ground(300, 305);
 
-  // Section 7: Extra blocks and pipe
-  map[9][308] = 3; map[9][309] = 2;
-  map[7][318] = 2; map[7][319] = 3;
-  addPipe(330, 2);
+  // === SECTION 7: DOUBLE JUMP CANYON (305-345) - NEW! ===
+  ground(306, 312);
+  // Floating single/double platforms requiring double jump
+  for (let x = 316; x <= 318; x++) map[10][x] = 5;
+  map[8][317] = 3;
+  for (let x = 323; x <= 324; x++) map[8][x] = 5;
+  map[6][324] = 3;
+  for (let x = 329; x <= 331; x++) map[11][x] = 5;
+  for (let x = 329; x <= 331; x++) map[7][x] = 5;
+  map[5][330] = 4;
+  for (let x = 336; x <= 337; x++) map[9][x] = 5;
+  map[7][337] = 3;
+  for (let x = 342; x <= 344; x++) map[10][x] = 5;
+  map[8][343] = 3;
+  ground(348, 355);
 
-  // 1-UP blocks (hidden among regular blocks)
-  map[5][107] = 6;
-  map[5][319] = 6;
+  // === SECTION 8: SPRINT & PIPES (355-395) ===
+  ground(356, 395);
+  addPipe(360, 2); addPipe(370, 3);
+  map[9][363] = 3; map[9][364] = 2; map[9][365] = 3;
+  map[9][375] = 2; map[9][376] = 3; map[9][377] = 2;
+  map[5][376] = 2;
+  map[9][358] = 3; map[9][359] = 2;
+  map[7][368] = 2; map[7][369] = 3;
+  addPipe(380, 2);
+  map[9][385] = 2; map[9][386] = 3; map[9][387] = 2;
+  map[5][386] = 6;
 
-  // Star blocks
-  map[7][55] = 7;
-  map[7][200] = 7;
+  // === SECTION 9: AERIAL PLAYGROUND (395-420) - double jump showcase ===
+  ground(396, 400);
+  // Rising platforms - need double jump to reach the high ones
+  for (let x = 404; x <= 406; x++) map[11][x] = 5;
+  for (let x = 410; x <= 411; x++) map[9][x] = 5;
+  map[7][411] = 3;
+  for (let x = 415; x <= 416; x++) map[7][x] = 5;
+  map[5][415] = 4;
+  for (let x = 410; x <= 411; x++) map[12][x] = 5;
+  ground(419, 421);
 
-  // Section 8: Pre-boss area
-  map[9][345] = 3;
+  // === SECTION 10: GRAND FINALE (421-469) ===
+  ground(422, 469);
+  stairUp(413, 4);
+  stairDown(418, 4);
+
+  // Boss arena: flat ground 422-433, gate at 434
+  for (let y = 6; y <= 12; y++) map[y][BOSS_GATE_X] = 5;
+
+  // Victory staircase after boss
+  stairUp(442, 8);
+
+  // Pre-boss blocks
+  map[9][424] = 3; map[9][426] = 2;
+
+  // === STAR BLOCK (late game reward for exploring) ===
+  map[7][330] = 7;
 
   return map;
 }
 
 // ================================================================
-// PHYSICS CONSTANTS (tuned to feel like NES Mario)
+// PHYSICS CONSTANTS (tuned for Kirby-like snappy feel)
 // ================================================================
 const GRAVITY_UP_HOLD = 0.22;
 const GRAVITY_UP_RELEASE = 0.50;
 const GRAVITY_DOWN = 0.55;
 const JUMP_VEL = -5.6;
 const MAX_FALL = 6.0;
-const WALK_ACCEL = 0.08;
-const RUN_ACCEL = 0.14;
-const MAX_WALK = 1.3;
-const MAX_RUN = 2.3;
-const FRICTION = 0.22;
-const AIR_FRICTION = 0.02;
-const SKID_DECEL = 0.22;
+const WALK_ACCEL = 0.18;
+const RUN_ACCEL = 0.22;
+const MAX_WALK = 1.5;
+const MAX_RUN = 2.5;
+const FRICTION = 0.25;
+const AIR_FRICTION = 0.03;
+const SKID_DECEL = 0.28;
 const COYOTE_FRAMES = 6;
 const JUMP_BUFFER_FRAMES = 6;
 
-const FLAGPOLE_X = 376;
-const CASTLE_X = 381;
-const CHECKPOINT_XS = [120, 240];
+const FLAGPOLE_X = 451;
+const CASTLE_X = 456;
+const CHECKPOINT_XS = [120, 280];
 
 // ================================================================
 // GAME STATE
@@ -1104,6 +1072,7 @@ let renderAlpha = 0;
 let gameState = 'menu';
 let paused = false;
 let globalTick = 0;
+var screenShake = 0;
 
 const keys = {};
 let jumpBufferTimer = 0;
@@ -1213,8 +1182,8 @@ let bossFireballs = [];
 let marioFireballs = [];
 let fireballCooldown = 0;
 let starMusicInterval = null;
-const BOSS_ARENA_LEFT = 347;
-const BOSS_GATE_X = 359;
+const BOSS_ARENA_LEFT = 422;
+const BOSS_GATE_X = 434;
 
 function resetMario() {
   const spawnX = checkpointIndex >= 0 ? CHECKPOINT_XS[checkpointIndex] * TILE : 40;
@@ -1235,6 +1204,9 @@ function resetMario() {
     wasOnGround: false,
     skidding: false,
     crouching: false,
+    jumpsUsed: 0,
+    doubleJumpAnim: 0,
+    landSquash: 0,
   };
 }
 
@@ -1282,15 +1254,17 @@ function resetLevel() {
 }
 
 function spawnEnemies() {
+  // Section 1 (0-55): gentle intro - spaced out
   const goombaXs = [
-    20, 30, 42, 50, 53, 56,
-    60, 65, 72, 80, 82, 85, 95,
-    108, 112, 114, 120, 122, 135, 140, 150,
-    145, 148, 160, 168, 172, 188,
-    195, 197, 215, 217, 222, 224, 228, 230, 234, 238, 240, 244, 250, 252,
-    268, 277, 286, 295,
-    308, 312, 316, 318, 324, 328, 330, 332,
-    340, 342, 345,
+    22, 38, 50,
+    62, 72, 85,
+    108, 120, 140, 150,
+    168, 172, 188, 195,
+    215, 222, 228, 234, 240, 250,
+    268, 286,
+    350, 363,
+    388, 399,
+    420, 425,
   ];
   goombaXs.forEach(x => {
     let gy = 12 * TILE;
@@ -1299,16 +1273,24 @@ function spawnEnemies() {
     entities.push(createGoomba(x * TILE, gy));
   });
 
-  [45, 55, 75, 90, 125, 142, 160, 192, 220, 235, 248, 275, 300, 318, 325, 337].forEach(x => {
+  // Koopas - spaced out, more strategic
+  [48, 90, 125, 192, 235, 275, 365, 390].forEach(x => {
     entities.push(createKoopa(x * TILE, 12 * TILE));
   });
 
-  [110, 155, 225, 310, 344].forEach(x => {
+  // Buzzy beetles - tough enemies, placed sparingly
+  [155, 385, 420].forEach(x => {
     entities.push(createBuzzyBeetle(x * TILE, 12 * TILE));
   });
 
-  [[58, 11], [68, 10], [78, 10], [88, 9], [200, 11], [207, 10], [310, 11], [320, 10], [330, 11]].forEach(([px, topRow]) => {
+  // Piranhas in pipes
+  [[58, 11], [68, 10], [78, 10], [88, 9], [200, 11], [207, 10], [360, 11], [370, 10], [380, 11]].forEach(([px, topRow]) => {
     entities.push(createPiranha(px, topRow));
+  });
+
+  // Swooper enemies - fly in sine patterns
+  [35, 95, 145, 205, 295, 340, 395].forEach(x => {
+    entities.push(createSwooper(x * TILE, 7 * TILE));
   });
 }
 
@@ -1331,9 +1313,22 @@ function spawnMapCoins() {
     [275, 8], [276, 8], [277, 8],
     [284, 8], [285, 8], [286, 8],
     [293, 8], [294, 8], [295, 8],
-    [314, 11], [315, 11],
-    [326, 7], [327, 7],
-    [341, 11], [343, 11], [345, 11],
+    // Double jump canyon - coin arcs between platforms (need double jump!)
+    [314, 9], [315, 8], [316, 7],
+    [320, 7], [321, 6], [322, 7],
+    [326, 8], [327, 7],
+    [333, 9], [334, 8], [335, 7],
+    [339, 8], [340, 7],
+    [345, 9], [346, 8],
+    // Sprint section
+    [363, 11], [364, 11],
+    [376, 7], [377, 7],
+    // Aerial playground - high coins (double jump required)
+    [405, 9], [406, 8],
+    [410, 7], [411, 6],
+    [415, 5], [416, 4],
+    // Pre-boss
+    [424, 11], [426, 11],
   ];
   coinPositions.forEach(([tx, ty]) => {
     if (levelMap[ty] && levelMap[ty][tx]) ty--;
@@ -1343,10 +1338,10 @@ function spawnMapCoins() {
 
 function spawnBoss() {
   boss = {
-    x: 354 * TILE, y: 10 * TILE,
+    x: 429 * TILE, y: 10 * TILE,
     vx: -0.5, vy: 0,
     w: 28, h: 32,
-    hp: 3, alive: true, dying: false, deathTimer: 0,
+    hp: 5, alive: true, dying: false, deathTimer: 0,
     jumpTimer: 0, fireTimer: 0,
     frame: 0, frameTimer: 0,
     invincible: 0,
@@ -1390,11 +1385,20 @@ function createPiranha(pipeX, pipeTopY) {
   };
 }
 
+function createSwooper(x, y) {
+  return {
+    type: 'swooper', x, y, vx: -0.7, vy: 0,
+    w: 14, h: 14, alive: true,
+    frame: 0, frameTimer: 0,
+    baseY: y, swoopTick: Math.random() * 100,
+  };
+}
+
 function addScorePopup(x, y, pts) {
   scorePopups.push({ x, y, text: String(pts), life: 50, vy: -0.8 });
 }
 
-const ENEMY_POINTS = { goomba: 100, koopa: 200, buzzy: 300, piranha: 400, boss: 5000 };
+const ENEMY_POINTS = { goomba: 100, koopa: 200, buzzy: 300, piranha: 400, swooper: 250, boss: 5000 };
 
 // ================================================================
 // COLLISION
@@ -1469,6 +1473,7 @@ function hitBlock(tx, ty) {
   } else if (tile === 2) {
     if (mario.big) {
       levelMap[ty][tx] = 0;
+      screenShake = 2;
       playSound('brick');
       for (let i = 0; i < 4; i++) {
         particles.push({
@@ -1599,7 +1604,7 @@ function updateMario() {
       const fric = mario.onGround ? FRICTION : AIR_FRICTION;
       if (mario.vx > 0) mario.vx = Math.max(0, mario.vx - fric);
       else mario.vx = Math.min(0, mario.vx + fric);
-      if (Math.abs(mario.vx) < 0.15) mario.vx = 0;
+      if (Math.abs(mario.vx) < 0.05) mario.vx = 0;
     }
 
     // Clamp to max speed (handles switching from run to walk)
@@ -1611,27 +1616,49 @@ function updateMario() {
   // Coyote time tracking
   if (mario.onGround) {
     mario.coyoteTimer = COYOTE_FRAMES;
+    mario.jumpsUsed = 0;
   } else if (mario.coyoteTimer > 0) {
     mario.coyoteTimer--;
   }
+
+  if (mario.doubleJumpAnim > 0) mario.doubleJumpAnim--;
+  if (mario.landSquash > 0) mario.landSquash--;
 
   // Jump buffer countdown
   if (jumpBufferTimer > 0) jumpBufferTimer--;
 
   // Jump
-  const canJump = mario.onGround || mario.coyoteTimer > 0;
+  const canFirstJump = mario.onGround || mario.coyoteTimer > 0;
+  const canDoubleJump = !mario.onGround && mario.jumpsUsed <= 1 && mario.coyoteTimer <= 0;
   const wantJump = jumpPressed || jumpBufferTimer > 0;
 
-  if (wantJump && canJump && mario.vy >= 0) {
+  if (wantJump && canFirstJump && mario.vy >= 0) {
     mario.vy = JUMP_VEL;
     mario.onGround = false;
     mario.coyoteTimer = 0;
+    mario.jumpsUsed = 1;
     jumpBufferTimer = 0;
     playSound('jump');
     dustParticles.push(
-      { x: mario.x + 3, y: mario.y + mario.h, vx: -0.3, vy: -0.2, life: 10 },
-      { x: mario.x + mario.w - 3, y: mario.y + mario.h, vx: 0.3, vy: -0.2, life: 10 },
+      { x: mario.x + 3, y: mario.y + mario.h, vx: -0.3, vy: -0.2, life: 10, maxLife: 10 },
+      { x: mario.x + mario.w - 3, y: mario.y + mario.h, vx: 0.3, vy: -0.2, life: 10, maxLife: 10 },
     );
+  } else if (jumpPressed && canDoubleJump) {
+    mario.vy = JUMP_VEL * 0.82;
+    mario.jumpsUsed = 2;
+    mario.doubleJumpAnim = 20;
+    jumpBufferTimer = 0;
+    playSound('jump');
+    for (var di = 0; di < 6; di++) {
+      var angle = (Math.PI * 2 / 6) * di;
+      dustParticles.push({
+        x: mario.x + mario.w / 2 + Math.cos(angle) * 4,
+        y: mario.y + mario.h * 0.6,
+        vx: Math.cos(angle) * 0.6,
+        vy: Math.sin(angle) * 0.4 + 0.3,
+        life: 12, maxLife: 12,
+      });
+    }
   }
 
   jumpPressed = false;
@@ -1668,10 +1695,11 @@ function updateMario() {
       mario.y = vCol.ty * TILE - mh;
       mario.vy = 0;
       mario.onGround = true;
-      if (!mario.wasOnGround && Math.abs(mario.vx) > 0.5) {
+      if (!mario.wasOnGround) {
+        mario.landSquash = 8;
         dustParticles.push(
-          { x: mario.x + mario.w / 2, y: mario.y + mh, vx: -0.4, vy: -0.3, life: 8 },
-          { x: mario.x + mario.w / 2, y: mario.y + mh, vx: 0.4, vy: -0.3, life: 8 },
+          { x: mario.x + mario.w / 2 - 2, y: mario.y + mh, vx: -0.3, vy: -0.25, life: 8, maxLife: 8 },
+          { x: mario.x + mario.w / 2 + 2, y: mario.y + mh, vx: 0.3, vy: -0.25, life: 8, maxLife: 8 },
         );
       }
     } else if (mario.vy < 0) {
@@ -1704,9 +1732,9 @@ function updateMario() {
     mario.frame = 0;
   } else if (mario.skidding) {
     mario.frame = 0;
-  } else if (mario.vx !== 0 && Math.abs(mario.vx) > 0.3) {
+  } else if (mario.vx !== 0 && Math.abs(mario.vx) > 0.1) {
     mario.frameTimer++;
-    const animSpeed = Math.max(6, 14 - Math.abs(mario.vx) * 3);
+    const animSpeed = Math.max(4, 14 - Math.abs(mario.vx) * 3);
     if (mario.frameTimer > animSpeed) {
       mario.frameTimer = 0;
       mario.frame = (mario.frame + 1) % 3;
@@ -1719,8 +1747,8 @@ function updateMario() {
   // Camera (smooth lerp, float precision kept for tracking)
   camera.targetX = mario.x - VIEW_W / 2 + 16;
   if (camera.targetX < camera.x) camera.targetX = camera.x;
-  camera.x += (camera.targetX - camera.x) * 0.12;
-  if (Math.abs(camera.targetX - camera.x) < 1.0) camera.x = camera.targetX;
+  camera.x += (camera.targetX - camera.x) * 0.1;
+  if (Math.abs(camera.targetX - camera.x) < 0.5) camera.x = camera.targetX;
   if (camera.x < 0) camera.x = 0;
   const maxCam = LEVEL_WIDTH * TILE - VIEW_W;
   if (camera.x > maxCam) camera.x = maxCam;
@@ -1789,6 +1817,7 @@ function mariodie() {
   if (mario.fire) {
     mario.fire = false;
     mario.invincible = 120;
+    screenShake = 2.5;
     playSound('shrink');
     return;
   }
@@ -1797,6 +1826,7 @@ function mariodie() {
     mario.big = false;
     mario.invincible = 120;
     mario.h = 16;
+    screenShake = 2.5;
     playSound('shrink');
     return;
   }
@@ -1805,6 +1835,7 @@ function mariodie() {
   stopStarMusic();
   mario.vy = -5;
   deathTimer = 0;
+  screenShake = 4;
   playSound('die');
 }
 
@@ -1813,7 +1844,7 @@ function mariodie() {
 // ================================================================
 function updateEntities() {
   entities.forEach(e => {
-    if (!e.alive && (e.type === 'goomba' || e.type === 'buzzy') && e.flat) {
+    if (!e.alive && (e.type === 'goomba' || e.type === 'buzzy' || e.type === 'swooper') && e.flat) {
       e.flatTimer--;
       if (e.flatTimer <= 0) e.remove = true;
       return;
@@ -1863,6 +1894,7 @@ function updateEntities() {
           addScorePopup(e.x, e.y - 8, pts);
           playSound('stomp');
           mario.vy = -4.5;
+          mario.jumpsUsed = 1;
         } else {
           mariodie();
         }
@@ -1871,6 +1903,16 @@ function updateEntities() {
     }
 
     if (e.x > camera.x + VIEW_W + 48 || e.x < camera.x - 80) return;
+
+    // Swooper: sine-wave flying enemy, no gravity
+    if (e.type === 'swooper') {
+      e.swoopTick += 0.08;
+      e.x += e.vx;
+      e.y = e.baseY + Math.sin(e.swoopTick) * 24;
+      e.frameTimer++;
+      if (e.frameTimer > 10) { e.frameTimer = 0; e.frame = (e.frame + 1) % 2; }
+      if (e.x < camera.x - 80) { e.x = camera.x + VIEW_W + 48; e.baseY = (6 + Math.random() * 4) * TILE; }
+    } else {
 
     e.vy += GRAVITY_DOWN;
     if (e.vy > MAX_FALL) e.vy = MAX_FALL;
@@ -1895,6 +1937,7 @@ function updateEntities() {
 
     e.frameTimer++;
     if (e.frameTimer > 14) { e.frameTimer = 0; e.frame = (e.frame + 1) % 2; }
+    } // end of non-swooper else
 
     if (mario.dead || flagDescending) return;
 
@@ -1921,6 +1964,7 @@ function updateEntities() {
         e.vx = mario.x < e.x ? 3.5 : -3.5;
         score += 100;
         mario.vy = -3.5;
+        mario.jumpsUsed = 1;
         addScorePopup(e.x, e.y - 8, 100);
         playSound('stomp');
         return;
@@ -1931,12 +1975,22 @@ function updateEntities() {
       if (mario.vy > 0 && my + mh - e.y < 10) {
         const pts = ENEMY_POINTS[e.type] || 100;
         playSound('stomp');
-        if (e.type === 'goomba' || e.type === 'buzzy') {
+        if (e.type === 'goomba' || e.type === 'buzzy' || e.type === 'swooper') {
           e.alive = false;
           e.flat = true;
           e.flatTimer = 30;
           e.vx = 0;
           score += pts;
+          for (var si = 0; si < 4; si++) {
+            var eLife = 10 + Math.floor(Math.random() * 6);
+            dustParticles.push({
+              x: e.x + e.w / 2 + (Math.random() - 0.5) * 8,
+              y: e.y + e.h * 0.5,
+              vx: (Math.random() - 0.5) * 1.2,
+              vy: -Math.random() * 1.5 - 0.5,
+              life: eLife, maxLife: eLife,
+            });
+          }
           enemiesKilled++;
           addScorePopup(e.x, e.y - 8, pts);
         } else if (e.type === 'koopa') {
@@ -1958,6 +2012,7 @@ function updateEntities() {
           }
         }
         mario.vy = -4.5;
+        mario.jumpsUsed = 1;
       } else {
         mariodie();
       }
@@ -1997,6 +2052,7 @@ function updateEntities() {
         boss.invincible = 40;
         shell.alive = false;
         shell.remove = true;
+        screenShake = 4;
         if (boss.hp <= 0) {
           boss.alive = false;
           boss.dying = true;
@@ -2005,12 +2061,14 @@ function updateEntities() {
           score += ENEMY_POINTS.boss;
           addScorePopup(boss.x, boss.y - 16, ENEMY_POINTS.boss);
           enemiesKilled++;
+          screenShake = 8;
           playSound('bossdie');
           for (let gy = 6; gy <= 12; gy++) levelMap[gy][BOSS_GATE_X] = 0;
         } else {
           playSound('bosshit');
           addScorePopup(boss.x, boss.y - 8, 500);
           score += 500;
+          boss.vx = (shell.x < boss.x ? 1 : -1) * 1.5;
         }
       }
     });
@@ -2063,7 +2121,19 @@ function updateBoss() {
   boss.vy += GRAVITY_DOWN;
   if (boss.vy > MAX_FALL) boss.vy = MAX_FALL;
 
-  // Horizontal movement
+  // Rage mode: faster when low HP
+  var bossRage = boss.hp <= 2;
+  var bossSpeed = bossRage ? 1.0 : 0.6;
+
+  // Horizontal movement - chase Mario slightly
+  if (boss.invincible <= 0) {
+    var chaseStr = bossRage ? 0.015 : 0.005;
+    if (mario.x < boss.x) boss.vx -= chaseStr;
+    else boss.vx += chaseStr;
+    if (boss.vx > bossSpeed) boss.vx = bossSpeed;
+    if (boss.vx < -bossSpeed) boss.vx = -bossSpeed;
+  }
+
   boss.x += boss.vx;
   if (boss.x <= boss.arenaLeft) { boss.x = boss.arenaLeft; boss.vx = Math.abs(boss.vx); }
   if (boss.x + boss.w >= boss.arenaRight) { boss.x = boss.arenaRight - boss.w; boss.vx = -Math.abs(boss.vx); }
@@ -2073,29 +2143,44 @@ function updateBoss() {
   boss.onGround = false;
   const bc = tileCollision(boss.x + 2, boss.y, boss.w - 4, boss.h);
   if (bc) {
-    if (boss.vy > 0) { boss.y = bc.ty * TILE - boss.h; boss.vy = 0; boss.onGround = true; }
+    if (boss.vy > 0) {
+      boss.y = bc.ty * TILE - boss.h; boss.vy = 0; boss.onGround = true;
+      if (bossRage) screenShake = Math.max(screenShake, 1.5);
+    }
     else { boss.y = (bc.ty + 1) * TILE; boss.vy = 0; }
   }
 
   // Jump
   boss.jumpTimer++;
-  if (boss.jumpTimer > 90 + Math.random() * 60 && boss.onGround) {
-    boss.vy = -6.5;
+  var jumpInterval = bossRage ? 50 + Math.random() * 30 : 90 + Math.random() * 60;
+  if (boss.jumpTimer > jumpInterval && boss.onGround) {
+    boss.vy = bossRage ? -7.5 : -6.5;
     boss.jumpTimer = 0;
   }
 
   // Throw fireballs toward Mario
   boss.fireTimer++;
-  if (boss.fireTimer > 80 + Math.random() * 40) {
+  var fireInterval = bossRage ? 45 + Math.random() * 25 : 80 + Math.random() * 40;
+  if (boss.fireTimer > fireInterval) {
     boss.fireTimer = 0;
     const dir = mario.x < boss.x ? -1 : 1;
+    var fbSpeed = bossRage ? 3.2 : 2.5;
     bossFireballs.push({
       x: boss.x + (dir > 0 ? boss.w : -8),
       y: boss.y + 10,
-      vx: dir * 2.5,
+      vx: dir * fbSpeed,
       vy: -1.5,
       life: 200,
     });
+    if (bossRage) {
+      bossFireballs.push({
+        x: boss.x + (dir > 0 ? boss.w : -8),
+        y: boss.y + 14,
+        vx: dir * fbSpeed * 0.7,
+        vy: -2.5,
+        life: 200,
+      });
+    }
     playSound('fireball');
   }
 
@@ -2111,7 +2196,7 @@ function updateBoss() {
 
   if (mario.starPower > 0 && boss.invincible <= 0 &&
       mx < boss.x + boss.w && mx + mw > boss.x && my < boss.y + boss.h && my + mh > boss.y) {
-    boss.hp -= 3;
+    boss.hp -= 5;
     boss.invincible = 40;
     if (boss.hp <= 0) {
       boss.alive = false; boss.dying = true; boss.vy = -5; boss.deathTimer = 0;
@@ -2129,7 +2214,10 @@ function updateBoss() {
     if (mario.vy > 0 && my + mh - boss.y < 12 && boss.invincible <= 0) {
       boss.hp--;
       boss.invincible = 40;
-      mario.vy = -6;
+      mario.vy = -7;
+      mario.jumpsUsed = 1;
+      mario.invincible = Math.max(mario.invincible, 90);
+      screenShake = 5;
       if (boss.hp <= 0) {
         boss.alive = false;
         boss.dying = true;
@@ -2138,12 +2226,14 @@ function updateBoss() {
         score += ENEMY_POINTS.boss;
         addScorePopup(boss.x, boss.y - 16, ENEMY_POINTS.boss);
         enemiesKilled++;
+        screenShake = 8;
         playSound('bossdie');
         for (let gy = 6; gy <= 12; gy++) levelMap[gy][BOSS_GATE_X] = 0;
       } else {
         playSound('bosshit');
         addScorePopup(boss.x, boss.y - 8, 500);
         score += 500;
+        boss.vx = (mario.x < boss.x ? 1 : -1) * 1.5;
       }
     } else if (boss.invincible <= 0) {
       mariodie();
@@ -2274,14 +2364,23 @@ function updateMarioFireballs() {
         boss.hp--;
         boss.invincible = 40;
         fb.remove = true;
+        screenShake = 3;
         playSound('bosshit');
         if (boss.hp <= 0) {
           boss.alive = false;
           boss.dying = true;
-          boss.dyingTimer = 60;
+          boss.deathTimer = 0;
+          boss.vy = -5;
           score += ENEMY_POINTS.boss;
           addScorePopup(boss.x, boss.y - 16, ENEMY_POINTS.boss);
+          enemiesKilled++;
+          screenShake = 8;
           playSound('bossdie');
+          for (let gy = 6; gy <= 12; gy++) levelMap[gy][BOSS_GATE_X] = 0;
+        } else {
+          addScorePopup(boss.x, boss.y - 8, 500);
+          score += 500;
+          boss.vx = (fb.x < boss.x ? 1 : -1) * 1.5;
         }
       }
     }
@@ -2337,6 +2436,7 @@ function update() {
   }
   if (gameState !== 'playing' || paused) return;
   globalTick++;
+  if (screenShake > 0) screenShake *= 0.8;
   if (multiplayerMode && roomStartTime > 0) {
     var prevMTR = matchTimeRemaining;
     matchTimeRemaining = Math.max(0, Math.ceil(roomMatchDuration - (Date.now() - roomStartTime) / 1000));
@@ -2370,20 +2470,27 @@ function drawTile(x, y, tile) {
     case 1: {
       const gGrad = bx.createLinearGradient(0, y, 0, y + TILE);
       gGrad.addColorStop(0, COL.groundLight);
-      gGrad.addColorStop(0.2, COL.ground);
+      gGrad.addColorStop(0.15, COL.ground);
+      gGrad.addColorStop(0.7, COL.ground);
       gGrad.addColorStop(1, COL.groundDark);
       bx.fillStyle = gGrad;
       bx.fillRect(sx, y, TILE, TILE);
-      bx.fillStyle = 'rgba(255,255,255,0.1)';
+      bx.fillStyle = 'rgba(255,255,255,0.12)';
       bx.fillRect(sx, y, TILE, 1);
-      bx.fillStyle = 'rgba(0,0,0,0.12)';
-      bx.fillRect(sx + 7, y + 1, 1.5, 6);
-      bx.fillRect(sx + 3, y + 7, 1.5, 2);
-      bx.fillRect(sx + 11, y + 7, 1.5, 2);
-      bx.fillRect(sx + 7, y + 9, 1.5, 7);
-      bx.fillStyle = 'rgba(255,255,255,0.08)';
+      bx.fillStyle = 'rgba(0,0,0,0.1)';
+      bx.fillRect(sx + 7, y + 1, 1, 6);
+      bx.fillRect(sx + 3, y + 7, 1, 2);
+      bx.fillRect(sx + 11, y + 7, 1, 2);
+      bx.fillRect(sx + 7, y + 9, 1, 7);
+      bx.fillStyle = 'rgba(255,255,255,0.06)';
       bx.fillRect(sx + 1, y + 1, 3, 1);
       bx.fillRect(sx + 9, y + 8, 2, 1);
+      bx.fillRect(sx + 5, y + 4, 1, 1);
+      bx.fillRect(sx + 12, y + 3, 1, 1);
+      bx.fillRect(sx + 2, y + 12, 1, 1);
+      bx.fillStyle = 'rgba(0,0,0,0.05)';
+      bx.fillRect(sx + 10, y + 5, 1, 1);
+      bx.fillRect(sx + 1, y + 9, 1, 1);
       break;
     }
 
@@ -2394,12 +2501,18 @@ function drawTile(x, y, tile) {
       bGrad.addColorStop(1, COL.brickLine);
       bx.fillStyle = bGrad;
       bx.fillRect(sx, y, TILE, TILE);
-      bx.fillStyle = 'rgba(255,255,255,0.08)';
-      bx.fillRect(sx + 0.5, y + 1, 6, 5.5);
-      bx.fillRect(sx + 8, y + 1, 7, 5.5);
-      bx.fillRect(sx + 0.5, y + 8, 2.5, 7);
-      bx.fillRect(sx + 4, y + 8, 7, 7);
-      bx.fillRect(sx + 12, y + 8, 3.5, 7);
+      bx.fillStyle = 'rgba(255,255,255,0.1)';
+      bx.fillRect(sx + 0.5, y + 1, 6, 1);
+      bx.fillRect(sx + 8, y + 1, 7, 1);
+      bx.fillRect(sx + 0.5, y + 8, 2.5, 1);
+      bx.fillRect(sx + 4, y + 8, 7, 1);
+      bx.fillRect(sx + 12, y + 8, 3.5, 1);
+      bx.fillStyle = 'rgba(255,255,255,0.05)';
+      bx.fillRect(sx + 0.5, y + 2, 6, 4.5);
+      bx.fillRect(sx + 8, y + 2, 7, 4.5);
+      bx.fillRect(sx + 0.5, y + 9, 2.5, 6);
+      bx.fillRect(sx + 4, y + 9, 7, 6);
+      bx.fillRect(sx + 12, y + 9, 3.5, 6);
       bx.fillStyle = 'rgba(0,0,0,0.2)';
       bx.fillRect(sx, y, TILE, 0.7);
       bx.fillRect(sx, y + 7, TILE, 0.7);
@@ -2505,17 +2618,19 @@ function drawTile(x, y, tile) {
     case 12: {
       const pG12 = bx.createLinearGradient(sx - 2, 0, sx + TILE, 0);
       pG12.addColorStop(0, COL.pipeHighlight);
-      pG12.addColorStop(0.3, COL.pipe);
+      pG12.addColorStop(0.25, COL.pipe);
       pG12.addColorStop(0.85, COL.pipe);
       pG12.addColorStop(1, COL.pipeDark);
       bx.fillStyle = pG12;
       bx.fillRect(sx - 2, y, TILE + 2, TILE);
-      bx.fillStyle = 'rgba(255,255,255,0.18)';
+      bx.fillStyle = 'rgba(255,255,255,0.22)';
       bx.fillRect(sx - 2, y, TILE + 4, 1.5);
-      bx.fillStyle = 'rgba(255,255,255,0.1)';
-      bx.fillRect(sx + 1, y, 2, TILE);
-      bx.fillStyle = 'rgba(0,0,0,0.08)';
+      bx.fillStyle = 'rgba(255,255,255,0.12)';
+      bx.fillRect(sx + 1, y + 1, 2, TILE - 2);
+      bx.fillStyle = 'rgba(0,0,0,0.1)';
       bx.fillRect(sx - 2, y + TILE - 1, TILE + 4, 1);
+      bx.fillStyle = 'rgba(255,255,255,0.06)';
+      bx.fillRect(sx, y + 2, TILE - 2, 1);
       break;
     }
     case 13: {
@@ -2777,18 +2892,30 @@ function drawMario() {
 
   if (mario.dead) {
     sqX = 1.25; sqY = 0.7;
+  } else if (mario.doubleJumpAnim > 0) {
+    var djt = (20 - mario.doubleJumpAnim) / 20;
+    var spin = Math.sin(djt * Math.PI * 2) * 0.15;
+    sqX = 0.85 + spin;
+    sqY = 1.15 - spin;
   } else if (!mario.onGround) {
     sqX = 0.88; sqY = 1.12;
+  } else if (mario.landSquash > 0) {
+    var landT = mario.landSquash / 8;
+    sqX = 1.0 + 0.2 * landT;
+    sqY = 1.0 - 0.15 * landT;
+    bounceY = bodyR * 0.15 * landT;
   } else if (mario.skidding) {
     sqX = 1.12; sqY = 0.9;
   } else if (mario.crouching && isBig) {
     sqX = 1.3; sqY = 0.65;
     bounceY = bodyR * (1 - sqY);
-  } else if (Math.abs(mario.vx) > 0.3) {
-    const t = globalTick * 0.35;
-    bounceY = Math.sin(t) * 1.5;
-    sqX = 1.0 + Math.cos(t) * 0.07;
-    sqY = 1.0 - Math.cos(t) * 0.07;
+  } else if (Math.abs(mario.vx) > 0.15) {
+    var walkSpeed = 0.22 + Math.abs(mario.vx) * 0.08;
+    const t = globalTick * walkSpeed;
+    var intensity = Math.min(1, Math.abs(mario.vx) / 2.5);
+    bounceY = Math.sin(t) * (1.0 + intensity * 0.8);
+    sqX = 1.0 + Math.cos(t) * 0.05 * intensity;
+    sqY = 1.0 - Math.cos(t) * 0.05 * intensity;
   }
 
   let bodyCol, shadCol, feetCol, highCol;
@@ -2932,24 +3059,192 @@ function drawMario() {
     drawFoot(cx - 3, feetY + 0.5, footW, footH, 0);
     drawFoot(cx + 3, feetY + 0.5, footW, footH, 0);
   }
+
+  if (mario.doubleJumpAnim > 0 && !mario.dead) {
+    var djProg = (20 - mario.doubleJumpAnim) / 20;
+    var ringR = bodyR * (1.2 + djProg * 1.5);
+    var ringAlpha = (1 - djProg) * 0.35;
+    bx.save();
+    bx.globalAlpha = ringAlpha;
+    bx.strokeStyle = highCol || '#e0d0f8';
+    bx.lineWidth = 1.5 * (1 - djProg);
+    bx.beginPath();
+    bx.ellipse(cx, bcy, ringR, ringR * 0.5, 0, 0, Math.PI * 2);
+    bx.stroke();
+    bx.restore();
+  }
 }
 
 function drawEntities() {
   entities.forEach(e => {
-    if (!e.alive && e.type !== 'goomba' && e.type !== 'buzzy') return;
+    if (!e.alive && e.type !== 'goomba' && e.type !== 'buzzy' && e.type !== 'swooper') return;
     const sx = Math.floor(e.x - camera.rx);
     if (sx < -TILE || sx > VIEW_W + TILE) return;
 
     if (e.type === 'goomba') {
       drawPixels(bx, sx, Math.floor(e.y), e.flat ? GOOMBA_FLAT : GOOMBA_SPRITE, GOOMBA_PALETTE, e.frame === 1);
     } else if (e.type === 'koopa') {
+      var ey = Math.floor(e.y);
+      var ecx = sx + 8;
       if (e.shell) {
-        drawPixels(bx, sx, Math.floor(e.y), KOOPA_SHELL, KOOPA_PALETTE, false);
+        // Shell mode (h=16): ground at ey+16, center shell at ey+10
+        var shCy = ey + 10;
+        var shGrad = bx.createRadialGradient(ecx + 1, shCy - 1, 1, ecx, shCy, 7);
+        shGrad.addColorStop(0, '#7898d0');
+        shGrad.addColorStop(0.6, '#5878b8');
+        shGrad.addColorStop(1, '#384888');
+        bx.fillStyle = shGrad;
+        bx.beginPath();
+        bx.ellipse(ecx, shCy, 7, 5.5, 0, 0, Math.PI * 2);
+        bx.fill();
+        bx.fillStyle = 'rgba(255,255,255,0.15)';
+        bx.beginPath();
+        bx.ellipse(ecx + 1, shCy - 2, 3, 2, -0.3, 0, Math.PI * 2);
+        bx.fill();
+        bx.fillStyle = '#384888';
+        bx.beginPath();
+        bx.ellipse(ecx, shCy + 4, 7, 1.5, 0, 0, Math.PI * 2);
+        bx.fill();
+        if (e.shellMoving) {
+          var spinPhase = globalTick * 0.5;
+          bx.strokeStyle = '#384888';
+          bx.lineWidth = 0.8;
+          bx.beginPath();
+          bx.arc(ecx + Math.cos(spinPhase) * 3, shCy, 2, 0, Math.PI * 2);
+          bx.stroke();
+        }
       } else {
-        drawPixels(bx, sx, Math.floor(e.y) - 8, KOOPA_SPRITE, KOOPA_PALETTE, e.vx > 0);
+        // Walking koopa (h=24): ground at ey+24
+        var kdir = e.vx > 0 ? 1 : -1;
+        var kbob = Math.sin(globalTick * 0.2) * 0.5;
+        var groundY = ey + 24;
+        // Feet
+        var fWalk = Math.sin(globalTick * 0.25);
+        bx.fillStyle = '#d0c0e0';
+        bx.beginPath();
+        bx.ellipse(ecx - 3 + fWalk * 2, groundY - 2 + kbob, 2.5, 1.5, 0, 0, Math.PI * 2);
+        bx.fill();
+        bx.beginPath();
+        bx.ellipse(ecx + 3 - fWalk * 2, groundY - 2 + kbob, 2.5, 1.5, 0, 0, Math.PI * 2);
+        bx.fill();
+        // Shell (on back)
+        var shellCy = groundY - 10 + kbob;
+        var ksGrad = bx.createRadialGradient(ecx - kdir, shellCy - 1, 1, ecx - kdir, shellCy, 8);
+        ksGrad.addColorStop(0, '#7898d0');
+        ksGrad.addColorStop(0.6, '#5878b8');
+        ksGrad.addColorStop(1, '#384888');
+        bx.fillStyle = ksGrad;
+        bx.beginPath();
+        bx.ellipse(ecx - kdir, shellCy, 7, 6, 0, 0, Math.PI * 2);
+        bx.fill();
+        bx.save();
+        bx.globalAlpha = 0.2;
+        bx.fillStyle = '#c0d0f0';
+        bx.beginPath();
+        bx.ellipse(ecx - kdir + 1, shellCy - 3, 3, 2, -0.3, 0, Math.PI * 2);
+        bx.fill();
+        bx.restore();
+        bx.strokeStyle = '#384888';
+        bx.lineWidth = 0.6;
+        bx.beginPath();
+        bx.moveTo(ecx - kdir, shellCy - 5);
+        bx.lineTo(ecx - kdir, shellCy + 5);
+        bx.stroke();
+        // Head
+        var headX = ecx + kdir * 6;
+        var headY = shellCy - 7 + kbob;
+        var hGrad = bx.createRadialGradient(headX, headY, 0.5, headX, headY + 1, 4);
+        hGrad.addColorStop(0, '#b8d060');
+        hGrad.addColorStop(0.7, '#88a840');
+        hGrad.addColorStop(1, '#607828');
+        bx.fillStyle = hGrad;
+        bx.beginPath();
+        bx.ellipse(headX, headY, 3.5, 3.5, 0, 0, Math.PI * 2);
+        bx.fill();
+        // Eye
+        bx.fillStyle = '#fff';
+        bx.beginPath();
+        bx.arc(headX + kdir * 1.5, headY - 1, 1.5, 0, Math.PI * 2);
+        bx.fill();
+        bx.fillStyle = '#1a1a2e';
+        bx.beginPath();
+        bx.arc(headX + kdir * 2, headY - 0.8, 0.7, 0, Math.PI * 2);
+        bx.fill();
       }
     } else if (e.type === 'buzzy') {
       drawPixels(bx, sx, Math.floor(e.y), e.flat ? BUZZY_FLAT : BUZZY_SPRITE, BUZZY_PALETTE, e.frame === 1);
+    } else if (e.type === 'swooper') {
+      if (e.flat) return;
+      var scx = sx + 7, scy = Math.floor(e.y) + 7;
+      var wt = (e.swoopTick || 0) * 4;
+      var wingFlap = Math.sin(wt);
+
+      // Left wing (rounded ellipse)
+      bx.fillStyle = '#5838a0';
+      bx.beginPath();
+      bx.ellipse(scx - 8, scy - 1 + wingFlap * 4, 5, 2.5 + wingFlap, -0.3 + wingFlap * 0.3, 0, Math.PI * 2);
+      bx.fill();
+      // Right wing (rounded ellipse)
+      bx.beginPath();
+      bx.ellipse(scx + 8, scy - 1 + wingFlap * 4, 5, 2.5 + wingFlap, 0.3 - wingFlap * 0.3, 0, Math.PI * 2);
+      bx.fill();
+
+      // Body
+      var swGrad = bx.createRadialGradient(scx + 1, scy - 1, 1, scx, scy, 6);
+      swGrad.addColorStop(0, '#9068c8');
+      swGrad.addColorStop(0.7, '#5838a0');
+      swGrad.addColorStop(1, '#2a1050');
+      bx.fillStyle = swGrad;
+      bx.beginPath();
+      bx.ellipse(scx, scy, 5, 4.5, 0, 0, Math.PI * 2);
+      bx.fill();
+
+      // Ears
+      bx.fillStyle = '#5838a0';
+      bx.beginPath();
+      bx.moveTo(scx - 3, scy - 4);
+      bx.lineTo(scx - 5, scy - 8);
+      bx.lineTo(scx - 1, scy - 4);
+      bx.closePath();
+      bx.fill();
+      bx.beginPath();
+      bx.moveTo(scx + 3, scy - 4);
+      bx.lineTo(scx + 5, scy - 8);
+      bx.lineTo(scx + 1, scy - 4);
+      bx.closePath();
+      bx.fill();
+
+      // Eyes - glowing
+      bx.fillStyle = '#fcf0a0';
+      bx.beginPath();
+      bx.ellipse(scx - 2, scy - 1, 1.8, 1.4, 0, 0, Math.PI * 2);
+      bx.fill();
+      bx.beginPath();
+      bx.ellipse(scx + 2, scy - 1, 1.8, 1.4, 0, 0, Math.PI * 2);
+      bx.fill();
+      // Pupils
+      bx.fillStyle = '#1a0a28';
+      bx.beginPath();
+      bx.ellipse(scx - 2, scy - 0.5, 0.7, 1, 0, 0, Math.PI * 2);
+      bx.fill();
+      bx.beginPath();
+      bx.ellipse(scx + 2, scy - 0.5, 0.7, 1, 0, 0, Math.PI * 2);
+      bx.fill();
+
+      // Tiny fangs
+      bx.fillStyle = '#e0d0f0';
+      bx.beginPath();
+      bx.moveTo(scx - 1.5, scy + 2);
+      bx.lineTo(scx - 1, scy + 4);
+      bx.lineTo(scx - 0.5, scy + 2);
+      bx.closePath();
+      bx.fill();
+      bx.beginPath();
+      bx.moveTo(scx + 0.5, scy + 2);
+      bx.lineTo(scx + 1, scy + 4);
+      bx.lineTo(scx + 1.5, scy + 2);
+      bx.closePath();
+      bx.fill();
     } else if (e.type === 'piranha') {
       if (e.emergeOffset >= 0) return;
       const py = Math.floor(e.y);
@@ -3073,36 +3368,46 @@ function drawParticles() {
   coinAnims.forEach(c => {
     const csx = Math.floor(c.x - camera.rx);
     const csy = Math.floor(c.y);
+    var spinW = Math.abs(Math.cos(c.life * 0.3)) * 3 + 0.5;
+    var fadeAlpha = Math.min(1, c.life / 8);
     const coinGrad = bx.createRadialGradient(csx + 3, csy + 3, 1, csx + 4, csy + 4, 5);
     coinGrad.addColorStop(0, '#fcf0a0');
     coinGrad.addColorStop(0.5, COL.coin);
     coinGrad.addColorStop(1, '#a08020');
+    bx.save();
+    bx.globalAlpha = fadeAlpha;
     bx.fillStyle = coinGrad;
     bx.beginPath();
-    bx.ellipse(csx + 4, csy + 4, 3, 4, 0, 0, Math.PI * 2);
+    bx.ellipse(csx + 4, csy + 4, spinW, 4, 0, 0, Math.PI * 2);
     bx.fill();
-    bx.save();
-    bx.globalAlpha = 0.5;
+    bx.globalAlpha = fadeAlpha * 0.5;
     bx.fillStyle = '#fcfcfc';
     bx.beginPath();
-    bx.ellipse(csx + 3, csy + 3, 1, 1.5, 0, 0, Math.PI * 2);
+    bx.ellipse(csx + 3, csy + 3, spinW * 0.35, 1.5, 0, 0, Math.PI * 2);
     bx.fill();
     bx.restore();
   });
 
   scorePopups.forEach(p => {
     const sx = Math.floor(p.x - camera.rx);
+    var popAlpha = Math.min(1, p.life / 15);
+    bx.save();
+    bx.globalAlpha = popAlpha;
     drawPixelText(bx, p.text, sx, Math.floor(p.y), '#fff', '#000');
+    bx.restore();
   });
 
   dustParticles.forEach(d => {
     const dsx = Math.floor(d.x - camera.rx);
-    const alpha = d.life / 10;
+    var maxLife = d.maxLife || 10;
+    var t = 1 - d.life / maxLife;
+    var rad = 1.2 + t * 1.5;
+    var alpha = (1 - t * t) * 0.55;
     bx.save();
-    bx.globalAlpha = alpha * 0.6;
+    bx.globalAlpha = alpha;
     bx.fillStyle = '#e0d0f0';
     bx.beginPath();
-    bx.arc(dsx + 1, Math.floor(d.y) + 1, 1.5, 0, Math.PI * 2);
+    bx.arc(dsx + 1, Math.floor(d.y) + 1, rad, 0, Math.PI * 2);
     bx.fill();
     bx.restore();
   });
@@ -3113,37 +3418,258 @@ function drawBoss() {
   const sx = Math.floor(boss.x - camera.rx);
   if (sx < -48 || sx > VIEW_W + 48) return;
   const sy = Math.floor(boss.y);
+  var dir = boss.vx > 0 ? 1 : -1;
+
+  var hurtFlash = boss.invincible > 0 && (boss.invincible & 2);
+  var rage = boss.hp <= 2;
+  var breathe = Math.sin(globalTick * (rage ? 0.15 : 0.08));
+
+  var bodyW = 14 + breathe * 0.8;
+  var bodyH = 16 + breathe * 0.5;
+  var cx = sx + boss.w / 2;
+  var cy = sy + boss.h - bodyH;
 
   if (boss.dying) {
-    drawPixels(bx, sx - 2, sy, BOWSER_SPRITE, BOWSER_PALETTE, true);
-    return;
+    var dt = boss.deathTimer / 120;
+    bx.save();
+    bx.globalAlpha = 1 - dt;
+    bx.translate(cx, cy + bodyH * 0.5);
+    bx.rotate(dt * Math.PI * 4 * dir);
+    bx.translate(-cx, -(cy + bodyH * 0.5));
   }
 
-  if (boss.invincible > 0 && (boss.invincible & 2)) return;
+  if (hurtFlash && !boss.dying) {
+    bx.save();
+    bx.globalAlpha = 0.3;
+  }
 
-  drawPixels(bx, sx - 2, sy, BOWSER_SPRITE, BOWSER_PALETTE, boss.vx > 0);
+  // Shadow on ground
+  bx.save();
+  bx.globalAlpha = 0.25;
+  bx.fillStyle = '#1a0a2a';
+  bx.beginPath();
+  bx.ellipse(cx, sy + boss.h + 1, bodyW * 0.9, 3, 0, 0, Math.PI * 2);
+  bx.fill();
+  bx.restore();
 
-  const barW = 26;
-  const barY = sy - 7;
-  const barH = 4;
-  bx.fillStyle = 'rgba(0,0,0,0.5)';
+  // Dark aura
+  if (rage) {
+    bx.save();
+    var auraR = bodyW + 4 + Math.sin(globalTick * 0.2) * 2;
+    var auraGrad = bx.createRadialGradient(cx, cy + bodyH * 0.4, bodyW * 0.5, cx, cy + bodyH * 0.4, auraR);
+    auraGrad.addColorStop(0, 'rgba(80,20,40,0)');
+    auraGrad.addColorStop(0.6, 'rgba(120,30,50,0.15)');
+    auraGrad.addColorStop(1, 'rgba(60,10,30,0)');
+    bx.fillStyle = auraGrad;
+    bx.beginPath();
+    bx.ellipse(cx, cy + bodyH * 0.4, auraR, auraR * 0.8, 0, 0, Math.PI * 2);
+    bx.fill();
+    bx.restore();
+  }
+
+  // Body shadow
+  var shadGrad = bx.createRadialGradient(cx - 2, cy + bodyH * 0.3, 1, cx, cy + bodyH * 0.4, bodyW * 1.1);
+  shadGrad.addColorStop(0, '#4a2068');
+  shadGrad.addColorStop(1, '#1a0a28');
+  bx.fillStyle = shadGrad;
   bx.beginPath();
-  bx.roundRect(sx + 1, barY - 0.5, barW + 2, barH + 1, 2);
+  bx.ellipse(cx - 0.5, cy + bodyH * 0.4, bodyW + 1, bodyH * 0.55 + 1, 0, 0, Math.PI * 2);
   bx.fill();
-  bx.fillStyle = '#282030';
+
+  // Main body
+  var bodyGrad = bx.createRadialGradient(cx + 2, cy + bodyH * 0.2, bodyW * 0.1, cx - 1, cy + bodyH * 0.45, bodyW * 1.05);
+  bodyGrad.addColorStop(0, rage ? '#8040a0' : '#6848a8');
+  bodyGrad.addColorStop(0.5, rage ? '#502060' : '#3c2870');
+  bodyGrad.addColorStop(1, '#1a0a30');
+  bx.fillStyle = bodyGrad;
   bx.beginPath();
-  bx.roundRect(sx + 2, barY, barW, barH, 1.5);
+  bx.ellipse(cx, cy + bodyH * 0.4, bodyW, bodyH * 0.55, 0, 0, Math.PI * 2);
   bx.fill();
-  const hpFrac = Math.ceil(barW * boss.hp / 3);
-  const hpCol = boss.hp === 1 ? '#ff6080' : boss.hp === 2 ? '#e8c850' : '#a888e0';
-  const hpColL = boss.hp === 1 ? '#ffa0b0' : boss.hp === 2 ? '#fcf0a0' : '#d0b8f8';
-  const hpGrad = bx.createLinearGradient(0, barY, 0, barY + barH);
+
+  // Body highlight
+  bx.save();
+  bx.globalAlpha = 0.2;
+  bx.fillStyle = '#c0a0e0';
+  bx.beginPath();
+  bx.ellipse(cx + bodyW * 0.15, cy + bodyH * 0.15, bodyW * 0.4, bodyH * 0.2, -0.3, 0, Math.PI * 2);
+  bx.fill();
+  bx.restore();
+
+  // Spikes on top (crown-like)
+  var spikeCol = rage ? '#c04060' : '#a080d0';
+  var spikeDark = rage ? '#802040' : '#6848a0';
+  for (var si = 0; si < 5; si++) {
+    var sa = -0.7 + si * 0.35;
+    var spx = cx + Math.sin(sa) * bodyW * 0.7;
+    var spy = cy + bodyH * 0.4 - Math.cos(sa) * bodyH * 0.5;
+    var spikeH = 5 + (si === 2 ? 3 : 0) + breathe * 0.5;
+    bx.fillStyle = spikeDark;
+    bx.beginPath();
+    bx.moveTo(spx - 2.5, spy + 1);
+    bx.lineTo(spx, spy - spikeH);
+    bx.lineTo(spx + 2.5, spy + 1);
+    bx.closePath();
+    bx.fill();
+    bx.fillStyle = spikeCol;
+    bx.beginPath();
+    bx.moveTo(spx - 2, spy);
+    bx.lineTo(spx, spy - spikeH + 1);
+    bx.lineTo(spx + 2, spy);
+    bx.closePath();
+    bx.fill();
+  }
+
+  // Eyes
+  var eyeSpread = 4.5;
+  var eyeY = cy + bodyH * 0.3;
+  var eyeOff = dir * 1.5;
+
+  // Eye sockets (dark)
+  bx.fillStyle = '#0a0418';
+  bx.beginPath();
+  bx.ellipse(cx - eyeSpread + eyeOff, eyeY, 4, 3.5, 0, 0, Math.PI * 2);
+  bx.fill();
+  bx.beginPath();
+  bx.ellipse(cx + eyeSpread + eyeOff, eyeY, 4, 3.5, 0, 0, Math.PI * 2);
+  bx.fill();
+
+  // Eye glow
+  var eyeCol = rage ? '#ff3050' : '#e8c850';
+  var eyeGlow = rage ? '#ff8070' : '#fcf0a0';
+  bx.save();
+  bx.globalAlpha = 0.4 + breathe * 0.15;
+  bx.fillStyle = eyeCol;
+  bx.beginPath();
+  bx.ellipse(cx - eyeSpread + eyeOff, eyeY, 5.5, 4.5, 0, 0, Math.PI * 2);
+  bx.fill();
+  bx.beginPath();
+  bx.ellipse(cx + eyeSpread + eyeOff, eyeY, 5.5, 4.5, 0, 0, Math.PI * 2);
+  bx.fill();
+  bx.restore();
+
+  // Eye iris
+  var irisGrad1 = bx.createRadialGradient(cx - eyeSpread + eyeOff, eyeY, 0.5, cx - eyeSpread + eyeOff, eyeY, 3.5);
+  irisGrad1.addColorStop(0, eyeGlow);
+  irisGrad1.addColorStop(0.5, eyeCol);
+  irisGrad1.addColorStop(1, rage ? '#a01030' : '#a08020');
+  bx.fillStyle = irisGrad1;
+  bx.beginPath();
+  bx.ellipse(cx - eyeSpread + eyeOff, eyeY, 3.2, 2.8, 0, 0, Math.PI * 2);
+  bx.fill();
+
+  var irisGrad2 = bx.createRadialGradient(cx + eyeSpread + eyeOff, eyeY, 0.5, cx + eyeSpread + eyeOff, eyeY, 3.5);
+  irisGrad2.addColorStop(0, eyeGlow);
+  irisGrad2.addColorStop(0.5, eyeCol);
+  irisGrad2.addColorStop(1, rage ? '#a01030' : '#a08020');
+  bx.fillStyle = irisGrad2;
+  bx.beginPath();
+  bx.ellipse(cx + eyeSpread + eyeOff, eyeY, 3.2, 2.8, 0, 0, Math.PI * 2);
+  bx.fill();
+
+  // Pupils (slit for scariness)
+  bx.fillStyle = '#0a0418';
+  bx.beginPath();
+  bx.ellipse(cx - eyeSpread + eyeOff + dir * 0.5, eyeY, 1, 2.2, 0, 0, Math.PI * 2);
+  bx.fill();
+  bx.beginPath();
+  bx.ellipse(cx + eyeSpread + eyeOff + dir * 0.5, eyeY, 1, 2.2, 0, 0, Math.PI * 2);
+  bx.fill();
+
+  // Eye shine
+  bx.save();
+  bx.globalAlpha = 0.7;
+  bx.fillStyle = '#fff';
+  bx.beginPath();
+  bx.arc(cx - eyeSpread + eyeOff - 1, eyeY - 1.2, 0.8, 0, Math.PI * 2);
+  bx.fill();
+  bx.beginPath();
+  bx.arc(cx + eyeSpread + eyeOff - 1, eyeY - 1.2, 0.8, 0, Math.PI * 2);
+  bx.fill();
+  bx.restore();
+
+  // Mouth / fangs
+  var mouthY = cy + bodyH * 0.58;
+  var mouthW = rage ? 7 : 5;
+  bx.fillStyle = '#0a0418';
+  bx.beginPath();
+  bx.ellipse(cx + eyeOff, mouthY, mouthW, 2.5 + breathe * 0.5, 0, 0, Math.PI);
+  bx.fill();
+
+  // Fangs
+  bx.fillStyle = '#e0d0f0';
+  bx.beginPath();
+  bx.moveTo(cx + eyeOff - mouthW * 0.65, mouthY - 0.5);
+  bx.lineTo(cx + eyeOff - mouthW * 0.65 + 1.2, mouthY + 2.5);
+  bx.lineTo(cx + eyeOff - mouthW * 0.65 + 2.4, mouthY - 0.5);
+  bx.closePath();
+  bx.fill();
+  bx.beginPath();
+  bx.moveTo(cx + eyeOff + mouthW * 0.65 - 2.4, mouthY - 0.5);
+  bx.lineTo(cx + eyeOff + mouthW * 0.65 - 1.2, mouthY + 2.5);
+  bx.lineTo(cx + eyeOff + mouthW * 0.65, mouthY - 0.5);
+  bx.closePath();
+  bx.fill();
+
+  // Feet
+  var feetY = sy + boss.h;
+  var footR = 4;
+  var feetSpread = bodyW * 0.5;
+  var walkPhase = Math.sin(globalTick * 0.12) * 2 * (Math.abs(boss.vx) > 0.1 ? 1 : 0);
+
+  var fGrad1 = bx.createRadialGradient(cx - feetSpread, feetY - 1, 0, cx - feetSpread, feetY, footR);
+  fGrad1.addColorStop(0, rage ? '#602048' : '#3c2870');
+  fGrad1.addColorStop(1, '#1a0a28');
+  bx.fillStyle = fGrad1;
+  bx.beginPath();
+  bx.ellipse(cx - feetSpread + walkPhase, feetY - 0.5, footR, footR * 0.55, 0, 0, Math.PI * 2);
+  bx.fill();
+
+  var fGrad2 = bx.createRadialGradient(cx + feetSpread, feetY - 1, 0, cx + feetSpread, feetY, footR);
+  fGrad2.addColorStop(0, rage ? '#602048' : '#3c2870');
+  fGrad2.addColorStop(1, '#1a0a28');
+  bx.fillStyle = fGrad2;
+  bx.beginPath();
+  bx.ellipse(cx + feetSpread - walkPhase, feetY - 0.5, footR, footR * 0.55, 0, 0, Math.PI * 2);
+  bx.fill();
+
+  if (hurtFlash && !boss.dying) {
+    bx.restore();
+  }
+  if (boss.dying) {
+    bx.restore();
+  }
+
+  // HP bar
+  var barW = 30;
+  var barY = sy - 10;
+  var barH = 4;
+  bx.fillStyle = 'rgba(0,0,0,0.6)';
+  bx.beginPath();
+  bx.roundRect(cx - barW / 2 - 1, barY - 0.5, barW + 2, barH + 1, 2);
+  bx.fill();
+  bx.fillStyle = '#1a0a20';
+  bx.beginPath();
+  bx.roundRect(cx - barW / 2, barY, barW, barH, 1.5);
+  bx.fill();
+  var hpFrac = Math.ceil(barW * boss.hp / 5);
+  var hpCol = boss.hp <= 1 ? '#ff3050' : boss.hp <= 2 ? '#ff6040' : boss.hp <= 3 ? '#e8c850' : '#a888e0';
+  var hpColL = boss.hp <= 1 ? '#ff8090' : boss.hp <= 2 ? '#ff9070' : boss.hp <= 3 ? '#fcf0a0' : '#d0b8f8';
+  var hpGrad = bx.createLinearGradient(0, barY, 0, barY + barH);
   hpGrad.addColorStop(0, hpColL);
   hpGrad.addColorStop(1, hpCol);
   bx.fillStyle = hpGrad;
   bx.beginPath();
-  bx.roundRect(sx + 2, barY, hpFrac, barH, 1.5);
+  bx.roundRect(cx - barW / 2, barY, hpFrac, barH, 1.5);
   bx.fill();
+  if (boss.hp <= 2 && Math.sin(globalTick * 0.3) > 0) {
+    bx.save();
+    bx.globalAlpha = 0.4;
+    bx.fillStyle = '#ff3050';
+    bx.beginPath();
+    bx.roundRect(cx - barW / 2, barY, hpFrac, barH, 1.5);
+    bx.fill();
+    bx.restore();
+  }
 }
 
 function drawBossFireballs() {
@@ -3152,21 +3678,41 @@ function drawBossFireballs() {
     if (bfsx < -16 || bfsx > VIEW_W + 16) return;
     const bfy = Math.floor(f.y);
     const bfcx = bfsx + 4, bfcy = bfy + 4;
+    var pulse = Math.sin(globalTick * 0.4 + f.x * 0.1) * 1.5;
+
     bx.save();
-    bx.globalAlpha = 0.3;
-    bx.fillStyle = '#ff6040';
+    bx.globalAlpha = 0.2;
+    bx.fillStyle = '#c040a0';
     bx.beginPath();
-    bx.arc(bfcx, bfcy, 7, 0, Math.PI * 2);
+    bx.arc(bfcx, bfcy, 9 + pulse, 0, Math.PI * 2);
     bx.fill();
     bx.restore();
+
+    bx.save();
+    bx.globalAlpha = 0.35;
+    bx.fillStyle = '#ff5040';
+    bx.beginPath();
+    bx.arc(bfcx, bfcy, 6.5 + pulse * 0.5, 0, Math.PI * 2);
+    bx.fill();
+    bx.restore();
+
     const bfGrad = bx.createRadialGradient(bfcx - 1, bfcy - 1, 0.5, bfcx, bfcy, 5);
-    bfGrad.addColorStop(0, '#fcf080');
-    bfGrad.addColorStop(0.4, '#ff8060');
-    bfGrad.addColorStop(1, '#a03020');
+    bfGrad.addColorStop(0, '#fcf0c0');
+    bfGrad.addColorStop(0.3, '#ff7050');
+    bfGrad.addColorStop(0.7, '#c03060');
+    bfGrad.addColorStop(1, '#601030');
     bx.fillStyle = bfGrad;
     bx.beginPath();
     bx.arc(bfcx, bfcy, 4.5, 0, Math.PI * 2);
     bx.fill();
+
+    bx.save();
+    bx.globalAlpha = 0.7;
+    bx.fillStyle = '#fff';
+    bx.beginPath();
+    bx.arc(bfcx - 1, bfcy - 1, 1.2, 0, Math.PI * 2);
+    bx.fill();
+    bx.restore();
   });
 }
 
@@ -3244,6 +3790,16 @@ function drawMapCoins() {
     bx.ellipse(mcsx + 3, mcy + 3, 1, 1.5, 0, 0, Math.PI * 2);
     bx.fill();
     bx.restore();
+    var sparkPhase = (globalTick * 0.12 + c.x * 0.3) % (Math.PI * 2);
+    if (sparkPhase < 0.6) {
+      bx.save();
+      bx.globalAlpha = 0.7 * (1 - sparkPhase / 0.6);
+      bx.fillStyle = '#fff';
+      bx.beginPath();
+      bx.arc(mcsx + 6, mcy + 1, 1, 0, Math.PI * 2);
+      bx.fill();
+      bx.restore();
+    }
   });
 }
 
@@ -3515,8 +4071,8 @@ function drawLevel() {
         let drawY = ty * TILE;
         const bump = particles.find(p => p.type === 'bump' && p.x === tx * TILE && p.origY === ty * TILE);
         if (bump) {
-          const t = 8 - bump.timer;
-          drawY -= t < 4 ? t * 2 : (8 - t) * 2;
+          var bt = 1 - bump.timer / 8;
+          drawY -= Math.sin(bt * Math.PI) * 6;
         }
         drawTile(tx * TILE, drawY, tile);
       }
@@ -3621,7 +4177,7 @@ function render() {
     return;
   }
 
-  camera.rx = Math.floor(camera.x);
+  camera.rx = Math.floor(prevState.cx + (camera.x - prevState.cx) * renderAlpha);
   bx.clearRect(0, 0, VIEW_W, VIEW_H);
   drawBackground();
   drawLevel();
@@ -3678,7 +4234,16 @@ function render() {
     drawPixelText(bx, prText, Math.round((VIEW_W - prW) / 2), VIEW_H / 2 + 34, '#a898c8', '#1a1028');
   }
 
-  ctx.drawImage(buf, 0, 0, buf.width, buf.height, 0, 0, canvas.width, canvas.height);
+  if (screenShake > 0.3) {
+    var shX = (Math.random() - 0.5) * screenShake;
+    var shY = (Math.random() - 0.5) * screenShake;
+    ctx.save();
+    ctx.translate(shX * (canvas.width / VIEW_W), shY * (canvas.height / VIEW_H));
+    ctx.drawImage(buf, 0, 0, buf.width, buf.height, 0, 0, canvas.width, canvas.height);
+    ctx.restore();
+  } else {
+    ctx.drawImage(buf, 0, 0, buf.width, buf.height, 0, 0, canvas.width, canvas.height);
+  }
   drawScanlines();
 }
 
