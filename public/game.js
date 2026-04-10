@@ -1116,6 +1116,7 @@ window.addEventListener('keydown', e => {
 
   if (e.code === 'Enter' && gameState === 'win' && !multiplayerMode) {
     lives = 3;
+    time = 400;
     checkpointIndex = -1;
     resetLevel();
     gameState = 'playing';
@@ -1237,7 +1238,6 @@ function resetLevel() {
   enemiesKilled = 0;
   flagBonus = 0;
   timeBonus = 0;
-  time = 400;
   timeTimer = 0;
   matchTimeRemaining = 300;
   deathTimer = 0;
@@ -4452,6 +4452,7 @@ function connectSocket() {
           hideMenu();
           resumeGame();
           gameState = 'playing';
+          time = 400;
           checkpointIndex = -1;
           resetLevel();
           roomStartTime = data.startTime;
@@ -4687,6 +4688,7 @@ function startSinglePlayer() {
   hideMenu();
   gameState = 'playing';
   lives = 3;
+  time = 400;
   checkpointIndex = -1;
   resetLevel();
 }
