@@ -885,7 +885,7 @@ function stopStarMusic() {
 // ================================================================
 // LEVEL BUILDER
 // ================================================================
-const LEVEL_WIDTH = 470;
+const LEVEL_WIDTH = 480;
 const LEVEL_HEIGHT = 15;
 
 function buildLevel() {
@@ -1021,19 +1021,19 @@ function buildLevel() {
   for (let x = 410; x <= 411; x++) map[12][x] = 5;
   ground(419, 421);
 
-  // === SECTION 10: GRAND FINALE (421-469) ===
-  ground(422, 469);
+  // === SECTION 10: GRAND FINALE (421-479) ===
+  ground(422, 479);
   stairUp(413, 4);
   stairDown(418, 4);
 
-  // Boss arena: flat ground 422-433, gate at 434
+  // Boss arena: flat ground 422-443, gate at 444
   for (let y = 6; y <= 12; y++) map[y][BOSS_GATE_X] = 5;
 
   // Victory staircase after boss
-  stairUp(442, 8);
+  stairUp(452, 8);
 
   // Pre-boss blocks
-  map[9][424] = 3; map[9][426] = 2;
+  map[9][424] = 3; map[9][426] = 2; map[9][430] = 3; map[9][435] = 2;
 
   // === STAR BLOCK (late game reward for exploring) ===
   map[7][330] = 7;
@@ -1059,8 +1059,8 @@ const SKID_DECEL = 0.28;
 const COYOTE_FRAMES = 6;
 const JUMP_BUFFER_FRAMES = 6;
 
-const FLAGPOLE_X = 451;
-const CASTLE_X = 456;
+const FLAGPOLE_X = 461;
+const CASTLE_X = 466;
 const CHECKPOINT_XS = [120, 302, 396];
 
 // ================================================================
@@ -1185,7 +1185,7 @@ let marioFireballs = [];
 let fireballCooldown = 0;
 let starMusicInterval = null;
 const BOSS_ARENA_LEFT = 422;
-const BOSS_GATE_X = 434;
+const BOSS_GATE_X = 444;
 
 function resetMario() {
   const spawnX = checkpointIndex >= 0 ? CHECKPOINT_XS[checkpointIndex] * TILE : 40;
@@ -1341,7 +1341,7 @@ function spawnMapCoins() {
 
 function spawnBoss() {
   boss = {
-    x: 429 * TILE, y: 10 * TILE,
+    x: 433 * TILE, y: 10 * TILE,
     vx: -0.5, vy: 0,
     w: 28, h: 32,
     hp: 5, alive: true, dying: false, deathTimer: 0,
@@ -2162,29 +2162,20 @@ function updateBoss() {
     boss.jumpTimer = 0;
   }
 
-  // Throw fireballs toward Mario
+  // Throw fireballs toward Mario - occasional, not overwhelming
   boss.fireTimer++;
-  var fireInterval = bossRage ? 45 + Math.random() * 25 : 80 + Math.random() * 40;
+  var fireInterval = bossRage ? 120 + Math.random() * 80 : 180 + Math.random() * 120;
   if (boss.fireTimer > fireInterval) {
     boss.fireTimer = 0;
     const dir = mario.x < boss.x ? -1 : 1;
-    var fbSpeed = bossRage ? 3.2 : 2.5;
+    var fbSpeed = bossRage ? 2.8 : 2.2;
     bossFireballs.push({
       x: boss.x + (dir > 0 ? boss.w : -8),
       y: boss.y + 10,
       vx: dir * fbSpeed,
       vy: -1.5,
-      life: 200,
+      life: 180,
     });
-    if (bossRage) {
-      bossFireballs.push({
-        x: boss.x + (dir > 0 ? boss.w : -8),
-        y: boss.y + 14,
-        vx: dir * fbSpeed * 0.7,
-        vy: -2.5,
-        life: 200,
-      });
-    }
     playSound('fireball');
   }
 
