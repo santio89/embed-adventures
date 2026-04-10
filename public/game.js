@@ -4374,6 +4374,8 @@ const MARIO_COLOR_OPTIONS = [
   { id: 'rose',     label: 'Rose',     hat: '#e090b0', overalls: '#b06888', skin: '#f0b0c8', brown: '#904068' },
   { id: 'lemon',    label: 'Lemon',    hat: '#e8d888', overalls: '#c0a858', skin: '#f0e8b0', brown: '#a08838' },
   { id: 'lilac',    label: 'Lilac',    hat: '#d0a0e0', overalls: '#a070b8', skin: '#e0c0f0', brown: '#804898' },
+  { id: 'ember',    label: 'Ember',    hat: '#f0b868', overalls: '#c89040', skin: '#f8d8a0', brown: '#a07020' },
+  { id: 'frost',    label: 'Frost',    hat: '#b8e0f0', overalls: '#80b8d0', skin: '#d0f0f8', brown: '#5898b0' },
 ];
 
 function getColorOption(colorId) {
