@@ -2447,7 +2447,10 @@ function update() {
       matchEnding = true;
     }
   }
-  if (eliminated) return;
+  if (eliminated) {
+    globalTick++;
+    return;
+  }
   updateMario();
   updateEntities();
   updateBoss();
@@ -4172,6 +4175,9 @@ function render() {
     drawPixelText(bx, wText, ((VIEW_W - wW) / 2) | 0, (VIEW_H / 2 - 28) | 0, '#e0d0f8', null);
     drawBlobIcon(VIEW_W / 2 - 10, VIEW_H / 2 + 2, 10, mySelectedColor, false);
     drawPixelText(bx, 'x  ' + (lives - 1), (VIEW_W / 2 + 6) | 0, (VIEW_H / 2) | 0, '#e0d0f8', null);
+    if (multiplayerMode) {
+      document.getElementById('raceTimeline').classList.add('visible');
+    }
     ctx.drawImage(buf, 0, 0, buf.width, buf.height, 0, 0, canvas.width, canvas.height);
     drawScanlines();
     return;
@@ -4196,22 +4202,27 @@ function render() {
   drawHUD();
 
   if (eliminated && multiplayerMode) {
-    bx.fillStyle = 'rgba(16,8,24,0.8)';
-    bx.fillRect(0, VIEW_H / 2 - 48, VIEW_W, 96);
+    document.getElementById('raceTimeline').classList.add('visible');
 
-    const elText = 'OUT OF LIVES';
-    const elW = elText.length * 6;
-    drawPixelText(bx, elText, Math.round((VIEW_W - elW) / 2), VIEW_H / 2 - 40, '#ff80a0', '#1a1028');
+    bx.fillStyle = 'rgba(16,8,24,0.85)';
+    bx.fillRect(0, 0, VIEW_W, VIEW_H);
 
-    drawPixelText(bx, 'YOUR SCORE', 32, VIEW_H / 2 - 24, '#c0a8e8', '#1a1028');
-    drawPixelText(bx, 'COINS: ' + coins, 32, VIEW_H / 2 - 12, '#e0d0f8', '#1a1028');
-    drawPixelText(bx, 'ENEMIES: ' + enemiesKilled, 32, VIEW_H / 2 - 2, '#e0d0f8', '#1a1028');
-    const totalText = 'TOTAL: ' + score;
-    drawPixelText(bx, totalText, 32, VIEW_H / 2 + 12, '#c0a8e8', '#1a1028');
+    var elText = 'ELIMINATED';
+    var elW = elText.length * 6;
+    drawPixelText(bx, elText, Math.round((VIEW_W - elW) / 2), VIEW_H / 2 - 38, '#ff80a0', '#1a1028');
 
-    const waitText = 'WAITING FOR MATCH TO END...';
-    const waitW = waitText.length * 6;
-    drawPixelText(bx, waitText, Math.round((VIEW_W - waitW) / 2), VIEW_H / 2 + 30, '#a898c8', '#1a1028');
+    drawBlobIcon(VIEW_W / 2, VIEW_H / 2 - 14, 10, mySelectedColor, true);
+
+    drawPixelText(bx, 'SCORE: ' + score, 32, VIEW_H / 2 + 6, '#e0d0f8', '#1a1028');
+    drawPixelText(bx, 'COINS: ' + coins, 32, VIEW_H / 2 + 16, '#e0d0f8', '#1a1028');
+
+    var pulseAlpha = 0.5 + 0.5 * Math.sin(globalTick * 0.05);
+    bx.save();
+    bx.globalAlpha = pulseAlpha;
+    var waitText = 'WAITING FOR MATCH TO END...';
+    var waitW = waitText.length * 6;
+    drawPixelText(bx, waitText, Math.round((VIEW_W - waitW) / 2), VIEW_H / 2 + 34, '#a898c8', '#1a1028');
+    bx.restore();
   }
 
   if (gameState === 'win' && !multiplayerMode) {
@@ -4414,6 +4425,7 @@ function connectSocket() {
           roomMatchDuration = data.matchDuration || MATCH_DURATION;
           matchTimeRemaining = roomMatchDuration;
           matchEnding = false;
+          document.getElementById('raceTimeline').classList.add('visible');
         }
         if (!eliminated) {
           var localProgress = Math.min(1, mario.x / ((LEVEL_WIDTH - 15) * TILE));
@@ -4512,7 +4524,7 @@ function updateTimeline(players) {
     const col = getPlayerDisplayColor(p.color || 'lavender');
     let status = '';
     if (p.finished) status = ` ${(p.finishTime / 1000).toFixed(1)}s`;
-    else if (!p.alive) status = ' DEAD';
+    else if (!p.alive) status = ' ELIMINATED';
     return `<div class="timeline-player">
       <div class="timeline-name" style="color:${col}">${p.name}${status}</div>
       <div class="timeline-bar-bg">
@@ -4529,24 +4541,33 @@ function showResults(rankings) {
   document.getElementById('raceTimeline').classList.remove('visible');
 
   const div = document.getElementById('resultsPlayers');
-  const medals = ['1st', '2nd', '3rd'];
+  const medals = ['\u{1F947}', '\u{1F948}', '\u{1F949}'];
   const winner = rankings[0];
   let headerHtml = '';
-  if (winner && winner.finished) {
-    headerHtml = `<div style="color:#c0a8e8; font-size:16px; margin-bottom:10px; text-align:center;">${winner.name} WINS!</div>`;
+  if (winner) {
+    var winMsg = winner.finished ? winner.name + ' WINS!' : 'MATCH OVER';
+    headerHtml = `<div style="color:#e0d0f8; font-size:18px; margin-bottom:12px; text-align:center; text-shadow:0 0 8px rgba(160,120,220,0.5);">${winMsg}</div>`;
   }
   div.innerHTML = headerHtml + rankings.map((p, i) => {
-    const medal = medals[i] || `${i + 1}th`;
+    const medal = medals[i] || `#${i + 1}`;
     const col = getPlayerDisplayColor(p.color || 'lavender');
-    let timeStr = '';
-    if (p.finished) timeStr = `${(p.finishTime / 1000).toFixed(2)}s`;
-    else if (!p.alive) timeStr = 'OUT OF LIVES';
-    else timeStr = `${Math.round((p.progress || 0) * 100)}%`;
+    let statusStr = '';
+    if (p.finished) statusStr = `FINISHED ${(p.finishTime / 1000).toFixed(2)}s`;
+    else if (!p.alive) statusStr = 'ELIMINATED';
+    else statusStr = `${Math.round((p.progress || 0) * 100)}% progress`;
     const finalScore = p.finalScore || 0;
-    const coinStr = p.coins ? ` Coins:${p.coins}` : '';
-    return `<div style="color:${col}; font-size:13px; margin:4px 0; padding:4px 0; border-bottom:1px solid #3c2858;">
-      <span style="color:#c0a8e8;">${medal}</span> ${p.name} - ${timeStr}${coinStr}
-      <span style="color:#a898c8; font-size:11px;"> Score: ${finalScore}</span>
+    const coinCount = p.coins || 0;
+    const isWinner = i === 0;
+    const bgCol = isWinner ? 'rgba(100,70,160,0.3)' : 'rgba(40,25,70,0.2)';
+    return `<div style="background:${bgCol}; border-radius:6px; padding:6px 8px; margin:4px 0; border:1px solid rgba(120,90,180,0.3);">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:14px;">${medal} <span style="color:${col}; font-weight:bold;">${p.name}</span></span>
+        <span style="color:#e0d0f8; font-size:15px; font-weight:bold;">${finalScore}</span>
+      </div>
+      <div style="color:#a898c8; font-size:10px; margin-top:3px; display:flex; justify-content:space-between;">
+        <span>${statusStr}</span>
+        <span>Coins: ${coinCount}</span>
+      </div>
     </div>`;
   }).join('');
 
