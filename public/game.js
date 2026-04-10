@@ -2168,7 +2168,7 @@ function updateBoss() {
   if (boss.fireTimer > fireInterval) {
     boss.fireTimer = 0;
     const dir = mario.x < boss.x ? -1 : 1;
-    var fbSpeed = bossRage ? 2.8 : 2.2;
+    var fbSpeed = (bossRage ? 2.4 : 1.8) + Math.random() * 1.2;
     bossFireballs.push({
       x: boss.x + (dir > 0 ? boss.w : -8),
       y: boss.y + 10,
@@ -2176,6 +2176,16 @@ function updateBoss() {
       vy: -1.5,
       life: 180,
     });
+    if (Math.random() < (bossRage ? 0.3 : 0.15)) {
+      var fb2Speed = (bossRage ? 1.6 : 1.2) + Math.random() * 1.0;
+      bossFireballs.push({
+        x: boss.x + (dir > 0 ? boss.w : -8),
+        y: boss.y + 14,
+        vx: dir * fb2Speed,
+        vy: -2.5,
+        life: 180,
+      });
+    }
     playSound('fireball');
   }
 
