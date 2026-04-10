@@ -39,6 +39,7 @@ function resizeCanvas() {
   applyCrt();
 }
 resizeCanvas();
+wrapper.classList.add('ready');
 window.addEventListener('resize', resizeCanvas);
 if (scanlinesOn) {
   document.getElementById('scanlineToggle').textContent = 'CRT: ON';
@@ -1060,7 +1061,7 @@ const JUMP_BUFFER_FRAMES = 6;
 
 const FLAGPOLE_X = 451;
 const CASTLE_X = 456;
-const CHECKPOINT_XS = [120, 280];
+const CHECKPOINT_XS = [120, 302, 396];
 
 // ================================================================
 // GAME STATE
@@ -1156,6 +1157,7 @@ let particles = [];
 let coinAnims = [];
 let items = [];
 let scorePopups = [];
+var hudMessage = null;
 let score = 0;
 let coins = 0;
 let lives = 3;
@@ -1224,6 +1226,7 @@ function resetLevel() {
   coinAnims = [];
   items = [];
   scorePopups = [];
+  hudMessage = null;
   dustParticles = [];
   marioFireballs = [];
   fireballCooldown = 0;
@@ -1776,6 +1779,7 @@ function updateMario() {
     if (ci > checkpointIndex && mario.x >= CHECKPOINT_XS[ci] * TILE) {
       checkpointIndex = ci;
       playSound('powerup');
+      hudMessage = { text: 'CHECKPOINT REACHED!', life: 120, maxLife: 120 };
     }
   }
 
@@ -2407,6 +2411,11 @@ function updateParticles() {
 
   scorePopups.forEach(p => { p.y += p.vy; p.life--; });
   scorePopups = scorePopups.filter(p => p.life > 0);
+
+  if (hudMessage) {
+    hudMessage.life--;
+    if (hudMessage.life <= 0) hudMessage = null;
+  }
 
   dustParticles.forEach(d => {
     d.x += d.vx; d.y += d.vy; d.life--;
@@ -4200,6 +4209,27 @@ function render() {
   drawParticles();
   drawMario();
   drawHUD();
+
+  if (hudMessage) {
+    var hm = hudMessage;
+    var fadeIn = Math.min(1, (hm.maxLife - hm.life) / 15);
+    var fadeOut = Math.min(1, hm.life / 20);
+    var hmAlpha = Math.min(fadeIn, fadeOut);
+    var slideY = (1 - fadeIn) * -8;
+    bx.save();
+    bx.globalAlpha = hmAlpha * 0.6;
+    var hmW = hm.text.length * 6 + 20;
+    var hmX = Math.round((VIEW_W - hmW) / 2);
+    var hmY = Math.round(VIEW_H * 0.32 + slideY);
+    bx.fillStyle = '#1a1028';
+    bx.beginPath();
+    bx.roundRect(hmX, hmY - 2, hmW, 14, 4);
+    bx.fill();
+    bx.globalAlpha = hmAlpha;
+    var textX = Math.round((VIEW_W - hm.text.length * 6) / 2);
+    drawPixelText(bx, hm.text, textX, hmY + 1, '#e0d0f8', null);
+    bx.restore();
+  }
 
   if (eliminated && multiplayerMode) {
     document.getElementById('raceTimeline').classList.add('visible');
