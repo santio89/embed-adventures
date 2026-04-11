@@ -1276,13 +1276,13 @@ function spawnEnemies() {
     entities.push(createGoomba(x * TILE, gy));
   });
 
-  // Koopas - spaced out, more strategic
-  [48, 90, 125, 192, 235, 275, 365, 390].forEach(x => {
+  // Koopas - spaced out, more strategic, ramp up toward end
+  [48, 90, 125, 175, 192, 235, 275, 345, 365, 390].forEach(x => {
     entities.push(createKoopa(x * TILE, 12 * TILE));
   });
 
-  // Buzzy beetles - tough enemies, placed sparingly
-  [155, 385, 420].forEach(x => {
+  // Buzzy beetles - tough enemies, introduced mid-game and ramping up
+  [130, 155, 245, 370, 385].forEach(x => {
     entities.push(createBuzzyBeetle(x * TILE, 12 * TILE));
   });
 
@@ -1291,8 +1291,8 @@ function spawnEnemies() {
     entities.push(createPiranha(px, topRow));
   });
 
-  // Swooper enemies - fly in sine patterns
-  [35, 95, 145, 205, 295, 340, 395].forEach(x => {
+  // Swooper enemies - fly in sine patterns, mixed in throughout
+  [35, 95, 145, 205, 255, 295, 340, 375, 395].forEach(x => {
     entities.push(createSwooper(x * TILE, 7 * TILE));
   });
 }
@@ -1344,7 +1344,7 @@ function spawnBoss() {
     x: 433 * TILE, y: 10 * TILE,
     vx: -0.5, vy: 0,
     w: 28, h: 32,
-    hp: 4, alive: true, dying: false, deathTimer: 0,
+    hp: 3, alive: true, dying: false, deathTimer: 0,
     jumpTimer: 0, fireTimer: 0,
     frame: 0, frameTimer: 0,
     invincible: 0,
@@ -4364,18 +4364,18 @@ let lastProgressWrite = 0;
 let mySelectedColor = 'lavender';
 
 const MARIO_COLOR_OPTIONS = [
-  { id: 'lavender', label: 'Lavender', hat: '#c0a8e8', overalls: '#9880c0', skin: '#d8c8f0', brown: '#6040c0' },
-  { id: 'pink',     label: 'Pink',     hat: '#f0a0c0', overalls: '#c07090', skin: '#f8c8e0', brown: '#a04070' },
-  { id: 'blue',     label: 'Blue',     hat: '#90b8e8', overalls: '#5888b8', skin: '#b0d0f0', brown: '#3868a8' },
-  { id: 'mint',     label: 'Mint',     hat: '#88e0c8', overalls: '#58b0a0', skin: '#b0f0e0', brown: '#309880' },
-  { id: 'peach',    label: 'Peach',    hat: '#f8c8a8', overalls: '#d0a080', skin: '#f8d8c0', brown: '#b08060' },
-  { id: 'coral',    label: 'Coral',    hat: '#f0a090', overalls: '#c87068', skin: '#f8c8b8', brown: '#a05048' },
-  { id: 'sky',      label: 'Sky',      hat: '#a0c8f0', overalls: '#7098c0', skin: '#c0d8f8', brown: '#4878a8' },
-  { id: 'rose',     label: 'Rose',     hat: '#e090b0', overalls: '#b06888', skin: '#f0b0c8', brown: '#904068' },
-  { id: 'lemon',    label: 'Lemon',    hat: '#e8d888', overalls: '#c0a858', skin: '#f0e8b0', brown: '#a08838' },
-  { id: 'lilac',    label: 'Lilac',    hat: '#d0a0e0', overalls: '#a070b8', skin: '#e0c0f0', brown: '#804898' },
-  { id: 'ember',    label: 'Ember',    hat: '#f0b868', overalls: '#c89040', skin: '#f8d8a0', brown: '#a07020' },
-  { id: 'frost',    label: 'Frost',    hat: '#b8e0f0', overalls: '#80b8d0', skin: '#d0f0f8', brown: '#5898b0' },
+  { id: 'lavender', label: 'Lavender', hat: '#b8a0e0', overalls: '#8868b8', skin: '#d8c8f0', brown: '#5838a0' },
+  { id: 'hotpink',  label: 'Hot Pink', hat: '#f06098', overalls: '#c83870', skin: '#f8a0c0', brown: '#a02050' },
+  { id: 'blue',     label: 'Blue',     hat: '#5090e0', overalls: '#3060b0', skin: '#90b8f0', brown: '#1840a0' },
+  { id: 'mint',     label: 'Mint',     hat: '#58d8a8', overalls: '#30a878', skin: '#a0f0d0', brown: '#188860' },
+  { id: 'orange',   label: 'Orange',   hat: '#f09030', overalls: '#c86810', skin: '#f8c080', brown: '#a05000' },
+  { id: 'red',      label: 'Red',      hat: '#e04848', overalls: '#b02828', skin: '#f08888', brown: '#901818' },
+  { id: 'cyan',     label: 'Cyan',     hat: '#40d0e8', overalls: '#20a0b8', skin: '#88e8f0', brown: '#087898' },
+  { id: 'magenta',  label: 'Magenta',  hat: '#c848d0', overalls: '#9828a0', skin: '#e090e8', brown: '#781888' },
+  { id: 'yellow',   label: 'Yellow',   hat: '#e8d040', overalls: '#b8a020', skin: '#f0e888', brown: '#908010' },
+  { id: 'lime',     label: 'Lime',     hat: '#80d840', overalls: '#58a828', skin: '#b0f080', brown: '#388818' },
+  { id: 'gold',     label: 'Gold',     hat: '#e8a828', overalls: '#c08010', skin: '#f0c868', brown: '#906000' },
+  { id: 'white',    label: 'White',    hat: '#e0e0e8', overalls: '#a8a8b8', skin: '#f0f0f8', brown: '#787888' },
 ];
 
 function getColorOption(colorId) {
