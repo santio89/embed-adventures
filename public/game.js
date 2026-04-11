@@ -4155,10 +4155,10 @@ function drawCastle() {
     bx.fillRect(ccx + i * TILE, 7 * TILE, TILE - 2, 1);
   }
 
-  bx.fillStyle = '#1a1028';
+  bx.fillStyle = '#0a0818';
   bx.fillRect(ccx + TILE + 2, 9 * TILE + 2, 6, 8);
   bx.fillRect(ccx + 3 * TILE + 2, 9 * TILE + 2, 6, 8);
-  bx.fillStyle = 'rgba(100,80,160,0.3)';
+  bx.fillStyle = 'rgba(180,140,80,0.25)';
   bx.fillRect(ccx + TILE + 3, 9 * TILE + 3, 4, 2);
   bx.fillRect(ccx + 3 * TILE + 3, 9 * TILE + 3, 4, 2);
 
