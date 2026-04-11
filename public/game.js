@@ -1059,8 +1059,8 @@ const SKID_DECEL = 0.28;
 const COYOTE_FRAMES = 6;
 const JUMP_BUFFER_FRAMES = 6;
 
-const FLAGPOLE_X = 461;
-const CASTLE_X = 466;
+const FLAGPOLE_X = 464;
+const CASTLE_X = 469;
 const CHECKPOINT_XS = [120, 302, 396];
 
 // ================================================================
@@ -3664,9 +3664,9 @@ function drawBoss() {
   bx.beginPath();
   bx.roundRect(cx - barW / 2, barY, barW, barH, 1.5);
   bx.fill();
-  var hpFrac = Math.ceil(barW * boss.hp / 5);
-  var hpCol = boss.hp <= 1 ? '#ff3050' : boss.hp <= 2 ? '#ff6040' : boss.hp <= 3 ? '#e8c850' : '#a888e0';
-  var hpColL = boss.hp <= 1 ? '#ff8090' : boss.hp <= 2 ? '#ff9070' : boss.hp <= 3 ? '#fcf0a0' : '#d0b8f8';
+  var hpFrac = Math.ceil(barW * boss.hp / 3);
+  var hpCol = boss.hp <= 1 ? '#ff3050' : boss.hp <= 2 ? '#e8a030' : '#50c878';
+  var hpColL = boss.hp <= 1 ? '#ff8090' : boss.hp <= 2 ? '#fcd060' : '#80e8a0';
   var hpGrad = bx.createLinearGradient(0, barY, 0, barY + barH);
   hpGrad.addColorStop(0, hpColL);
   hpGrad.addColorStop(1, hpCol);
@@ -3674,7 +3674,7 @@ function drawBoss() {
   bx.beginPath();
   bx.roundRect(cx - barW / 2, barY, hpFrac, barH, 1.5);
   bx.fill();
-  if (boss.hp <= 2 && Math.sin(globalTick * 0.3) > 0) {
+  if (boss.hp <= 1 && Math.sin(globalTick * 0.3) > 0) {
     bx.save();
     bx.globalAlpha = 0.4;
     bx.fillStyle = '#ff3050';
