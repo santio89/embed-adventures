@@ -1313,6 +1313,11 @@ function spawnEnemies() {
   [145, 205, 255, 295, 340, 375].forEach(x => {
     entities.push(createSwooper(x * TILE, 7 * TILE));
   });
+
+  // Phantom enemies - slow floating ghosts, after first checkpoint
+  [175, 240, 320, 365].forEach(x => {
+    entities.push(createPhantom(x * TILE, 8 * TILE));
+  });
 }
 
 function spawnMapCoins() {
@@ -1415,11 +1420,20 @@ function createSwooper(x, y) {
   };
 }
 
+function createPhantom(x, y) {
+  return {
+    type: 'phantom', x, y, vx: 0.4, vy: 0,
+    w: 14, h: 14, alive: true, flat: false, flatTimer: 0,
+    frame: 0, frameTimer: 0,
+    baseY: y, floatTick: Math.random() * 100,
+  };
+}
+
 function addScorePopup(x, y, pts) {
   scorePopups.push({ x, y, text: String(pts), life: 50, vy: -0.8 });
 }
 
-const ENEMY_POINTS = { goomba: 100, koopa: 200, buzzy: 300, piranha: 400, swooper: 250, boss: 5000 };
+const ENEMY_POINTS = { goomba: 100, koopa: 200, buzzy: 300, piranha: 400, swooper: 250, phantom: 300, boss: 5000 };
 
 // ================================================================
 // COLLISION
@@ -1905,7 +1919,7 @@ function mariodie() {
 // ================================================================
 function updateEntities() {
   entities.forEach(e => {
-    if (!e.alive && (e.type === 'goomba' || e.type === 'buzzy' || e.type === 'swooper') && e.flat) {
+    if (!e.alive && (e.type === 'goomba' || e.type === 'buzzy' || e.type === 'swooper' || e.type === 'phantom') && e.flat) {
       e.flatTimer--;
       if (e.flatTimer <= 0) e.remove = true;
       return;
@@ -1954,7 +1968,18 @@ function updateEntities() {
     if (e.x > camera.x + VIEW_W + 48 || e.x < camera.x - 80) return;
 
     // Swooper: sine-wave flying enemy, no gravity
-    if (e.type === 'swooper') {
+    if (e.type === 'phantom') {
+      e.floatTick += 0.04;
+      e.x += e.vx;
+      e.y = e.baseY + Math.sin(e.floatTick) * 12;
+      e.frameTimer++;
+      if (e.frameTimer > 60 + Math.random() * 80) {
+        e.frameTimer = 0;
+        e.vx = -e.vx;
+      }
+      if (e.x < camera.x - 80) e.x = camera.x + VIEW_W + 32;
+      if (e.x > camera.x + VIEW_W + 80) e.x = camera.x - 32;
+    } else if (e.type === 'swooper') {
       e.swoopTick += 0.08;
       e.x += e.vx;
       e.y = e.baseY + Math.sin(e.swoopTick) * 24;
@@ -2024,7 +2049,7 @@ function updateEntities() {
       if (mario.vy > 0 && my + mh - e.y < 10) {
         const pts = ENEMY_POINTS[e.type] || 100;
         playSound('stomp');
-        if (e.type === 'goomba' || e.type === 'buzzy' || e.type === 'swooper') {
+        if (e.type === 'goomba' || e.type === 'buzzy' || e.type === 'swooper' || e.type === 'phantom') {
           e.alive = false;
           e.flat = true;
           e.flatTimer = 30;
@@ -3150,7 +3175,7 @@ function drawMario() {
 
 function drawEntities() {
   entities.forEach(e => {
-    if (!e.alive && e.type !== 'goomba' && e.type !== 'buzzy' && e.type !== 'swooper') return;
+    if (!e.alive && e.type !== 'goomba' && e.type !== 'buzzy' && e.type !== 'swooper' && e.type !== 'phantom') return;
     const sx = Math.floor(e.x - camera.rx);
     if (sx < -TILE || sx > VIEW_W + TILE) return;
 
@@ -3318,6 +3343,87 @@ function drawEntities() {
       bx.lineTo(scx + 1.5, scy + 2);
       bx.closePath();
       bx.fill();
+    } else if (e.type === 'phantom') {
+      if (e.flat) return;
+      var pcx = sx + 7, pcy = Math.floor(e.y) + 7;
+      var pTick = (e.floatTick || 0);
+      var pAlpha = 0.5 + Math.sin(pTick * 1.5) * 0.18;
+      var pFlicker = Math.sin(pTick * 4) * 0.08;
+
+      bx.save();
+      bx.globalAlpha = (pAlpha + pFlicker) * 0.25;
+      bx.fillStyle = '#8040c0';
+      bx.beginPath();
+      bx.arc(pcx, pcy, 12, 0, Math.PI * 2);
+      bx.fill();
+      bx.restore();
+
+      bx.save();
+      bx.globalAlpha = pAlpha + pFlicker;
+      var phGrad = bx.createRadialGradient(pcx, pcy - 3, 1, pcx, pcy, 7);
+      phGrad.addColorStop(0, '#c8b0e8');
+      phGrad.addColorStop(0.4, '#6848a0');
+      phGrad.addColorStop(1, '#2a1050');
+      bx.fillStyle = phGrad;
+      bx.beginPath();
+      bx.ellipse(pcx, pcy - 1, 6.5, 6, 0, 0, Math.PI * 2);
+      bx.fill();
+
+      var tailWave = Math.sin(pTick * 2.5);
+      for (var ti = 0; ti < 4; ti++) {
+        var tw = 3 - ti * 0.5;
+        var tOff = (ti % 2 === 0 ? 1 : -1) * tailWave * (ti + 1) * 0.7;
+        var ttx = pcx - 4.5 + ti * 3 + tOff;
+        var tty = pcy + 4.5 + ti * 2.5;
+        bx.globalAlpha = (pAlpha + pFlicker) * (0.6 - ti * 0.12);
+        bx.fillStyle = '#4a2878';
+        bx.beginPath();
+        bx.moveTo(ttx - tw, tty - 1);
+        bx.lineTo(ttx, tty + 3);
+        bx.lineTo(ttx + tw, tty - 1);
+        bx.closePath();
+        bx.fill();
+      }
+
+      bx.globalAlpha = pAlpha + pFlicker;
+      var eyeGlow = 0.4 + Math.sin(pTick * 3) * 0.2;
+      bx.save();
+      bx.globalAlpha = eyeGlow;
+      bx.fillStyle = '#ff4060';
+      bx.beginPath();
+      bx.ellipse(pcx - 2.5, pcy - 2, 3, 2.5, 0, 0, Math.PI * 2);
+      bx.fill();
+      bx.beginPath();
+      bx.ellipse(pcx + 2.5, pcy - 2, 3, 2.5, 0, 0, Math.PI * 2);
+      bx.fill();
+      bx.restore();
+
+      bx.globalAlpha = pAlpha + pFlicker;
+      bx.fillStyle = '#0a0418';
+      bx.beginPath();
+      bx.ellipse(pcx - 2.5, pcy - 2, 2, 1.8, 0, 0, Math.PI * 2);
+      bx.fill();
+      bx.beginPath();
+      bx.ellipse(pcx + 2.5, pcy - 2, 2, 1.8, 0, 0, Math.PI * 2);
+      bx.fill();
+      var pdir = e.vx > 0 ? 0.5 : -0.5;
+      bx.fillStyle = '#ff3050';
+      bx.beginPath();
+      bx.arc(pcx - 2.5 + pdir, pcy - 2.2, 0.8, 0, Math.PI * 2);
+      bx.fill();
+      bx.beginPath();
+      bx.arc(pcx + 2.5 + pdir, pcy - 2.2, 0.8, 0, Math.PI * 2);
+      bx.fill();
+
+      bx.fillStyle = '#0a0418';
+      bx.beginPath();
+      bx.arc(pcx + pdir * 0.5, pcy + 1.5, 2, 0, Math.PI);
+      bx.fill();
+      bx.fillStyle = '#e0d0f0';
+      bx.fillRect(pcx + pdir * 0.5 - 1.5, pcy + 1.5, 1, 1.5);
+      bx.fillRect(pcx + pdir * 0.5 + 0.5, pcy + 1.5, 1, 1.5);
+
+      bx.restore();
     } else if (e.type === 'piranha') {
       if (e.emergeOffset >= 0) return;
       const py = Math.floor(e.y);
