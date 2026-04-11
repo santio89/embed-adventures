@@ -132,45 +132,45 @@ function toggleScanlines() {
 // COLORS (NES palette)
 // ================================================================
 const COL = {
-  sky: '#c8b0e8',
-  ground: '#6858a0',
-  groundDark: '#4c3878',
-  groundLight: '#8878b8',
-  brick: '#7868a8',
-  brickLine: '#5c4888',
-  block: '#e8c850',
-  blockShade: '#c09828',
-  blockDark: '#987018',
-  pipe: '#6858b8',
-  pipeDark: '#3c2878',
-  pipeHighlight: '#9888d0',
+  sky: '#a080c8',
+  ground: '#5848a0',
+  groundDark: '#382868',
+  groundLight: '#7868b8',
+  brick: '#6858a8',
+  brickLine: '#483878',
+  block: '#f0d050',
+  blockShade: '#c8a030',
+  blockDark: '#a07818',
+  pipe: '#48a080',
+  pipeDark: '#286850',
+  pipeHighlight: '#68c8a0',
   mario: '#c0a8e8',
   marioSkin: '#d8c8f0',
   marioBrown: '#6040c0',
   marioOveralls: '#9880c0',
-  goomba: '#a06888',
-  goombaDark: '#784868',
-  koopa: '#5878b8',
-  koopaDark: '#384888',
-  coin: '#e8c850',
-  mushroom: '#e888b8',
+  goomba: '#c06888',
+  goombaDark: '#904060',
+  koopa: '#5080c0',
+  koopaDark: '#304888',
+  coin: '#f0d050',
+  mushroom: '#f070a0',
   mushroomSpots: '#fcfcfc',
   white: '#fcfcfc',
   black: '#000000',
-  flagPole: '#a898c0',
-  bush: '#8070b0',
-  bushLight: '#a898d0',
-  cloud: '#e8e0f8',
-  cloudShade: '#d0c0e8',
-  hillGreen: '#7060a0',
-  hillLight: '#a090c8',
-  castle: '#8070a0',
-  castleDark: '#584870',
-  castleLight: '#a098c0',
+  flagPole: '#a090c8',
+  bush: '#607098',
+  bushLight: '#8898b8',
+  cloud: '#f0ecfc',
+  cloudShade: '#c8b8e0',
+  hillGreen: '#584090',
+  hillLight: '#8870b8',
+  castle: '#6858a0',
+  castleDark: '#3c2868',
+  castleLight: '#9888c0',
   text: '#fcfcfc',
-  hardBlock: '#6068a0',
-  hardBlockLight: '#8890c0',
-  hardBlockDark: '#404870',
+  hardBlock: '#5060a0',
+  hardBlockLight: '#7080c0',
+  hardBlockDark: '#303870',
 };
 
 // ================================================================
@@ -962,7 +962,7 @@ function buildLevel() {
   map[7][112] = 2; map[7][113] = 3; map[7][114] = 2;
   map[9][138] = 2; map[9][139] = 3; map[9][140] = 2;
   map[7][140] = 2; map[7][141] = 3;
-  map[9][150] = 3; map[9][151] = 2; map[9][152] = 3;
+  map[9][150] = 4; map[9][151] = 2; map[9][152] = 3;
   map[5][107] = 6;
 
   // === SECTION 4: ELEVATED CHALLENGE (155-210) ===
@@ -985,7 +985,7 @@ function buildLevel() {
   map[9][230] = 2; map[9][231] = 2; map[9][232] = 3; map[9][233] = 2;
   map[5][231] = 4;
   map[9][240] = 2; map[9][241] = 3; map[9][242] = 2;
-  map[9][248] = 3;
+  map[9][248] = 4;
   addPipe(245, 2);
   map[7][220] = 3; map[7][221] = 2; map[7][222] = 3;
   map[9][236] = 3; map[9][237] = 2;
@@ -1020,7 +1020,7 @@ function buildLevel() {
   // === SECTION 8: SPRINT & PIPES (355-395) ===
   ground(356, 395);
   addPipe(360, 2); addPipe(370, 3);
-  map[9][363] = 3; map[9][364] = 2; map[9][365] = 3;
+  map[9][363] = 3; map[9][364] = 4; map[9][365] = 3;
   map[9][375] = 2; map[9][376] = 3; map[9][377] = 2;
   map[5][376] = 2;
   map[9][358] = 3; map[9][359] = 2;
@@ -2613,7 +2613,7 @@ function drawTile(x, y, tile) {
     case 3: case 4: case 6: case 7: {
       if (emptyBlocks.has(key)) {
         const eGrad = bx.createLinearGradient(0, y, 0, y + TILE);
-        eGrad.addColorStop(0, '#7868a0');
+        eGrad.addColorStop(0, '#6858a0');
         eGrad.addColorStop(1, COL.blockDark);
         bx.fillStyle = eGrad;
         bx.fillRect(sx, y, TILE, TILE);
@@ -2754,12 +2754,22 @@ function drawTile(x, y, tile) {
 
 function drawBackground() {
   const skyGrad = bx.createLinearGradient(0, 0, 0, VIEW_H);
-  skyGrad.addColorStop(0, '#9878c0');
-  skyGrad.addColorStop(0.35, '#b898d8');
-  skyGrad.addColorStop(0.65, '#c8b0e8');
-  skyGrad.addColorStop(0.85, '#d8c8f0');
-  skyGrad.addColorStop(1, '#e0d0f8');
+  skyGrad.addColorStop(0, '#2a1848');
+  skyGrad.addColorStop(0.25, '#4a3078');
+  skyGrad.addColorStop(0.5, '#7858a8');
+  skyGrad.addColorStop(0.7, '#a080c8');
+  skyGrad.addColorStop(0.85, '#c8a8e0');
+  skyGrad.addColorStop(1, '#e0d0f0');
   bx.fillStyle = skyGrad;
+  bx.fillRect(0, 0, VIEW_W, VIEW_H);
+
+  var glowX = VIEW_W * 0.75;
+  var glowY = VIEW_H * 0.15;
+  var warmGlow = bx.createRadialGradient(glowX, glowY, 0, glowX, glowY, VIEW_W * 0.55);
+  warmGlow.addColorStop(0, 'rgba(255,200,160,0.12)');
+  warmGlow.addColorStop(0.4, 'rgba(230,170,200,0.06)');
+  warmGlow.addColorStop(1, 'rgba(200,150,220,0)');
+  bx.fillStyle = warmGlow;
   bx.fillRect(0, 0, VIEW_W, VIEW_H);
 
   const GY = 13 * TILE;
@@ -2799,9 +2809,9 @@ function drawBackground() {
     if (hcx + outerR < -20 || hcx - outerR > VIEW_W + 20) return;
     var hillBase = GY + outerR * 0.4;
     var hGrad = bx.createRadialGradient(hcx - outerR * 0.2, hillBase - outerR * 0.7, outerR * 0.1, hcx, hillBase, outerR);
-    hGrad.addColorStop(0, '#a898d8');
-    hGrad.addColorStop(0.5, '#7868b0');
-    hGrad.addColorStop(1, '#504090');
+    hGrad.addColorStop(0, '#8870b8');
+    hGrad.addColorStop(0.5, '#584090');
+    hGrad.addColorStop(1, '#2a1858');
     bx.fillStyle = hGrad;
     bx.beginPath();
     bx.arc(hcx, hillBase, outerR, Math.PI, 0, false);
@@ -2843,7 +2853,7 @@ function drawBackground() {
       if (csx + totalW < -60 || csx > VIEW_W + 60) continue;
       bx.save();
       bx.globalAlpha = 0.15;
-      bx.fillStyle = '#504080';
+      bx.fillStyle = '#382858';
       for (let i = 0; i < cp.bumps; i++) {
         const ccx = csx + i * spacing + cloudR;
         bx.beginPath();
@@ -2856,7 +2866,7 @@ function drawBackground() {
         const cGrad = bx.createRadialGradient(ccx - 2, csy + cloudR - cloudR * 0.3, cloudR * 0.1, ccx, csy + cloudR, cloudR);
         cGrad.addColorStop(0, '#fcfcfc');
         cGrad.addColorStop(0.5, '#e8e0f8');
-        cGrad.addColorStop(1, '#d0c0e8');
+        cGrad.addColorStop(1, '#c8b8e0');
         bx.fillStyle = cGrad;
         bx.beginPath();
         bx.arc(ccx, csy + cloudR, cloudR, Math.PI, 0, false);
@@ -2891,15 +2901,15 @@ function drawBackground() {
       for (let i = 0; i < bp.bumps; i++) {
         const bcx = bsx + i * spacing + bushR;
         const buGrad = bx.createRadialGradient(bcx - 2, GY - 1 - bushR * 0.4, bushR * 0.15, bcx, GY - 1, bushR + 1);
-        buGrad.addColorStop(0, '#a898d8');
-        buGrad.addColorStop(0.5, '#7868b8');
-        buGrad.addColorStop(1, '#504098');
+        buGrad.addColorStop(0, '#9080c0');
+        buGrad.addColorStop(0.5, '#6050a0');
+        buGrad.addColorStop(1, '#382878');
         bx.fillStyle = buGrad;
         bx.beginPath();
         bx.arc(bcx, GY - 1, bushR, Math.PI, 0, false);
         bx.fill();
       }
-      bx.fillStyle = '#7868b8';
+      bx.fillStyle = '#6050a0';
       bx.fillRect(bsx, GY - 1, totalW, 2);
     }
   }
@@ -2920,24 +2930,24 @@ function drawBackground() {
       const trunkW = Math.floor(4 * s);
       const trunkH = Math.floor(12 * s);
       const tkGrad = bx.createLinearGradient(tsx - trunkW, 0, tsx + trunkW, 0);
-      tkGrad.addColorStop(0, '#504090');
-      tkGrad.addColorStop(0.5, '#6858a8');
-      tkGrad.addColorStop(1, '#504090');
+      tkGrad.addColorStop(0, '#3c2858');
+      tkGrad.addColorStop(0.5, '#584078');
+      tkGrad.addColorStop(1, '#3c2858');
       bx.fillStyle = tkGrad;
       bx.fillRect(tsx - Math.floor(trunkW / 2), GY - trunkH, trunkW, trunkH);
       const foliageR = Math.floor(9 * s);
       const foliageY = GY - trunkH - Math.floor(3 * s);
       const fGrad = bx.createRadialGradient(tsx - foliageR * 0.2, foliageY - foliageR * 0.3, foliageR * 0.1, tsx, foliageY, foliageR);
-      fGrad.addColorStop(0, '#a898d8');
-      fGrad.addColorStop(0.5, '#6858a8');
-      fGrad.addColorStop(1, '#403878');
+      fGrad.addColorStop(0, '#9878c8');
+      fGrad.addColorStop(0.5, '#6050a0');
+      fGrad.addColorStop(1, '#302060');
       bx.fillStyle = fGrad;
       bx.beginPath();
       bx.arc(tsx, foliageY, foliageR, 0, Math.PI * 2);
       bx.fill();
       bx.save();
-      bx.globalAlpha = 0.2;
-      bx.fillStyle = '#d0c0e8';
+      bx.globalAlpha = 0.25;
+      bx.fillStyle = '#d0c0f0';
       bx.beginPath();
       bx.arc(tsx - Math.floor(2 * s), foliageY - Math.floor(3 * s), Math.floor(3.5 * s), 0, Math.PI * 2);
       bx.fill();
@@ -2961,17 +2971,17 @@ function drawBackground() {
       for (let p = 0; p < 4; p++) {
         const fpx = fsx + p * 8;
         const pGrad = bx.createLinearGradient(fpx, 0, fpx + 3, 0);
-        pGrad.addColorStop(0, '#a898d0');
-        pGrad.addColorStop(0.5, '#9888c0');
-        pGrad.addColorStop(1, '#7868a8');
+        pGrad.addColorStop(0, '#9888c0');
+        pGrad.addColorStop(0.5, '#8070a8');
+        pGrad.addColorStop(1, '#605090');
         bx.fillStyle = pGrad;
         bx.fillRect(fpx, GY - 14, 3, 14);
         bx.fillStyle = 'rgba(255,255,255,0.15)';
         bx.fillRect(fpx, GY - 14, 3, 1);
       }
       const rGrad = bx.createLinearGradient(0, GY - 13, 0, GY - 11);
-      rGrad.addColorStop(0, '#a898d0');
-      rGrad.addColorStop(1, '#7868a8');
+      rGrad.addColorStop(0, '#9888c0');
+      rGrad.addColorStop(1, '#605090');
       bx.fillStyle = rGrad;
       bx.fillRect(fsx - 1, GY - 12, 34, 2);
       bx.fillRect(fsx - 1, GY - 6, 34, 2);
@@ -3592,7 +3602,7 @@ function drawParticles() {
     var alpha = (1 - t * t) * (d.sparkle ? 0.8 : 0.55);
     bx.save();
     bx.globalAlpha = alpha;
-    bx.fillStyle = d.sparkle ? '#fcf0a0' : '#e0d0f0';
+    bx.fillStyle = d.sparkle ? '#fcf0a0' : '#d8c8f0';
     bx.beginPath();
     bx.arc(dsx + 1, Math.floor(d.y) + 1, rad, 0, Math.PI * 2);
     bx.fill();
@@ -3968,8 +3978,8 @@ function drawBossGate() {
     const gy = row * TILE;
     const bgGrad = bx.createLinearGradient(gx, 0, gx + TILE, 0);
     bgGrad.addColorStop(0, '#6858b8');
-    bgGrad.addColorStop(0.5, '#5040a0');
-    bgGrad.addColorStop(1, '#3c2878');
+    bgGrad.addColorStop(0.5, '#4838a0');
+    bgGrad.addColorStop(1, '#2a1870');
     bx.fillStyle = bgGrad;
     bx.fillRect(gx, gy, TILE, TILE);
     bx.fillStyle = 'rgba(255,255,255,0.06)';
@@ -3988,13 +3998,6 @@ function drawMapCoins() {
     if (mcsx < -TILE || mcsx > VIEW_W + TILE) return;
     const bob = Math.sin(globalTick * 0.08 + c.x * 0.1) * 1.5;
     const mcy = Math.floor(c.y + bob);
-    bx.save();
-    bx.globalAlpha = 0.25;
-    bx.fillStyle = COL.coin;
-    bx.beginPath();
-    bx.arc(mcsx + 4, mcy + 4, 6, 0, Math.PI * 2);
-    bx.fill();
-    bx.restore();
     const mcGrad = bx.createRadialGradient(mcsx + 3, mcy + 3, 1, mcsx + 4, mcy + 4, 5);
     mcGrad.addColorStop(0, '#fcf0a0');
     mcGrad.addColorStop(0.5, COL.coin);
@@ -4004,20 +4007,28 @@ function drawMapCoins() {
     bx.ellipse(mcsx + 4, mcy + 4, 3.5, 4.5, 0, 0, Math.PI * 2);
     bx.fill();
     bx.save();
-    bx.globalAlpha = 0.5;
+    bx.globalAlpha = 0.4;
     bx.fillStyle = '#fcfcfc';
     bx.beginPath();
-    bx.ellipse(mcsx + 3, mcy + 3, 1, 1.5, 0, 0, Math.PI * 2);
+    bx.ellipse(mcsx + 3, mcy + 3, 0.8, 1.2, 0, 0, Math.PI * 2);
     bx.fill();
     bx.restore();
-    var sparkPhase = (globalTick * 0.12 + c.x * 0.3) % (Math.PI * 2);
-    if (sparkPhase < 0.6) {
+    var shinePhase = (globalTick * 0.004 + c.x * 0.07) % 1;
+    if (shinePhase < 0.08) {
+      var shineT = shinePhase / 0.08;
+      var shineAlpha = Math.sin(shineT * Math.PI) * 0.6;
+      var shinePos = -4 + shineT * 16;
       bx.save();
-      bx.globalAlpha = 0.7 * (1 - sparkPhase / 0.6);
-      bx.fillStyle = '#fff';
       bx.beginPath();
-      bx.arc(mcsx + 6, mcy + 1, 1, 0, Math.PI * 2);
-      bx.fill();
+      bx.ellipse(mcsx + 4, mcy + 4, 3.5, 4.5, 0, 0, Math.PI * 2);
+      bx.clip();
+      bx.globalAlpha = shineAlpha;
+      bx.strokeStyle = '#fcfcfc';
+      bx.lineWidth = 0.8;
+      bx.beginPath();
+      bx.moveTo(mcsx + shinePos, mcy - 1);
+      bx.lineTo(mcsx + shinePos + 4, mcy + 9);
+      bx.stroke();
       bx.restore();
     }
   });
