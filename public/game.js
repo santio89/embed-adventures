@@ -1777,7 +1777,7 @@ function updateMario() {
     if (timeTimer >= 36) {
       timeTimer = 0;
       time--;
-      if (time <= 50 && time > 0 && time % 2 === 0) playSound('warning');
+      if (time <= 30 && time > 0 && time % 2 === 0) playSound('warning');
       if (time <= 0) mariodie();
     }
   }
@@ -4091,7 +4091,7 @@ function drawHUD() {
     drawPixelText(bx, timeStr, 208, 18, tColor, sh);
   } else {
     drawPixelText(bx, 'TIME', 210, 8, COL.text, sh);
-    const tColor = time <= 50 && time % 2 === 0 ? '#ff80a0' : COL.text;
+    const tColor = time <= 30 && time % 2 === 0 ? '#ff80a0' : COL.text;
     drawPixelText(bx, String(Math.max(0, time)).padStart(3, '0'), 214, 18, tColor, sh);
   }
 
