@@ -2051,8 +2051,6 @@ function updateEntities() {
         playSound('stomp');
         if (e.type === 'goomba' || e.type === 'buzzy' || e.type === 'swooper' || e.type === 'phantom') {
           e.alive = false;
-          e.flat = true;
-          e.flatTimer = 30;
           e.vx = 0;
           score += pts;
           for (var si = 0; si < 4; si++) {
@@ -2067,6 +2065,12 @@ function updateEntities() {
           }
           enemiesKilled++;
           addScorePopup(e.x, e.y - 8, pts);
+          if (e.type === 'swooper' || e.type === 'phantom') {
+            e.remove = true;
+          } else {
+            e.flat = true;
+            e.flatTimer = 30;
+          }
         } else if (e.type === 'koopa') {
           if (!e.shell) {
             e.shell = true;
@@ -2793,21 +2797,25 @@ function drawBackground() {
   // --- HILLS (behind everything, slow parallax) ---
   function drawHill3(hcx, outerR) {
     if (hcx + outerR < -20 || hcx - outerR > VIEW_W + 20) return;
-    const hGrad = bx.createRadialGradient(hcx - outerR * 0.2, GY - outerR * 0.5, outerR * 0.1, hcx, GY, outerR);
+    var hillBase = GY + outerR * 0.4;
+    var hGrad = bx.createRadialGradient(hcx - outerR * 0.2, hillBase - outerR * 0.7, outerR * 0.1, hcx, hillBase, outerR);
     hGrad.addColorStop(0, '#a898d8');
     hGrad.addColorStop(0.5, '#7868b0');
     hGrad.addColorStop(1, '#504090');
     bx.fillStyle = hGrad;
     bx.beginPath();
-    bx.arc(hcx, GY, outerR, Math.PI, 0, false);
+    bx.arc(hcx, hillBase, outerR, Math.PI, 0, false);
+    bx.lineTo(hcx + outerR, VIEW_H + 4);
+    bx.lineTo(hcx - outerR, VIEW_H + 4);
     bx.closePath();
     bx.fill();
-    var hlGrad = bx.createRadialGradient(hcx - outerR * 0.2, GY - outerR * 0.55, outerR * 0.05, hcx - outerR * 0.2, GY - outerR * 0.3, outerR * 0.4);
+
+    var hlGrad = bx.createRadialGradient(hcx - outerR * 0.2, hillBase - outerR * 0.75, outerR * 0.05, hcx - outerR * 0.2, hillBase - outerR * 0.5, outerR * 0.4);
     hlGrad.addColorStop(0, 'rgba(255,255,255,0.18)');
     hlGrad.addColorStop(1, 'rgba(255,255,255,0)');
     bx.fillStyle = hlGrad;
     bx.beginPath();
-    bx.arc(hcx - outerR * 0.2, GY - outerR * 0.3, outerR * 0.4, 0, Math.PI * 2);
+    bx.arc(hcx - outerR * 0.2, hillBase - outerR * 0.5, outerR * 0.4, 0, Math.PI * 2);
     bx.fill();
   }
   for (let base = -CYCLE; base < totalLen + CYCLE; base += CYCLE) {
@@ -3345,83 +3353,83 @@ function drawEntities() {
       bx.fill();
     } else if (e.type === 'phantom') {
       if (e.flat) return;
-      var pcx = sx + 7, pcy = Math.floor(e.y) + 7;
+      var pcx = sx + 7, pcy = Math.floor(e.y) + 6;
       var pTick = (e.floatTick || 0);
-      var pAlpha = 0.5 + Math.sin(pTick * 1.5) * 0.18;
-      var pFlicker = Math.sin(pTick * 4) * 0.08;
+      var pAlpha = 0.85 + Math.sin(pTick * 1.5) * 0.1;
+      var pdir = e.vx > 0 ? 1 : -1;
+      var tailWave = Math.sin(pTick * 2.5);
 
       bx.save();
-      bx.globalAlpha = (pAlpha + pFlicker) * 0.25;
-      bx.fillStyle = '#8040c0';
-      bx.beginPath();
-      bx.arc(pcx, pcy, 12, 0, Math.PI * 2);
-      bx.fill();
-      bx.restore();
+      bx.globalAlpha = pAlpha;
 
-      bx.save();
-      bx.globalAlpha = pAlpha + pFlicker;
-      var phGrad = bx.createRadialGradient(pcx, pcy - 3, 1, pcx, pcy, 7);
-      phGrad.addColorStop(0, '#c8b0e8');
-      phGrad.addColorStop(0.4, '#6848a0');
-      phGrad.addColorStop(1, '#2a1050');
+      var phGrad = bx.createRadialGradient(pcx + 1, pcy - 2, 1, pcx, pcy + 1, 8);
+      phGrad.addColorStop(0, '#fcfcfc');
+      phGrad.addColorStop(0.5, '#e0d8f0');
+      phGrad.addColorStop(1, '#b8a8d8');
       bx.fillStyle = phGrad;
       bx.beginPath();
-      bx.ellipse(pcx, pcy - 1, 6.5, 6, 0, 0, Math.PI * 2);
+      bx.arc(pcx, pcy - 1, 7, Math.PI, 0, false);
+      bx.lineTo(pcx + 7, pcy + 4);
+      bx.lineTo(pcx + 4.5, pcy + 2 + tailWave);
+      bx.lineTo(pcx + 2, pcy + 5 + tailWave * 0.5);
+      bx.lineTo(pcx, pcy + 2 - tailWave * 0.5);
+      bx.lineTo(pcx - 2, pcy + 5 - tailWave * 0.5);
+      bx.lineTo(pcx - 4.5, pcy + 2 - tailWave);
+      bx.lineTo(pcx - 7, pcy + 4);
+      bx.closePath();
       bx.fill();
 
-      var tailWave = Math.sin(pTick * 2.5);
-      for (var ti = 0; ti < 4; ti++) {
-        var tw = 3 - ti * 0.5;
-        var tOff = (ti % 2 === 0 ? 1 : -1) * tailWave * (ti + 1) * 0.7;
-        var ttx = pcx - 4.5 + ti * 3 + tOff;
-        var tty = pcy + 4.5 + ti * 2.5;
-        bx.globalAlpha = (pAlpha + pFlicker) * (0.6 - ti * 0.12);
-        bx.fillStyle = '#4a2878';
-        bx.beginPath();
-        bx.moveTo(ttx - tw, tty - 1);
-        bx.lineTo(ttx, tty + 3);
-        bx.lineTo(ttx + tw, tty - 1);
-        bx.closePath();
-        bx.fill();
-      }
-
-      bx.globalAlpha = pAlpha + pFlicker;
-      var eyeGlow = 0.4 + Math.sin(pTick * 3) * 0.2;
       bx.save();
-      bx.globalAlpha = eyeGlow;
-      bx.fillStyle = '#ff4060';
+      bx.globalAlpha = 0.25;
+      bx.fillStyle = '#fcfcfc';
       bx.beginPath();
-      bx.ellipse(pcx - 2.5, pcy - 2, 3, 2.5, 0, 0, Math.PI * 2);
-      bx.fill();
-      bx.beginPath();
-      bx.ellipse(pcx + 2.5, pcy - 2, 3, 2.5, 0, 0, Math.PI * 2);
+      bx.ellipse(pcx + 1.5, pcy - 4, 3, 2, -0.3, 0, Math.PI * 2);
       bx.fill();
       bx.restore();
 
-      bx.globalAlpha = pAlpha + pFlicker;
-      bx.fillStyle = '#0a0418';
+      var armX = pcx + pdir * 6;
+      var armY = pcy + 1 + Math.sin(pTick * 2) * 1;
+      bx.fillStyle = '#d8d0e8';
       bx.beginPath();
-      bx.ellipse(pcx - 2.5, pcy - 2, 2, 1.8, 0, 0, Math.PI * 2);
-      bx.fill();
-      bx.beginPath();
-      bx.ellipse(pcx + 2.5, pcy - 2, 2, 1.8, 0, 0, Math.PI * 2);
-      bx.fill();
-      var pdir = e.vx > 0 ? 0.5 : -0.5;
-      bx.fillStyle = '#ff3050';
-      bx.beginPath();
-      bx.arc(pcx - 2.5 + pdir, pcy - 2.2, 0.8, 0, Math.PI * 2);
-      bx.fill();
-      bx.beginPath();
-      bx.arc(pcx + 2.5 + pdir, pcy - 2.2, 0.8, 0, Math.PI * 2);
+      bx.ellipse(armX, armY, 2.5, 1.8, pdir * 0.4, 0, Math.PI * 2);
       bx.fill();
 
-      bx.fillStyle = '#0a0418';
+      bx.fillStyle = '#1a0a28';
       bx.beginPath();
-      bx.arc(pcx + pdir * 0.5, pcy + 1.5, 2, 0, Math.PI);
+      bx.ellipse(pcx - 2.2 + pdir * 1.5, pcy - 2, 1.8, 2.2, 0, 0, Math.PI * 2);
       bx.fill();
-      bx.fillStyle = '#e0d0f0';
-      bx.fillRect(pcx + pdir * 0.5 - 1.5, pcy + 1.5, 1, 1.5);
-      bx.fillRect(pcx + pdir * 0.5 + 0.5, pcy + 1.5, 1, 1.5);
+      bx.beginPath();
+      bx.ellipse(pcx + 2.8 + pdir * 1.5, pcy - 2, 1.8, 2.2, 0, 0, Math.PI * 2);
+      bx.fill();
+      bx.fillStyle = '#fcfcfc';
+      bx.beginPath();
+      bx.arc(pcx - 2.2 + pdir * 1.5 - 0.4, pcy - 2.8, 0.5, 0, Math.PI * 2);
+      bx.fill();
+      bx.beginPath();
+      bx.arc(pcx + 2.8 + pdir * 1.5 - 0.4, pcy - 2.8, 0.5, 0, Math.PI * 2);
+      bx.fill();
+
+      bx.fillStyle = '#1a0a28';
+      bx.beginPath();
+      bx.ellipse(pcx + pdir * 2, pcy + 2, 3, 2.2, 0, 0, Math.PI);
+      bx.fill();
+      bx.fillStyle = '#c04060';
+      bx.beginPath();
+      bx.ellipse(pcx + pdir * 2, pcy + 3.2, 1.5, 1.2, 0, 0, Math.PI);
+      bx.fill();
+      bx.fillStyle = '#fcfcfc';
+      bx.beginPath();
+      bx.moveTo(pcx + pdir * 2 - 2.5, pcy + 2);
+      bx.lineTo(pcx + pdir * 2 - 1.5, pcy + 3);
+      bx.lineTo(pcx + pdir * 2 - 0.5, pcy + 2);
+      bx.closePath();
+      bx.fill();
+      bx.beginPath();
+      bx.moveTo(pcx + pdir * 2 + 0.5, pcy + 2);
+      bx.lineTo(pcx + pdir * 2 + 1.5, pcy + 3);
+      bx.lineTo(pcx + pdir * 2 + 2.5, pcy + 2);
+      bx.closePath();
+      bx.fill();
 
       bx.restore();
     } else if (e.type === 'piranha') {
