@@ -1267,7 +1267,6 @@ function spawnEnemies() {
     268, 286,
     350, 363,
     388, 399,
-    420, 425,
   ];
   goombaXs.forEach(x => {
     let gy = 12 * TILE;
@@ -1292,7 +1291,7 @@ function spawnEnemies() {
   });
 
   // Swooper enemies - fly in sine patterns, mixed in throughout
-  [35, 95, 145, 205, 255, 295, 340, 375, 395].forEach(x => {
+  [35, 95, 145, 205, 255, 295, 340, 375].forEach(x => {
     entities.push(createSwooper(x * TILE, 7 * TILE));
   });
 }
@@ -1761,6 +1760,15 @@ function updateMario() {
   if (mario.starPower > 0) {
     mario.starPower--;
     if (mario.starPower <= 0) stopStarMusic();
+    if (globalTick % 2 === 0) {
+      dustParticles.push({
+        x: mario.x + mario.w / 2 + (Math.random() - 0.5) * 8,
+        y: mario.y + (mario.big ? 12 : 8) + (Math.random() - 0.5) * 6,
+        vx: -mario.vx * 0.2 + (Math.random() - 0.5) * 0.3,
+        vy: -0.3 - Math.random() * 0.3,
+        life: 10 + Math.random() * 6, maxLife: 16, sparkle: true,
+      });
+    }
   }
 
   // Timer
@@ -1794,6 +1802,15 @@ function updateMario() {
       score += 200;
       coinAnims.push({ x: c.x, y: c.y - 8, vy: -3, life: 25 });
       addScorePopup(c.x, c.y - 12, 200);
+      for (var sp = 0; sp < 5; sp++) {
+        var sa = Math.random() * Math.PI * 2;
+        var sv = 0.5 + Math.random() * 1.2;
+        dustParticles.push({
+          x: c.x + 4, y: c.y + 4,
+          vx: Math.cos(sa) * sv, vy: Math.sin(sa) * sv - 0.5,
+          life: 12 + Math.random() * 6, maxLife: 18, sparkle: true,
+        });
+      }
       playSound('coin');
     }
   });
@@ -1889,19 +1906,7 @@ function updateEntities() {
       }
       if (mario.invincible > 0) return;
       if (mx < e.x + e.w && mx + mw > e.x && my < e.y + visH && my + mh > e.y) {
-        if (mario.vy > 0 && my + mh - e.y < 10) {
-          const pts = ENEMY_POINTS.piranha;
-          e.alive = false;
-          e.remove = true;
-          score += pts;
-          enemiesKilled++;
-          addScorePopup(e.x, e.y - 8, pts);
-          playSound('stomp');
-          mario.vy = -4.5;
-          mario.jumpsUsed = 1;
-        } else {
-          mariodie();
-        }
+        mariodie();
       }
       return;
     }
@@ -3414,11 +3419,11 @@ function drawParticles() {
     const dsx = Math.floor(d.x - camera.rx);
     var maxLife = d.maxLife || 10;
     var t = 1 - d.life / maxLife;
-    var rad = 1.2 + t * 1.5;
-    var alpha = (1 - t * t) * 0.55;
+    var rad = d.sparkle ? (0.8 + t * 0.8) : (1.2 + t * 1.5);
+    var alpha = (1 - t * t) * (d.sparkle ? 0.8 : 0.55);
     bx.save();
     bx.globalAlpha = alpha;
-    bx.fillStyle = '#e0d0f0';
+    bx.fillStyle = d.sparkle ? '#fcf0a0' : '#e0d0f0';
     bx.beginPath();
     bx.arc(dsx + 1, Math.floor(d.y) + 1, rad, 0, Math.PI * 2);
     bx.fill();
@@ -3681,6 +3686,26 @@ function drawBoss() {
     bx.beginPath();
     bx.roundRect(cx - barW / 2, barY, hpFrac, barH, 1.5);
     bx.fill();
+    bx.restore();
+  }
+  for (var ni = 1; ni < 3; ni++) {
+    var notchX = cx - barW / 2 + Math.round(barW * ni / 3);
+    bx.fillStyle = 'rgba(0,0,0,0.35)';
+    bx.fillRect(notchX, barY, 1, barH);
+  }
+  var shinePos = ((globalTick * 0.8) % (barW + 12)) - 6;
+  if (boss.hp > 0) {
+    bx.save();
+    bx.beginPath();
+    bx.roundRect(cx - barW / 2, barY, hpFrac, barH, 1.5);
+    bx.clip();
+    var shineX = cx - barW / 2 + shinePos;
+    var shGrad = bx.createLinearGradient(shineX - 3, 0, shineX + 3, 0);
+    shGrad.addColorStop(0, 'rgba(255,255,255,0)');
+    shGrad.addColorStop(0.5, 'rgba(255,255,255,0.25)');
+    shGrad.addColorStop(1, 'rgba(255,255,255,0)');
+    bx.fillStyle = shGrad;
+    bx.fillRect(shineX - 3, barY, 6, barH);
     bx.restore();
   }
 }
@@ -4259,9 +4284,12 @@ function render() {
   if (gameState === 'win' && !multiplayerMode) {
     bx.fillStyle = 'rgba(16,8,24,0.82)';
     bx.fillRect(0, VIEW_H / 2 - 52, VIEW_W, 104);
+
+    var titlePhase = Math.floor(globalTick / 4) % 3;
+    var titleCols = ['#c0a8e8', '#e0d0f8', '#d8b8f0'];
     const ccText = 'ADVENTURE CLEAR!';
     const ccW = ccText.length * 6;
-    drawPixelText(bx, ccText, Math.round((VIEW_W - ccW) / 2), VIEW_H / 2 - 44, '#c0a8e8', '#1a1028');
+    drawPixelText(bx, ccText, Math.round((VIEW_W - ccW) / 2), VIEW_H / 2 - 44, titleCols[titlePhase], '#1a1028');
 
     drawPixelText(bx, 'FLAG BONUS: ' + flagBonus, 32, VIEW_H / 2 - 28, '#e0d0f8', '#1a1028');
     drawPixelText(bx, 'TIME BONUS: ' + timeBonus, 32, VIEW_H / 2 - 18, '#e0d0f8', '#1a1028');
@@ -4271,9 +4299,13 @@ function render() {
     const totalText = 'TOTAL: ' + score;
     drawPixelText(bx, totalText, 32, VIEW_H / 2 + 16, '#c0a8e8', '#1a1028');
 
+    var prAlpha = 0.5 + 0.5 * Math.sin(globalTick * 0.06);
+    bx.save();
+    bx.globalAlpha = prAlpha;
     const prText = 'PRESS ENTER TO PLAY AGAIN';
     const prW = prText.length * 6;
-    drawPixelText(bx, prText, Math.round((VIEW_W - prW) / 2), VIEW_H / 2 + 34, '#a898c8', '#1a1028');
+    drawPixelText(bx, prText, Math.round((VIEW_W - prW) / 2), VIEW_H / 2 + 34, '#d0c0e8', '#1a1028');
+    bx.restore();
   }
 
   if (screenShake > 0.3) {
