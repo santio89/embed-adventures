@@ -380,7 +380,19 @@
     text-transform: uppercase;
   }
   .timeline-player { margin: 3px 0; }
-  .timeline-name { color: #d0c0e8; font-size: clamp(7px, 1.2vw, 9px); margin-bottom: 2px; }
+  .timeline-name { color: #d0c0e8; font-size: clamp(7px, 1.2vw, 9px); margin-bottom: 2px; display: flex; align-items: center; gap: 3px; }
+  .timeline-initial {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    font-size: 7px;
+    font-weight: 700;
+    color: #0c0614;
+    flex-shrink: 0;
+    line-height: 1;
+  }
   .timeline-bar-bg {
     background: rgba(40,25,70,0.6);
     height: 5px;

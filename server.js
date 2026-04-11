@@ -13,7 +13,7 @@ const MIME = {
 
 const rooms = new Map();
 const ROOM_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const MAX_PLAYERS = 10;
+const MAX_PLAYERS = 50;
 const ROOM_TTL = 30 * 60 * 1000;
 
 function genCode() {
@@ -113,11 +113,9 @@ io.on('connection', (socket) => {
 
     if (!room) { if (typeof ack === 'function') ack({ ok: false, error: 'Room not found' }); return; }
     if (room.state !== 'waiting') { if (typeof ack === 'function') ack({ ok: false, error: 'Game already started' }); return; }
-    if (room.players.size >= MAX_PLAYERS) { if (typeof ack === 'function') ack({ ok: false, error: 'Room full (max 10)' }); return; }
+    if (room.players.size >= MAX_PLAYERS) { if (typeof ack === 'function') ack({ ok: false, error: 'Room full (max ' + MAX_PLAYERS + ')' }); return; }
 
-    const takenColors = [...room.players.values()].map(p => p.color);
-    let color = msg.color || 'lavender';
-    if (takenColors.includes(color)) color = msg.fallbackColor || color;
+    const color = msg.color || 'lavender';
 
     const playerData = {
       id: msg.playerId,

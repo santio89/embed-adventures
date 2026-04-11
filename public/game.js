@@ -1099,7 +1099,14 @@ let jumpBufferTimer = 0;
 let jumpPressed = false;
 let jumpHeld = false;
 
+let showScoreboard = false;
+
 window.addEventListener('keydown', e => {
+  if (e.code === 'Tab') {
+    e.preventDefault();
+    if (!e.repeat && multiplayerMode && gameState === 'playing') showScoreboard = true;
+    return;
+  }
   if (e.repeat) return;
   keys[e.code] = true;
   if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
@@ -1146,6 +1153,9 @@ window.addEventListener('keyup', e => {
   keys[e.code] = false;
   if (e.code === 'Space' || e.code === 'ArrowUp') {
     jumpHeld = false;
+  }
+  if (e.code === 'Tab') {
+    showScoreboard = false;
   }
 });
 
@@ -4222,6 +4232,7 @@ function drawProgressBar() {
     const progress = Math.max(0, Math.min(1, p.progress || 0));
     const px = barX + Math.round(progress * (barW - 4));
     const isMe = p.id === myPlayerId;
+    const initial = (p.name || '?')[0].toUpperCase();
 
     if (!p.alive && !p.finished) {
       bx.fillStyle = '#555';
@@ -4247,6 +4258,16 @@ function drawProgressBar() {
         bx.fill();
         bx.restore();
       }
+    }
+    if (isMe || p.finished) {
+      bx.save();
+      bx.font = 'bold 5px sans-serif';
+      bx.textAlign = 'center';
+      bx.textBaseline = 'middle';
+      bx.fillStyle = isMe ? '#fff' : col;
+      bx.globalAlpha = 0.9;
+      bx.fillText(initial, px + 1.5, barY - 3);
+      bx.restore();
     }
   });
 }
@@ -4289,6 +4310,110 @@ function drawHUD() {
   }
 
   drawProgressBar();
+}
+
+function drawScoreboard() {
+  if (!showScoreboard || !multiplayerMode || racePlayers.length === 0) return;
+
+  const sorted = racePlayers.slice().sort((a, b) => {
+    if (a.finished && !b.finished) return -1;
+    if (!a.finished && b.finished) return 1;
+    if (a.finished && b.finished) return (a.finishTime || 0) - (b.finishTime || 0);
+    if (!a.alive && b.alive) return 1;
+    if (a.alive && !b.alive) return -1;
+    return (b.progress || 0) - (a.progress || 0);
+  });
+
+  const rowH = 9;
+  const titleH = 12;
+  const colHeaderH = 10;
+  const headerH = titleH + colHeaderH;
+  const maxVisible = Math.min(sorted.length, 16);
+  const hasMore = sorted.length > maxVisible;
+  const panelH = headerH + maxVisible * rowH + (hasMore ? 12 : 5);
+  const panelW = 236;
+  const panelX = Math.floor((VIEW_W - panelW) / 2);
+  const panelY = Math.floor((VIEW_H - panelH) / 2);
+
+  const colName = panelX + 18;
+  const colProg = panelX + 108;
+  const colCoins = panelX + 142;
+  const colScore = panelX + 174;
+  const colStatus = panelX + 210;
+
+  bx.save();
+  bx.globalAlpha = 0.92;
+  bx.fillStyle = '#0c0614';
+  bx.beginPath();
+  bx.roundRect(panelX, panelY, panelW, panelH, 4);
+  bx.fill();
+  bx.restore();
+
+  bx.fillStyle = 'rgba(160,120,220,0.25)';
+  bx.fillRect(panelX + 2, panelY, panelW - 4, 1);
+  bx.fillRect(panelX + 2, panelY + panelH - 1, panelW - 4, 1);
+
+  var titleStr = 'RACE  ' + racePlayers.length + ' PLAYERS';
+  var titleW = titleStr.length * 6;
+  drawPixelText(bx, titleStr, panelX + Math.floor((panelW - titleW) / 2), panelY + 3, '#c0a8e8', null);
+
+  var colY = panelY + titleH + 1;
+  drawPixelText(bx, '#', panelX + 5, colY, '#6858a0', null);
+  drawPixelText(bx, 'NAME', colName, colY, '#6858a0', null);
+  drawPixelText(bx, 'PROG', colProg, colY, '#6858a0', null);
+  drawPixelText(bx, 'COINS', colCoins, colY, '#6858a0', null);
+  drawPixelText(bx, 'SCORE', colScore, colY, '#6858a0', null);
+
+  bx.fillStyle = 'rgba(160,120,220,0.12)';
+  bx.fillRect(panelX + 4, panelY + headerH - 1, panelW - 8, 1);
+
+  for (var i = 0; i < maxVisible; i++) {
+    var p = sorted[i];
+    var col = getPlayerDisplayColor(p.color || 'lavender');
+    var rowY = panelY + headerH + i * rowH;
+    var isMe = p.id === myPlayerId;
+
+    if (isMe) {
+      bx.save();
+      bx.globalAlpha = 0.15;
+      bx.fillStyle = col;
+      bx.fillRect(panelX + 2, rowY, panelW - 4, rowH);
+      bx.restore();
+    }
+
+    if (i % 2 === 1 && !isMe) {
+      bx.save();
+      bx.globalAlpha = 0.035;
+      bx.fillStyle = '#fff';
+      bx.fillRect(panelX + 2, rowY, panelW - 4, rowH);
+      bx.restore();
+    }
+
+    drawPixelText(bx, String(i + 1), panelX + 5, rowY + 1, '#8878a8', null);
+
+    var nameStr = p.name || 'Blobby';
+    if (nameStr.length > 12) nameStr = nameStr.substring(0, 12);
+    drawPixelText(bx, nameStr, colName, rowY + 1, col, null);
+
+    var pctStr = Math.round((p.progress || 0) * 100) + '%';
+    drawPixelText(bx, pctStr, colProg, rowY + 1, '#d0c0e8', null);
+
+    drawPixelText(bx, String(p.coins || 0), colCoins, rowY + 1, '#f0d050', null);
+
+    drawPixelText(bx, String(p.gameScore || 0), colScore, rowY + 1, '#e0d0f8', null);
+
+    var statusStr = '';
+    if (p.finished) statusStr = (p.finishTime / 1000).toFixed(1) + 'S';
+    else if (!p.alive) statusStr = 'OUT';
+    var statusCol = p.finished ? '#80e8a0' : '#ff6060';
+    if (statusStr) drawPixelText(bx, statusStr, colStatus, rowY + 1, statusCol, null);
+  }
+
+  if (hasMore) {
+    var moreStr = '+' + (sorted.length - maxVisible) + ' MORE';
+    var moreW = moreStr.length * 6;
+    drawPixelText(bx, moreStr, panelX + Math.floor((panelW - moreW) / 2), panelY + panelH - 10, '#8878a8', null);
+  }
 }
 
 function drawLevel() {
@@ -4442,6 +4567,7 @@ function render() {
   drawParticles();
   drawMario();
   drawHUD();
+  drawScoreboard();
 
   if (hudMessage) {
     var hm = hudMessage;
@@ -4795,20 +4921,21 @@ function updateLobbyPlayers(players) {
     return `<div style="color:${col}">${i === 0 ? '&#9733; ' : '  '}${p.name}${p.id === myPlayerId ? ' (You)' : ''}</div>`;
   }).join('');
 
-  const takenColors = players.filter(p => p.id !== myPlayerId).map(p => p.color).filter(Boolean);
-  renderColorPicker('lobbyColorPicker', takenColors);
+  renderColorPicker('lobbyColorPicker', []);
 }
 
 function updateTimeline(players) {
   const div = document.getElementById('timelinePlayers');
-  div.innerHTML = players.map((p, i) => {
+  const sorted = players.slice().sort((a, b) => (b.progress || 0) - (a.progress || 0));
+  div.innerHTML = sorted.map((p, i) => {
     const pct = Math.round((p.progress || 0) * 100);
     const col = getPlayerDisplayColor(p.color || 'lavender');
+    const initial = (p.name || '?')[0].toUpperCase();
     let status = '';
     if (p.finished) status = ` ${(p.finishTime / 1000).toFixed(1)}s`;
     else if (!p.alive) status = ' ELIMINATED';
     return `<div class="timeline-player">
-      <div class="timeline-name" style="color:${col}">${p.name}${status}</div>
+      <div class="timeline-name" style="color:${col}"><span class="timeline-initial" style="background:${col};">${initial}</span>${p.name}${status}</div>
       <div class="timeline-bar-bg">
         <div class="timeline-bar-fill" style="width:${pct}%;background:${col};"></div>
       </div>
@@ -4978,22 +5105,17 @@ function joinRoom() {
   btn.innerHTML = '<span class="spinner"></span>JOINING...';
   document.getElementById('joinError').textContent = '';
 
-  var availableColors = MARIO_COLOR_OPTIONS.map(function(c) { return c.id; });
-  var fallback = availableColors[Math.floor(Math.random() * availableColors.length)];
-
   connectSocket();
   ws.emit('join_room', {
     code: code,
     playerId: myPlayerId,
     name: name.substring(0, 12),
     color: mySelectedColor,
-    fallbackColor: fallback,
   }, function(res) {
     btn.disabled = false;
     btn.innerHTML = 'JOIN';
     if (res.ok) {
       currentRoomCode = res.code;
-      if (res.color) mySelectedColor = res.color;
       isHost = false;
       multiplayerMode = true;
     } else {
