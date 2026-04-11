@@ -848,6 +848,25 @@ function playSound(type) {
         gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.15);
         osc.start(c.currentTime); osc.stop(c.currentTime + 0.15);
         break;
+      case 'kick':
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(700, c.currentTime);
+        osc.frequency.linearRampToValueAtTime(250, c.currentTime + 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.1);
+        osc.start(c.currentTime); osc.stop(c.currentTime + 0.1);
+        break;
+      case '1up':
+        osc.type = 'square';
+        gain.gain.setValueAtTime(0.06, c.currentTime);
+        osc.frequency.setValueAtTime(330, c.currentTime);
+        osc.frequency.setValueAtTime(392, c.currentTime + 0.06);
+        osc.frequency.setValueAtTime(523, c.currentTime + 0.12);
+        osc.frequency.setValueAtTime(659, c.currentTime + 0.18);
+        osc.frequency.setValueAtTime(784, c.currentTime + 0.24);
+        osc.frequency.setValueAtTime(1047, c.currentTime + 0.30);
+        gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.45);
+        osc.start(c.currentTime); osc.stop(c.currentTime + 0.45);
+        break;
     }
   } catch(e) {}
 }
@@ -1291,7 +1310,7 @@ function spawnEnemies() {
   });
 
   // Swooper enemies - fly in sine patterns, mixed in throughout
-  [35, 95, 145, 205, 255, 295, 340, 375].forEach(x => {
+  [145, 205, 255, 295, 340, 375].forEach(x => {
     entities.push(createSwooper(x * TILE, 7 * TILE));
   });
 }
@@ -1449,7 +1468,7 @@ function hitBlock(tx, ty) {
     } else if (tile === 6) {
       lives++;
       addScorePopup(tx * TILE, ty * TILE - 16, '1UP');
-      playSound('powerup');
+      playSound('1up');
     } else if (tile === 7) {
       items.push({
         type: 'star',
@@ -1734,6 +1753,16 @@ function updateMario() {
     mario.frame = 0;
   } else if (mario.skidding) {
     mario.frame = 0;
+    if (globalTick % 3 === 0) {
+      var skidMh = mario.big ? 24 : 16;
+      dustParticles.push({
+        x: mario.x + mario.w / 2 + mario.facing * -3,
+        y: mario.y + skidMh,
+        vx: mario.vx * 0.15,
+        vy: -0.3 - Math.random() * 0.4,
+        life: 8 + Math.random() * 4, maxLife: 12,
+      });
+    }
   } else if (mario.vx !== 0 && Math.abs(mario.vx) > 0.1) {
     mario.frameTimer++;
     const animSpeed = Math.max(4, 14 - Math.abs(mario.vx) * 3);
@@ -1744,6 +1773,17 @@ function updateMario() {
   } else {
     mario.frame = 0;
     mario.frameTimer = 0;
+  }
+
+  if (mario.onGround && Math.abs(mario.vx) > 2.0 && globalTick % 4 === 0 && !mario.dead) {
+    var sprintMh = mario.big ? 24 : 16;
+    dustParticles.push({
+      x: mario.x + mario.w / 2 - mario.facing * 3,
+      y: mario.y + sprintMh,
+      vx: -mario.vx * 0.08 + (Math.random() - 0.5) * 0.2,
+      vy: -0.2 - Math.random() * 0.3,
+      life: 6 + Math.random() * 4, maxLife: 10,
+    });
   }
 
   // Camera (smooth lerp, float precision kept for tracking)
@@ -2606,8 +2646,17 @@ function drawTile(x, y, tile) {
       bx.fillStyle = 'rgba(0,0,0,0.15)';
       bx.fillRect(sx + TILE - 1, y, 1, TILE);
       bx.fillRect(sx, y + TILE - 1, TILE, 1);
-      bx.fillStyle = 'rgba(0,0,0,0.08)';
-      bx.fillRect(sx + 3, y + 3, TILE - 6, TILE - 6);
+      bx.fillStyle = 'rgba(0,0,0,0.06)';
+      bx.fillRect(sx + 2, y + 2, TILE - 4, TILE - 4);
+      bx.fillStyle = 'rgba(255,255,255,0.07)';
+      bx.fillRect(sx + 3, y + 3, TILE - 6, 1);
+      bx.fillRect(sx + 3, y + 3, 1, TILE - 6);
+      bx.fillStyle = 'rgba(0,0,0,0.06)';
+      bx.fillRect(sx + TILE - 4, y + 3, 1, TILE - 6);
+      bx.fillRect(sx + 3, y + TILE - 4, TILE - 6, 1);
+      bx.fillStyle = 'rgba(0,0,0,0.04)';
+      bx.fillRect(sx + 7, y + 2, 1, TILE - 4);
+      bx.fillRect(sx + 2, y + 7, TILE - 4, 1);
       break;
     }
 
@@ -2647,8 +2696,10 @@ function drawTile(x, y, tile) {
       bx.fillRect(sx + 1, y + 1, 2, TILE - 2);
       bx.fillStyle = 'rgba(0,0,0,0.1)';
       bx.fillRect(sx - 2, y + TILE - 1, TILE + 4, 1);
+      bx.fillStyle = 'rgba(0,0,0,0.08)';
+      bx.fillRect(sx - 1, y + 2, TILE + 2, 1);
       bx.fillStyle = 'rgba(255,255,255,0.06)';
-      bx.fillRect(sx, y + 2, TILE - 2, 1);
+      bx.fillRect(sx, y + 3, TILE - 2, 1);
       break;
     }
     case 13: {
@@ -2661,6 +2712,10 @@ function drawTile(x, y, tile) {
       bx.fillRect(sx, y, TILE + 2, TILE);
       bx.fillStyle = 'rgba(255,255,255,0.18)';
       bx.fillRect(sx, y, TILE + 2, 1.5);
+      bx.fillStyle = 'rgba(0,0,0,0.08)';
+      bx.fillRect(sx, y + 2, TILE + 2, 1);
+      bx.fillStyle = 'rgba(255,255,255,0.05)';
+      bx.fillRect(sx + 1, y + 3, TILE, 1);
       bx.fillStyle = 'rgba(0,0,0,0.08)';
       bx.fillRect(sx, y + TILE - 1, TILE + 2, 1);
       break;
@@ -2722,13 +2777,13 @@ function drawBackground() {
     bx.arc(hcx, GY, outerR, Math.PI, 0, false);
     bx.closePath();
     bx.fill();
-    bx.save();
-    bx.globalAlpha = 0.15;
-    bx.fillStyle = '#fcfcfc';
+    var hlGrad = bx.createRadialGradient(hcx - outerR * 0.2, GY - outerR * 0.55, outerR * 0.05, hcx - outerR * 0.2, GY - outerR * 0.3, outerR * 0.4);
+    hlGrad.addColorStop(0, 'rgba(255,255,255,0.18)');
+    hlGrad.addColorStop(1, 'rgba(255,255,255,0)');
+    bx.fillStyle = hlGrad;
     bx.beginPath();
-    bx.arc(hcx - outerR * 0.2, GY - outerR * 0.1, outerR * 0.3, Math.PI, 0, false);
+    bx.arc(hcx - outerR * 0.2, GY - outerR * 0.3, outerR * 0.4, 0, Math.PI * 2);
     bx.fill();
-    bx.restore();
   }
   for (let base = -CYCLE; base < totalLen + CYCLE; base += CYCLE) {
     drawHill3(Math.floor((base + 0) - camera.rx * 0.4), 5 * T);
@@ -3760,6 +3815,7 @@ function drawMarioFireballs() {
     if (fbsx < -16 || fbsx > VIEW_W + 16) return;
     const fby = Math.floor(fb.y);
     const fbcx = fbsx + 4, fbcy = fby + 4;
+    var fbSpin = globalTick * 0.4;
     bx.save();
     bx.globalAlpha = 0.3;
     bx.fillStyle = '#c0a8e8';
@@ -3767,14 +3823,26 @@ function drawMarioFireballs() {
     bx.arc(fbcx, fbcy, 6, 0, Math.PI * 2);
     bx.fill();
     bx.restore();
+    var fbPhase = Math.floor(globalTick / 2) % 3;
+    var fbCols = [['#fcfcfc','#e0d0f8','#a888d0'],['#fff0c0','#f0c080','#c08040'],['#ffd0e0','#e0a0c0','#a06090']];
+    var fbc = fbCols[fbPhase];
     const fbGrad = bx.createRadialGradient(fbcx - 1, fbcy - 1, 0.5, fbcx, fbcy, 4);
-    fbGrad.addColorStop(0, '#fcfcfc');
-    fbGrad.addColorStop(0.4, '#e0d0f8');
-    fbGrad.addColorStop(1, '#a888d0');
+    fbGrad.addColorStop(0, fbc[0]);
+    fbGrad.addColorStop(0.4, fbc[1]);
+    fbGrad.addColorStop(1, fbc[2]);
     bx.fillStyle = fbGrad;
     bx.beginPath();
     bx.arc(fbcx, fbcy, 3.5, 0, Math.PI * 2);
     bx.fill();
+    bx.save();
+    bx.globalAlpha = 0.5;
+    bx.fillStyle = '#fcfcfc';
+    var spkX = fbcx + Math.cos(fbSpin) * 2;
+    var spkY = fbcy + Math.sin(fbSpin) * 2;
+    bx.beginPath();
+    bx.arc(spkX, spkY, 1, 0, Math.PI * 2);
+    bx.fill();
+    bx.restore();
   });
 }
 
@@ -4194,10 +4262,24 @@ function render() {
   if (gameState === 'gameover') {
     bx.fillStyle = '#100818';
     bx.fillRect(0, 0, VIEW_W, VIEW_H);
-    drawBlobIcon(VIEW_W / 2, VIEW_H / 2 - 16, 12, mySelectedColor, true);
-    const goText = 'GAME OVER';
-    const goW = goText.length * 6;
-    drawPixelText(bx, goText, ((VIEW_W - goW) / 2) | 0, (VIEW_H / 2 + 8) | 0, '#c0a8e8', '#1a1028');
+    var goVig = bx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.2, VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.7);
+    goVig.addColorStop(0, 'rgba(40,20,60,0.0)');
+    goVig.addColorStop(1, 'rgba(0,0,0,0.35)');
+    bx.fillStyle = goVig;
+    bx.fillRect(0, 0, VIEW_W, VIEW_H);
+    drawBlobIcon(VIEW_W / 2, VIEW_H / 2 - 20, 12, mySelectedColor, true);
+    var goPhase = Math.floor(globalTick / 5) % 3;
+    var goCols = ['#c0a8e8', '#d8b8f0', '#b098d0'];
+    var goText = 'GAME OVER';
+    var goW = goText.length * 6;
+    drawPixelText(bx, goText, ((VIEW_W - goW) / 2) | 0, (VIEW_H / 2 + 6) | 0, goCols[goPhase], '#1a1028');
+    var goAlpha = 0.4 + 0.4 * Math.sin(globalTick * 0.06);
+    bx.save();
+    bx.globalAlpha = goAlpha;
+    var goPrompt = 'PRESS ENTER';
+    var goPW = goPrompt.length * 6;
+    drawPixelText(bx, goPrompt, ((VIEW_W - goPW) / 2) | 0, (VIEW_H / 2 + 22) | 0, '#a090c0', null);
+    bx.restore();
     ctx.drawImage(buf, 0, 0, buf.width, buf.height, 0, 0, canvas.width, canvas.height);
     drawScanlines();
     return;
@@ -4262,10 +4344,16 @@ function render() {
 
     bx.fillStyle = 'rgba(16,8,24,0.85)';
     bx.fillRect(0, 0, VIEW_W, VIEW_H);
+    var elVig = bx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.15, VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.65);
+    elVig.addColorStop(0, 'rgba(60,20,30,0.0)');
+    elVig.addColorStop(1, 'rgba(0,0,0,0.3)');
+    bx.fillStyle = elVig;
+    bx.fillRect(0, 0, VIEW_W, VIEW_H);
 
+    var elPhase = Math.floor(globalTick / 6) % 2;
     var elText = 'ELIMINATED';
     var elW = elText.length * 6;
-    drawPixelText(bx, elText, Math.round((VIEW_W - elW) / 2), VIEW_H / 2 - 38, '#ff80a0', '#1a1028');
+    drawPixelText(bx, elText, Math.round((VIEW_W - elW) / 2), VIEW_H / 2 - 38, elPhase ? '#ff80a0' : '#e06080', '#1a1028');
 
     drawBlobIcon(VIEW_W / 2, VIEW_H / 2 - 14, 10, mySelectedColor, true);
 
@@ -4284,6 +4372,9 @@ function render() {
   if (gameState === 'win' && !multiplayerMode) {
     bx.fillStyle = 'rgba(16,8,24,0.82)';
     bx.fillRect(0, VIEW_H / 2 - 52, VIEW_W, 104);
+    bx.fillStyle = 'rgba(192,168,232,0.15)';
+    bx.fillRect(0, VIEW_H / 2 - 52, VIEW_W, 1);
+    bx.fillRect(0, VIEW_H / 2 + 51, VIEW_W, 1);
 
     var titlePhase = Math.floor(globalTick / 4) % 3;
     var titleCols = ['#c0a8e8', '#e0d0f8', '#d8b8f0'];
