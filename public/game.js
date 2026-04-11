@@ -4336,10 +4336,10 @@ function drawScoreboard() {
   const panelY = Math.floor((VIEW_H - panelH) / 2);
 
   const colName = panelX + 18;
-  const colProg = panelX + 108;
-  const colCoins = panelX + 142;
-  const colScore = panelX + 174;
-  const colStatus = panelX + 210;
+  const colProg = panelX + 100;
+  const colCoins = panelX + 136;
+  const colScore = panelX + 172;
+  const colStatus = panelX + 208;
 
   bx.save();
   bx.globalAlpha = 0.92;
