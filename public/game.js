@@ -4336,10 +4336,10 @@ function drawScoreboard() {
   const panelY = Math.floor((VIEW_H - panelH) / 2);
 
   const colName = panelX + 18;
-  const colProg = panelX + 100;
-  const colCoins = panelX + 132;
-  const colScore = panelX + 164;
-  const colStatus = panelX + 196;
+  const colProgC = panelX + 116;
+  const colCoinsC = panelX + 152;
+  const colScoreC = panelX + 188;
+  const colStatusC = panelX + 218;
 
   bx.save();
   bx.globalAlpha = 0.92;
@@ -4358,11 +4358,12 @@ function drawScoreboard() {
   drawPixelText(bx, titleStr, panelX + Math.floor((panelW - titleW) / 2), panelY + 3, '#c0a8e8', null);
 
   var colY = panelY + titleH + 1;
-  drawPixelText(bx, '#', panelX + 5, colY, '#6858a0', null);
-  drawPixelText(bx, 'NAME', colName, colY, '#6858a0', null);
-  drawPixelText(bx, 'PROG', colProg, colY, '#6858a0', null);
-  drawPixelText(bx, 'COINS', colCoins, colY, '#6858a0', null);
-  drawPixelText(bx, 'SCORE', colScore, colY, '#6858a0', null);
+  var hCol = '#6858a0';
+  drawPixelText(bx, '#', panelX + 5, colY, hCol, null);
+  drawPixelText(bx, 'NAME', colName, colY, hCol, null);
+  drawPixelText(bx, 'PROG', colProgC - 12, colY, hCol, null);
+  drawPixelText(bx, 'COINS', colCoinsC - 15, colY, hCol, null);
+  drawPixelText(bx, 'SCORE', colScoreC - 15, colY, hCol, null);
 
   bx.fillStyle = 'rgba(160,120,220,0.12)';
   bx.fillRect(panelX + 4, panelY + headerH - 1, panelW - 8, 1);
@@ -4396,17 +4397,19 @@ function drawScoreboard() {
     drawPixelText(bx, nameStr, colName, rowY + 1, col, null);
 
     var pctStr = Math.round((p.progress || 0) * 100) + '%';
-    drawPixelText(bx, pctStr, colProg, rowY + 1, '#d0c0e8', null);
+    drawPixelText(bx, pctStr, colProgC - Math.floor(pctStr.length * 3), rowY + 1, '#d0c0e8', null);
 
-    drawPixelText(bx, String(p.coins || 0), colCoins, rowY + 1, '#f0d050', null);
+    var coinStr = String(p.coins || 0);
+    drawPixelText(bx, coinStr, colCoinsC - Math.floor(coinStr.length * 3), rowY + 1, '#f0d050', null);
 
-    drawPixelText(bx, String(p.gameScore || 0), colScore, rowY + 1, '#e0d0f8', null);
+    var scoreStr = String(p.gameScore || 0);
+    drawPixelText(bx, scoreStr, colScoreC - Math.floor(scoreStr.length * 3), rowY + 1, '#e0d0f8', null);
 
     var statusStr = '';
     if (p.finished) statusStr = (p.finishTime / 1000).toFixed(1) + 'S';
     else if (!p.alive) statusStr = 'OUT';
     var statusCol = p.finished ? '#80e8a0' : '#ff6060';
-    if (statusStr) drawPixelText(bx, statusStr, colStatus, rowY + 1, statusCol, null);
+    if (statusStr) drawPixelText(bx, statusStr, colStatusC - Math.floor(statusStr.length * 3), rowY + 1, statusCol, null);
   }
 
   if (hasMore) {
