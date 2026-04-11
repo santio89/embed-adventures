@@ -946,7 +946,7 @@ function buildLevel() {
   ground(56, 100);
   addPipe(58, 2); addPipe(68, 3); addPipe(78, 3); addPipe(88, 4);
   map[9][62] = 3; map[9][73] = 3; map[9][83] = 3; map[9][84] = 4;
-  map[7][59] = 3; map[7][69] = 3; map[7][79] = 3; map[7][89] = 3;
+  map[7][59] = 3; map[7][69] = 3; map[7][79] = 3; map[6][89] = 3;
   map[9][64] = 2; map[9][65] = 3; map[9][66] = 2;
   map[9][94] = 2; map[9][95] = 3; map[9][96] = 2;
   map[7][55] = 7;
@@ -1005,16 +1005,16 @@ function buildLevel() {
   ground(306, 312);
   // Floating single/double platforms requiring double jump
   for (let x = 316; x <= 318; x++) map[10][x] = 5;
-  map[8][317] = 3;
+  map[7][317] = 3;
   for (let x = 323; x <= 324; x++) map[8][x] = 5;
-  map[6][324] = 3;
+  map[5][324] = 3;
   for (let x = 329; x <= 331; x++) map[11][x] = 5;
   for (let x = 329; x <= 331; x++) map[7][x] = 5;
-  map[5][330] = 4;
+  map[4][330] = 4;
   for (let x = 336; x <= 337; x++) map[9][x] = 5;
-  map[7][337] = 3;
+  map[6][337] = 3;
   for (let x = 342; x <= 344; x++) map[10][x] = 5;
-  map[8][343] = 3;
+  map[7][343] = 3;
   ground(348, 355);
 
   // === SECTION 8: SPRINT & PIPES (355-395) ===
@@ -1034,9 +1034,9 @@ function buildLevel() {
   // Rising platforms - need double jump to reach the high ones
   for (let x = 404; x <= 406; x++) map[11][x] = 5;
   for (let x = 410; x <= 411; x++) map[9][x] = 5;
-  map[7][411] = 3;
+  map[6][411] = 3;
   for (let x = 415; x <= 416; x++) map[7][x] = 5;
-  map[5][415] = 4;
+  map[4][415] = 4;
   for (let x = 410; x <= 411; x++) map[12][x] = 5;
   ground(419, 421);
 
