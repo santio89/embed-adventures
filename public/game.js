@@ -1777,7 +1777,7 @@ function updateMario() {
     if (timeTimer >= 36) {
       timeTimer = 0;
       time--;
-      if (time <= 30 && time > 0 && time % 2 === 0) playSound('warning');
+      if (time <= 10 && time > 0) playSound('warning');
       if (time <= 0) mariodie();
     }
   }
