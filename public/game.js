@@ -1344,7 +1344,7 @@ function spawnBoss() {
     x: 433 * TILE, y: 10 * TILE,
     vx: -0.5, vy: 0,
     w: 28, h: 32,
-    hp: 5, alive: true, dying: false, deathTimer: 0,
+    hp: 4, alive: true, dying: false, deathTimer: 0,
     jumpTimer: 0, fireTimer: 0,
     frame: 0, frameTimer: 0,
     invincible: 0,
@@ -2126,12 +2126,12 @@ function updateBoss() {
   if (boss.vy > MAX_FALL) boss.vy = MAX_FALL;
 
   // Rage mode: faster when low HP
-  var bossRage = boss.hp <= 2;
-  var bossSpeed = bossRage ? 1.0 : 0.6;
+  var bossRage = boss.hp <= 1;
+  var bossSpeed = bossRage ? 0.8 : 0.5;
 
   // Horizontal movement - chase Mario slightly
   if (boss.invincible <= 0) {
-    var chaseStr = bossRage ? 0.015 : 0.005;
+    var chaseStr = bossRage ? 0.01 : 0.004;
     if (mario.x < boss.x) boss.vx -= chaseStr;
     else boss.vx += chaseStr;
     if (boss.vx > bossSpeed) boss.vx = bossSpeed;
@@ -2149,41 +2149,41 @@ function updateBoss() {
   if (bc) {
     if (boss.vy > 0) {
       boss.y = bc.ty * TILE - boss.h; boss.vy = 0; boss.onGround = true;
-      if (bossRage) screenShake = Math.max(screenShake, 1.5);
+      if (bossRage) screenShake = Math.max(screenShake, 1.0);
     }
     else { boss.y = (bc.ty + 1) * TILE; boss.vy = 0; }
   }
 
   // Jump
   boss.jumpTimer++;
-  var jumpInterval = bossRage ? 50 + Math.random() * 30 : 90 + Math.random() * 60;
+  var jumpInterval = bossRage ? 70 + Math.random() * 40 : 110 + Math.random() * 70;
   if (boss.jumpTimer > jumpInterval && boss.onGround) {
-    boss.vy = bossRage ? -7.5 : -6.5;
+    boss.vy = bossRage ? -6.5 : -5.5;
     boss.jumpTimer = 0;
   }
 
   // Throw fireballs toward Mario - occasional, not overwhelming
   boss.fireTimer++;
-  var fireInterval = bossRage ? 120 + Math.random() * 80 : 180 + Math.random() * 120;
+  var fireInterval = bossRage ? 160 + Math.random() * 100 : 240 + Math.random() * 140;
   if (boss.fireTimer > fireInterval) {
     boss.fireTimer = 0;
     const dir = mario.x < boss.x ? -1 : 1;
-    var fbSpeed = (bossRage ? 2.4 : 1.8) + Math.random() * 1.2;
+    var fbSpeed = (bossRage ? 2.0 : 1.5) + Math.random() * 0.8;
     bossFireballs.push({
       x: boss.x + (dir > 0 ? boss.w : -8),
       y: boss.y + 10,
       vx: dir * fbSpeed,
       vy: -1.5,
-      life: 180,
+      life: 150,
     });
-    if (Math.random() < (bossRage ? 0.3 : 0.15)) {
-      var fb2Speed = (bossRage ? 1.6 : 1.2) + Math.random() * 1.0;
+    if (Math.random() < (bossRage ? 0.2 : 0.1)) {
+      var fb2Speed = (bossRage ? 1.3 : 1.0) + Math.random() * 0.8;
       bossFireballs.push({
         x: boss.x + (dir > 0 ? boss.w : -8),
         y: boss.y + 14,
         vx: dir * fb2Speed,
         vy: -2.5,
-        life: 180,
+        life: 150,
       });
     }
     playSound('fireball');
@@ -4432,7 +4432,7 @@ function connectSocket() {
     switch (data.state) {
       case 'waiting':
         updateLobbyPlayers(playersList);
-        if (prevRoomState === 'finished' || prevRoomState === 'playing') {
+        if (prevRoomState !== 'waiting') {
           gameState = 'menu';
           document.getElementById('raceTimeline').classList.remove('visible');
           showLobby(currentRoomCode, playersList);
