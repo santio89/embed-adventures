@@ -953,11 +953,11 @@ function buildLevel() {
 
   // === SECTION 3: BLOCK PLAYGROUND (100-155) ===
   ground(101, 130); ground(134, 155);
-  map[9][105] = 2; map[9][106] = 3; map[9][107] = 2; map[9][108] = 3; map[9][109] = 2;
+  map[9][105] = 2; map[9][106] = 3; map[9][107] = 2; map[9][108] = 2; map[9][109] = 2;
   map[5][107] = 4;
   map[9][115] = 2; map[9][116] = 2; map[9][117] = 3; map[9][118] = 2;
   map[5][116] = 2; map[5][117] = 2; map[5][118] = 2;
-  map[9][124] = 3; map[9][125] = 2; map[9][126] = 3; map[9][127] = 2;
+  map[9][124] = 3; map[9][125] = 2; map[9][126] = 4; map[9][127] = 2;
   map[5][125] = 3;
   map[7][112] = 2; map[7][113] = 3; map[7][114] = 2;
   map[9][138] = 2; map[9][139] = 3; map[9][140] = 2;
@@ -981,13 +981,13 @@ function buildLevel() {
   // === SECTION 5: GAUNTLET (210-260) ===
   ground(211, 255); ground(259, 260);
   map[9][215] = 2; map[9][216] = 3; map[9][217] = 2;
-  map[9][225] = 3; map[9][226] = 3;
+  map[9][225] = 3; map[9][226] = 2;
   map[9][230] = 2; map[9][231] = 2; map[9][232] = 3; map[9][233] = 2;
   map[5][231] = 4;
   map[9][240] = 2; map[9][241] = 3; map[9][242] = 2;
   map[9][248] = 4;
   addPipe(245, 2);
-  map[7][220] = 3; map[7][221] = 2; map[7][222] = 3;
+  map[7][220] = 3; map[7][221] = 2; map[7][222] = 2;
   map[9][236] = 3; map[9][237] = 2;
 
   // === SECTION 6: SKY WALK (260-305) ===
@@ -1020,7 +1020,7 @@ function buildLevel() {
   // === SECTION 8: SPRINT & PIPES (355-395) ===
   ground(356, 395);
   addPipe(360, 2); addPipe(370, 3);
-  map[9][363] = 3; map[9][364] = 4; map[9][365] = 3;
+  map[9][363] = 3; map[9][364] = 4; map[9][365] = 2;
   map[9][375] = 2; map[9][376] = 3; map[9][377] = 2;
   map[5][376] = 2;
   map[9][358] = 3; map[9][359] = 2;
@@ -4190,6 +4190,26 @@ function drawCastle() {
   bx.fillRect(ccx + 3.5 * TILE - 1, 5 * TILE, 1, 3 * TILE);
 }
 
+var lastTimelineUpdate = 0;
+
+function updateTimelineLocal() {
+  if (!multiplayerMode || racePlayers.length === 0 || gameState !== 'playing') return;
+  var now = Date.now();
+  if (now - lastTimelineUpdate < 250) return;
+  lastTimelineUpdate = now;
+
+  if (!eliminated) {
+    var me = racePlayers.find(function(p) { return p.id === myPlayerId; });
+    if (me && !me.finished && me.alive) {
+      me.progress = Math.min(1, mario.x / ((LEVEL_WIDTH - 15) * TILE));
+      me.coins = coins;
+      me.gameScore = score;
+      me.alive = !mario.dead && lives > 0;
+    }
+  }
+  updateTimeline(racePlayers);
+}
+
 function drawProgressBar() {
   if (!multiplayerMode || racePlayers.length === 0) return;
 
@@ -4199,6 +4219,8 @@ function drawProgressBar() {
       me.progress = Math.min(1, mario.x / ((LEVEL_WIDTH - 15) * TILE));
     }
   }
+
+  updateTimelineLocal();
 
   const barX = 16;
   const barY = 29;

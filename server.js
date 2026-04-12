@@ -171,7 +171,7 @@ io.on('connection', (socket) => {
     p.progress = Math.min(1, msg.progress || 0);
     p.coins = msg.coins || 0;
     p.gameScore = msg.gameScore || 0;
-    socket.to(roomCode).emit('room_state', roomSnapshot(room));
+    io.to(roomCode).emit('room_state', roomSnapshot(room));
   });
 
   socket.on('player_finished', (msg) => {
