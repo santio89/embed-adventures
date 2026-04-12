@@ -1260,8 +1260,10 @@ function resetLevel() {
   dustParticles = [];
   marioFireballs = [];
   fireballCooldown = 0;
-  eliminated = false;
-  racePlayers = [];
+  if (!multiplayerMode) {
+    eliminated = false;
+    racePlayers = [];
+  }
   score = 0;
   coins = 0;
   enemiesKilled = 0;
@@ -4547,9 +4549,6 @@ function render() {
     drawPixelText(bx, wText, ((VIEW_W - wW) / 2) | 0, (VIEW_H / 2 - 28) | 0, '#e0d0f8', null);
     drawBlobIcon(VIEW_W / 2 - 10, VIEW_H / 2 + 2, 10, mySelectedColor, false);
     drawPixelText(bx, 'x  ' + (lives - 1), (VIEW_W / 2 + 6) | 0, (VIEW_H / 2) | 0, '#e0d0f8', null);
-    if (multiplayerMode) {
-      drawProgressBar();
-    }
     ctx.drawImage(buf, 0, 0, buf.width, buf.height, 0, 0, canvas.width, canvas.height);
     drawScanlines();
     return;
