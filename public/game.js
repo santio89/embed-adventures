@@ -4278,14 +4278,6 @@ function drawProgressBar() {
       bx.beginPath();
       bx.arc(px + 1.5, barY + barH / 2, dotR, 0, Math.PI * 2);
       bx.fill();
-      if (isMe) {
-        bx.save();
-        bx.globalAlpha = 0.3;
-        bx.beginPath();
-        bx.arc(px + 1.5, barY + barH / 2, dotR + 2, 0, Math.PI * 2);
-        bx.fill();
-        bx.restore();
-      }
     }
     if (isMe || p.finished) {
       bx.save();
@@ -4294,7 +4286,7 @@ function drawProgressBar() {
       bx.textBaseline = 'middle';
       bx.fillStyle = isMe ? '#fff' : col;
       bx.globalAlpha = 0.9;
-      bx.fillText(initial, px + 1.5, barY - 3);
+      bx.fillText(initial, px + 1.5, barY - 4);
       bx.restore();
     }
   });
