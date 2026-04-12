@@ -822,6 +822,24 @@ function playSound(type) {
         gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.15);
         osc.start(c.currentTime); osc.stop(c.currentTime + 0.15);
         break;
+      case 'gate_slam':
+        osc.type = 'sawtooth';
+        gain.gain.setValueAtTime(0.08, c.currentTime);
+        osc.frequency.setValueAtTime(120, c.currentTime);
+        osc.frequency.linearRampToValueAtTime(40, c.currentTime + 0.15);
+        gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.2);
+        osc.start(c.currentTime); osc.stop(c.currentTime + 0.2);
+        break;
+      case 'boss_roar':
+        osc.type = 'sawtooth';
+        gain.gain.setValueAtTime(0.12, c.currentTime);
+        osc.frequency.setValueAtTime(100, c.currentTime);
+        osc.frequency.linearRampToValueAtTime(200, c.currentTime + 0.15);
+        osc.frequency.linearRampToValueAtTime(50, c.currentTime + 0.6);
+        gain.gain.linearRampToValueAtTime(0.14, c.currentTime + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.8);
+        osc.start(c.currentTime); osc.stop(c.currentTime + 0.8);
+        break;
       case 'bosshit':
         osc.type = 'sawtooth';
         gain.gain.setValueAtTime(0.1, c.currentTime);
@@ -1052,7 +1070,9 @@ function buildLevel() {
   stairUp(452, 8);
 
   // Pre-boss blocks
-  map[9][424] = 3; map[9][426] = 2; map[9][430] = 3; map[9][435] = 2;
+  map[9][424] = 3; map[9][426] = 2;
+  // Boss arena blocks (evenly spaced across arena)
+  map[9][433] = 2; map[9][437] = 2; map[9][441] = 2;
 
   // === STAR BLOCK (late game reward for exploring) ===
   map[7][330] = 7;
@@ -1078,8 +1098,8 @@ const SKID_DECEL = 0.28;
 const COYOTE_FRAMES = 6;
 const JUMP_BUFFER_FRAMES = 6;
 
-const FLAGPOLE_X = 464;
-const CASTLE_X = 469;
+const FLAGPOLE_X = 468;
+const CASTLE_X = 473;
 const CHECKPOINT_XS = [120, 302, 396];
 
 // ================================================================
@@ -1214,9 +1234,16 @@ let bossFireballs = [];
 let marioFireballs = [];
 let fireballCooldown = 0;
 let starMusicInterval = null;
-const BOSS_ARENA_LEFT = 422;
+const BOSS_ARENA_LEFT = 429;
+const BOSS_ARENA_TRIGGER = 431;
 const BOSS_GATE_X = 444;
 let bossEncounterActive = false;
+let bossIntroPhase = 0;
+let bossIntroTimer = 0;
+let bossIntroWallRow = 14;
+let bossOutroPhase = 0;
+let bossOutroTimer = 0;
+let bossOutroWallRow = 2;
 
 function resetMario() {
   const spawnX = checkpointIndex >= 0 ? CHECKPOINT_XS[checkpointIndex] * TILE : 40;
@@ -1232,7 +1259,7 @@ function resetMario() {
     fire: false,
     starPower: 0,
     dead: false,
-    invincible: checkpointIndex >= 0 ? 300 : 0,
+    invincible: checkpointIndex >= 0 ? 120 : 0,
     coyoteTimer: 0,
     wasOnGround: false,
     skidding: false,
@@ -1283,6 +1310,12 @@ function resetLevel() {
   boss = null;
   bossFireballs = [];
   bossEncounterActive = false;
+  bossIntroPhase = 0;
+  bossIntroTimer = 0;
+  bossIntroWallRow = 14;
+  bossOutroPhase = 0;
+  bossOutroTimer = 0;
+  bossOutroWallRow = 2;
   resetMario();
   spawnEnemies();
   spawnMapCoins();
@@ -1378,23 +1411,190 @@ function spawnMapCoins() {
 
 function spawnBoss() {
   boss = {
-    x: 433 * TILE, y: 10 * TILE,
+    x: (BOSS_GATE_X - 3) * TILE, y: -40,
     vx: -0.5, vy: 0,
     w: 28, h: 32,
     hp: 3, alive: true, dying: false, deathTimer: 0,
     jumpTimer: 0, fireTimer: 0,
     frame: 0, frameTimer: 0,
     invincible: 0,
-    arenaLeft: BOSS_ARENA_LEFT * TILE,
+    arenaLeft: (BOSS_ARENA_LEFT + 1) * TILE,
     arenaRight: (BOSS_GATE_X - 1) * TILE,
     onGround: false,
+    hidden: true,
   };
 }
 
 function onBossDefeated() {
-  for (let gy = 2; gy <= 13; gy++) levelMap[gy][BOSS_GATE_X] = 0;
-  for (let gy = 2; gy <= 13; gy++) levelMap[gy][BOSS_ARENA_LEFT] = 0;
-  bossEncounterActive = false;
+  bossOutroPhase = 1;
+  bossOutroTimer = 0;
+  bossOutroWallRow = 2;
+}
+
+function updateBossIntro() {
+  bossIntroTimer++;
+  const mh = mario.big ? 24 : 16;
+
+  if (bossIntroPhase === 1) {
+    mario.vx = 1.2;
+    mario.facing = 1;
+    mario.frame = (bossIntroTimer % 16 < 8) ? 1 : 2;
+
+    if (bossIntroTimer >= 30) {
+      bossIntroPhase = 2;
+      bossIntroTimer = 0;
+      bossIntroWallRow = 13;
+      mario.vx = 0;
+      mario.frame = 0;
+      mario.frameTimer = 0;
+    }
+  } else if (bossIntroPhase === 2) {
+    mario.vx = 0;
+    mario.frame = 0;
+    if (bossIntroTimer % 3 === 0 && bossIntroWallRow >= 2) {
+      levelMap[bossIntroWallRow][BOSS_ARENA_LEFT] = 5;
+      bossIntroWallRow--;
+      screenShake = 1.5;
+      playSound('gate_slam');
+    }
+    if (bossIntroWallRow < 2) {
+      bossIntroPhase = 3;
+      bossIntroTimer = 0;
+    }
+  } else if (bossIntroPhase === 3) {
+    mario.vx = 0;
+    mario.frame = 0;
+    if (bossIntroTimer === 10 && boss) {
+      boss.hidden = false;
+      boss.y = 2 * TILE;
+      boss.vy = 0;
+    }
+    if (boss && !boss.hidden && boss.onGround && bossIntroTimer >= 30) {
+      if (!boss._landed) {
+        boss._landed = true;
+        screenShake = 8;
+        playSound('boss_roar');
+      }
+    }
+    if (bossIntroTimer >= 80) {
+      bossIntroPhase = 0;
+      bossEncounterActive = true;
+      if (boss) delete boss._landed;
+    }
+  }
+
+  mario.vy += GRAVITY_DOWN;
+  if (mario.vy > MAX_FALL) mario.vy = MAX_FALL;
+
+  mario.x += mario.vx;
+  let hCol = tileCollision(mario.x + 1, mario.y, mario.w - 2, mh);
+  if (hCol) {
+    if (mario.vx > 0) mario.x = hCol.tx * TILE - mario.w;
+    else if (mario.vx < 0) mario.x = (hCol.tx + 1) * TILE;
+    mario.vx = 0;
+  }
+
+  mario.y += mario.vy;
+  mario.onGround = false;
+  let vCol = tileCollision(mario.x + 2, mario.y, mario.w - 4, mh);
+  if (vCol) {
+    if (mario.vy > 0) {
+      mario.y = vCol.ty * TILE - mh;
+      mario.onGround = true;
+    } else {
+      mario.y = (vCol.ty + 1) * TILE;
+    }
+    mario.vy = 0;
+  }
+
+  const arenaCamX = BOSS_ARENA_LEFT * TILE;
+  camera.x += (arenaCamX - camera.x) * 0.08;
+  if (Math.abs(arenaCamX - camera.x) < 0.5) camera.x = arenaCamX;
+  camera.targetX = camera.x;
+  if (camera.x < 0) camera.x = 0;
+  const maxCam = LEVEL_WIDTH * TILE - VIEW_W;
+  if (camera.x > maxCam) camera.x = maxCam;
+}
+
+function updateBossOutro() {
+  bossOutroTimer++;
+  const mh = mario.big ? 24 : 16;
+
+  if (bossOutroPhase === 1) {
+    mario.vx = 0;
+    if (bossOutroTimer === 1) {
+      screenShake = 10;
+      for (let i = 0; i < 12; i++) {
+        const angle = (Math.PI * 2 / 12) * i;
+        dustParticles.push({
+          x: (BOSS_GATE_X - 3) * TILE + 14 + Math.cos(angle) * 6,
+          y: 10 * TILE + 16 + Math.sin(angle) * 6,
+          vx: Math.cos(angle) * 1.5,
+          vy: Math.sin(angle) * 1.2 - 0.5,
+          life: 25, maxLife: 25,
+        });
+      }
+    }
+    if (bossOutroTimer >= 80) {
+      bossOutroPhase = 2;
+      bossOutroTimer = 0;
+    }
+  } else if (bossOutroPhase === 2) {
+    if (bossOutroTimer % 3 === 0 && bossOutroWallRow <= 13) {
+      levelMap[bossOutroWallRow][BOSS_GATE_X] = 0;
+      levelMap[bossOutroWallRow][BOSS_ARENA_LEFT] = 0;
+      bossOutroWallRow++;
+      screenShake = 1.5;
+      playSound('brick');
+      for (let w = 0; w < 2; w++) {
+        const wallX = w === 0 ? BOSS_GATE_X : BOSS_ARENA_LEFT;
+        for (let d = 0; d < 3; d++) {
+          particles.push({
+            type: 'debris',
+            x: wallX * TILE + Math.random() * TILE,
+            y: (bossOutroWallRow - 1) * TILE + Math.random() * TILE,
+            vx: (wallX === BOSS_GATE_X ? 1 : -1) * (1 + Math.random() * 2),
+            vy: -2 - Math.random() * 3,
+            life: 30,
+          });
+        }
+      }
+    }
+    if (bossOutroWallRow > 13) {
+      bossOutroPhase = 0;
+      bossEncounterActive = false;
+    }
+  }
+
+  mario.vy += GRAVITY_DOWN;
+  if (mario.vy > MAX_FALL) mario.vy = MAX_FALL;
+  mario.x += mario.vx;
+  let hCol = tileCollision(mario.x + 1, mario.y, mario.w - 2, mh);
+  if (hCol) {
+    if (mario.vx > 0) mario.x = hCol.tx * TILE - mario.w;
+    else if (mario.vx < 0) mario.x = (hCol.tx + 1) * TILE;
+    mario.vx = 0;
+  }
+  mario.y += mario.vy;
+  mario.onGround = false;
+  let vCol = tileCollision(mario.x + 2, mario.y, mario.w - 4, mh);
+  if (vCol) {
+    if (mario.vy > 0) {
+      mario.y = vCol.ty * TILE - mh;
+      mario.onGround = true;
+    } else {
+      mario.y = (vCol.ty + 1) * TILE;
+    }
+    mario.vy = 0;
+  }
+
+  const arenaCamX = BOSS_ARENA_LEFT * TILE;
+  camera.x += (arenaCamX - camera.x) * 0.08;
+  if (Math.abs(arenaCamX - camera.x) < 0.5) camera.x = arenaCamX;
+  camera.targetX = camera.x;
+  if (camera.x < 0) camera.x = 0;
+  const maxCam = LEVEL_WIDTH * TILE - VIEW_W;
+  if (camera.x > maxCam) camera.x = maxCam;
 }
 
 function createGoomba(x, y) {
@@ -1618,6 +1818,16 @@ function updateMario() {
     return;
   }
 
+  if (bossIntroPhase > 0) {
+    updateBossIntro();
+    return;
+  }
+
+  if (bossOutroPhase > 0) {
+    updateBossOutro();
+    return;
+  }
+
   // Crouch (Big Mario only)
   const wantCrouch = keys['ArrowDown'] && mario.big && mario.onGround;
   mario.crouching = wantCrouch;
@@ -1732,15 +1942,15 @@ function updateMario() {
   if (mario.x < camera.x) mario.x = camera.x;
   const mh = mario.big ? 24 : 16;
 
-  // Trigger boss encounter when Mario enters the arena
-  if (!bossEncounterActive && boss && boss.alive && mario.x >= BOSS_ARENA_LEFT * TILE) {
-    bossEncounterActive = true;
-    for (let gy = 2; gy <= 13; gy++) levelMap[gy][BOSS_ARENA_LEFT] = 5;
+  // Trigger boss intro cutscene when Mario walks past the trigger point
+  if (!bossEncounterActive && bossIntroPhase === 0 && boss && boss.alive && mario.x >= BOSS_ARENA_TRIGGER * TILE) {
+    bossIntroPhase = 1;
+    bossIntroTimer = 0;
   }
 
-  // Clamp Mario inside the boss arena
+  // Clamp Mario inside the boss arena (between walls, not on them)
   if (bossEncounterActive) {
-    const arenaLeftPx = BOSS_ARENA_LEFT * TILE;
+    const arenaLeftPx = (BOSS_ARENA_LEFT + 1) * TILE;
     const arenaRightPx = BOSS_GATE_X * TILE - mario.w;
     if (mario.x < arenaLeftPx) { mario.x = arenaLeftPx; mario.vx = 0; }
     if (mario.x > arenaRightPx) { mario.x = arenaRightPx; mario.vx = 0; }
@@ -2231,6 +2441,15 @@ function updateBoss() {
 
   if (!boss.alive) return;
 
+  if (bossIntroPhase > 0) {
+    boss.vy += GRAVITY_DOWN;
+    if (boss.vy > MAX_FALL) boss.vy = MAX_FALL;
+    boss.y += boss.vy;
+    let bc = tileCollision(boss.x, boss.y, boss.w, boss.h);
+    if (bc && boss.vy > 0) { boss.y = bc.ty * TILE - boss.h; boss.vy = 0; boss.onGround = true; }
+    return;
+  }
+
   // Only activate boss when Mario is near the arena
   if (Math.abs(mario.x - boss.x) > VIEW_W * 1.5) return;
 
@@ -2273,13 +2492,13 @@ function updateBoss() {
   boss.jumpTimer++;
   var jumpInterval = bossRage ? 70 + Math.random() * 40 : 110 + Math.random() * 70;
   if (boss.jumpTimer > jumpInterval && boss.onGround) {
-    boss.vy = bossRage ? -6.5 : -5.5;
+    boss.vy = bossRage ? -7.5 : -6.5;
     boss.jumpTimer = 0;
   }
 
-  // Throw fireballs toward Mario - occasional, not overwhelming
+  // Throw fireballs toward Mario
   boss.fireTimer++;
-  var fireInterval = bossRage ? 160 + Math.random() * 100 : 240 + Math.random() * 140;
+  var fireInterval = bossRage ? 140 + Math.random() * 80 : 200 + Math.random() * 120;
   if (boss.fireTimer > fireInterval) {
     boss.fireTimer = 0;
     const dir = mario.x < boss.x ? -1 : 1;
@@ -2291,7 +2510,7 @@ function updateBoss() {
       vy: -1.5,
       life: 150,
     });
-    if (Math.random() < (bossRage ? 0.2 : 0.1)) {
+    if (Math.random() < (bossRage ? 0.5 : 0.35)) {
       var fb2Speed = (bossRage ? 1.3 : 1.0) + Math.random() * 0.8;
       bossFireballs.push({
         x: boss.x + (dir > 0 ? boss.w : -8),
@@ -2336,7 +2555,7 @@ function updateBoss() {
       boss.invincible = 40;
       mario.vy = -7;
       mario.jumpsUsed = 1;
-      mario.invincible = Math.max(mario.invincible, 90);
+      mario.invincible = Math.max(mario.invincible, 60);
       screenShake = 5;
       if (boss.hp <= 0) {
         boss.alive = false;
@@ -3662,7 +3881,7 @@ function drawParticles() {
 }
 
 function drawBoss() {
-  if (!boss) return;
+  if (!boss || boss.hidden) return;
   const sx = Math.floor(boss.x - camera.rx);
   if (sx < -48 || sx > VIEW_W + 48) return;
   const sy = Math.floor(boss.y);
@@ -4021,10 +4240,10 @@ function drawMarioFireballs() {
   });
 }
 
-function drawBossArenaWall(tileX) {
+function drawBossArenaWall(tileX, fromRow, toRow) {
   const gx = Math.floor(tileX * TILE - camera.rx);
   if (gx < -TILE || gx > VIEW_W + TILE) return;
-  for (let row = 2; row <= 13; row++) {
+  for (let row = fromRow; row <= toRow; row++) {
     const gy = row * TILE;
     const bgGrad = bx.createLinearGradient(gx, 0, gx + TILE, 0);
     bgGrad.addColorStop(0, '#6858b8');
@@ -4042,9 +4261,25 @@ function drawBossArenaWall(tileX) {
 }
 
 function drawBossGate() {
+  if (bossOutroPhase === 2) {
+    if (bossOutroWallRow <= 13) {
+      drawBossArenaWall(BOSS_GATE_X, bossOutroWallRow, 13);
+      drawBossArenaWall(BOSS_ARENA_LEFT, bossOutroWallRow, 13);
+    }
+    return;
+  }
+  if (bossOutroPhase === 1) {
+    drawBossArenaWall(BOSS_GATE_X, 2, 13);
+    drawBossArenaWall(BOSS_ARENA_LEFT, 2, 13);
+    return;
+  }
   if (!boss || !boss.alive) return;
-  drawBossArenaWall(BOSS_GATE_X);
-  if (bossEncounterActive) drawBossArenaWall(BOSS_ARENA_LEFT);
+  drawBossArenaWall(BOSS_GATE_X, 2, 13);
+  if (bossEncounterActive) {
+    drawBossArenaWall(BOSS_ARENA_LEFT, 2, 13);
+  } else if (bossIntroPhase >= 2) {
+    drawBossArenaWall(BOSS_ARENA_LEFT, bossIntroWallRow + 1, 13);
+  }
 }
 
 function drawMapCoins() {
@@ -5129,6 +5364,13 @@ function startSinglePlayer() {
   lives = 3;
   time = 400;
   checkpointIndex = -1;
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    const cp = new URLSearchParams(location.search).get('checkpoint');
+    if (cp !== null) {
+      const idx = parseInt(cp, 10);
+      if (idx >= 0 && idx < CHECKPOINT_XS.length) checkpointIndex = idx;
+    }
+  }
   resetLevel();
 }
 
@@ -5211,4 +5453,8 @@ function leaveRoom() {
 // ================================================================
 resetLevel();
 showMenu();
+if ((location.hostname === 'localhost' || location.hostname === '127.0.0.1') &&
+    new URLSearchParams(location.search).get('checkpoint') !== null) {
+  startSinglePlayer();
+}
 requestAnimationFrame(gameLoop);
