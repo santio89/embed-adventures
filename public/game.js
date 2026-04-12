@@ -1046,7 +1046,7 @@ function buildLevel() {
   stairDown(418, 4);
 
   // Boss arena: flat ground 422-443, gate at 444
-  for (let y = 6; y <= 12; y++) map[y][BOSS_GATE_X] = 5;
+  for (let y = 0; y <= 12; y++) map[y][BOSS_GATE_X] = 5;
 
   // Victory staircase after boss
   stairUp(452, 8);
@@ -1392,8 +1392,8 @@ function spawnBoss() {
 }
 
 function onBossDefeated() {
-  for (let gy = 6; gy <= 12; gy++) levelMap[gy][BOSS_GATE_X] = 0;
-  for (let gy = 6; gy <= 12; gy++) levelMap[gy][BOSS_ARENA_LEFT] = 0;
+  for (let gy = 0; gy <= 12; gy++) levelMap[gy][BOSS_GATE_X] = 0;
+  for (let gy = 0; gy <= 12; gy++) levelMap[gy][BOSS_ARENA_LEFT] = 0;
   bossEncounterActive = false;
 }
 
@@ -1684,7 +1684,7 @@ function updateMario() {
 
   // Jump
   const canFirstJump = mario.onGround || mario.coyoteTimer > 0;
-  const canDoubleJump = !bossEncounterActive && !mario.onGround && mario.jumpsUsed <= 1 && mario.coyoteTimer <= 0;
+  const canDoubleJump = !mario.onGround && mario.jumpsUsed <= 1 && mario.coyoteTimer <= 0;
   const wantJump = jumpPressed || jumpBufferTimer > 0;
 
   if (wantJump && canFirstJump && mario.vy >= 0) {
@@ -1735,7 +1735,7 @@ function updateMario() {
   // Trigger boss encounter when Mario enters the arena
   if (!bossEncounterActive && boss && boss.alive && mario.x >= BOSS_ARENA_LEFT * TILE) {
     bossEncounterActive = true;
-    for (let gy = 6; gy <= 12; gy++) levelMap[gy][BOSS_ARENA_LEFT] = 5;
+    for (let gy = 0; gy <= 12; gy++) levelMap[gy][BOSS_ARENA_LEFT] = 5;
   }
 
   // Clamp Mario inside the boss arena
