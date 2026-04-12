@@ -4024,7 +4024,7 @@ function drawMarioFireballs() {
 function drawBossArenaWall(tileX) {
   const gx = Math.floor(tileX * TILE - camera.rx);
   if (gx < -TILE || gx > VIEW_W + TILE) return;
-  for (let row = 6; row <= 12; row++) {
+  for (let row = 0; row <= 12; row++) {
     const gy = row * TILE;
     const bgGrad = bx.createLinearGradient(gx, 0, gx + TILE, 0);
     bgGrad.addColorStop(0, '#6858b8');
