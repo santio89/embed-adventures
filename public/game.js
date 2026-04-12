@@ -2526,8 +2526,8 @@ function updateBoss() {
         playSound('gate_slam');
         const groundY = bc.ty * TILE;
         const waveCx = boss.x + boss.w / 2;
-        bossShockwaves.push({ x: waveCx, y: groundY, vx: -2.5, life: 55, maxLife: 55 });
-        bossShockwaves.push({ x: waveCx, y: groundY, vx: 2.5, life: 55, maxLife: 55 });
+        bossShockwaves.push({ x: waveCx, y: groundY, vx: -1.8, life: 12, maxLife: 12 });
+        bossShockwaves.push({ x: waveCx, y: groundY, vx: 1.8, life: 12, maxLife: 12 });
         for (let i = 0; i < 8; i++) {
           var slamLife = 20 + Math.random() * 15;
           dustParticles.push({
@@ -2591,7 +2591,7 @@ function updateBoss() {
     boss.slamming = true;
     boss.slamTimer = 0;
     boss.nextSlamAt = bossRage ? 120 + Math.random() * 50 : 160 + Math.random() * 60;
-    boss.vy = bossRage ? -10 : -9;
+    boss.vy = bossRage ? -(10 + Math.random() * 4) : -(9 + Math.random() * 3.5);
     boss.jumpTimer = 0;
   }
 
