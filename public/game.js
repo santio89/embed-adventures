@@ -5361,7 +5361,7 @@ function render() {
     return;
   }
 
-  camera.rx = Math.floor(prevState.cx + (camera.x - prevState.cx) * renderAlpha);
+  camera.rx = Math.floor(camera.x);
   bx.clearRect(0, 0, VIEW_W, VIEW_H);
   drawBackground();
   drawLevel();
@@ -5512,17 +5512,12 @@ function gameLoop(timestamp) {
 
   let steps = 0;
   while (accumulator >= FIXED_DT && steps < 4) {
-    prevState.mx = mario.x;
-    prevState.my = mario.y;
-    prevState.cx = camera.x;
-    entities.forEach(e => { e.px = e.x; e.py = e.y; });
     update();
     accumulator -= FIXED_DT;
     steps++;
   }
 
   if (steps > 0 || gameState !== 'playing') {
-    renderAlpha = accumulator / FIXED_DT;
     render();
   }
   requestAnimationFrame(gameLoop);
