@@ -1071,8 +1071,8 @@ function buildLevel() {
 
   // Pre-boss blocks
   map[9][424] = 3; map[9][426] = 2;
-  // Boss arena blocks (evenly spaced across arena)
-  map[9][433] = 2; map[9][437] = 2; map[9][441] = 2;
+  // Boss arena block (center)
+  map[9][436] = 2;
 
   // === STAR BLOCK (late game reward for exploring) ===
   map[7][330] = 7;
@@ -1540,15 +1540,15 @@ function updateBossOutro() {
     }
   }
 
+  // Freeze Mario during outro
+  mario.vx = 0;
+  mario.frame = 0;
+  mario.frameTimer = 0;
+  mario.doubleJumpAnim = 0;
+  mario.skidding = false;
+
   mario.vy += GRAVITY_DOWN;
   if (mario.vy > MAX_FALL) mario.vy = MAX_FALL;
-  mario.x += mario.vx;
-  let hCol = tileCollision(mario.x + 1, mario.y, mario.w - 2, mh);
-  if (hCol) {
-    if (mario.vx > 0) mario.x = hCol.tx * TILE - mario.w;
-    else if (mario.vx < 0) mario.x = (hCol.tx + 1) * TILE;
-    mario.vx = 0;
-  }
   mario.y += mario.vy;
   mario.onGround = false;
   let vCol = tileCollision(mario.x + 2, mario.y, mario.w - 4, mh);
@@ -2414,6 +2414,7 @@ function updateBoss() {
   }
 
   if (!boss.alive) return;
+  if (boss.hidden) return;
 
   if (bossIntroPhase > 0) {
     boss.vy += GRAVITY_DOWN;
@@ -2470,27 +2471,33 @@ function updateBoss() {
     boss.jumpTimer = 0;
   }
 
-  // Throw fireballs toward Mario
+  // Throw fireballs toward Mario (aim at his position)
   boss.fireTimer++;
   var fireInterval = bossRage ? 140 + Math.random() * 80 : 200 + Math.random() * 120;
   if (boss.fireTimer > fireInterval) {
     boss.fireTimer = 0;
     const dir = mario.x < boss.x ? -1 : 1;
     var fbSpeed = (bossRage ? 2.0 : 1.5) + Math.random() * 0.8;
+    const fbX = boss.x + (dir > 0 ? boss.w : -8);
+    const fbY = boss.y + 10;
+    const dx = mario.x - fbX;
+    const dy = mario.y - fbY;
+    const dist = Math.max(Math.abs(dx), 1);
+    const aimVy = (dy / dist) * fbSpeed * 0.6 - 1.0;
     bossFireballs.push({
-      x: boss.x + (dir > 0 ? boss.w : -8),
-      y: boss.y + 10,
+      x: fbX,
+      y: fbY,
       vx: dir * fbSpeed,
-      vy: -1.5,
+      vy: Math.min(aimVy, -0.5),
       life: 150,
     });
     if (Math.random() < (bossRage ? 0.5 : 0.35)) {
       var fb2Speed = (bossRage ? 1.3 : 1.0) + Math.random() * 0.8;
       bossFireballs.push({
-        x: boss.x + (dir > 0 ? boss.w : -8),
+        x: fbX,
         y: boss.y + 14,
         vx: dir * fb2Speed,
-        vy: -2.5,
+        vy: Math.min(aimVy - 1.0, -1.5),
         life: 150,
       });
     }
@@ -4370,17 +4377,49 @@ function drawFlagPole() {
   bx.arc(fx + 8, 3 * TILE - 1, 4, 0, Math.PI * 2);
   bx.fill();
 
-  if (!flagDescending) {
-    const wave = Math.sin(globalTick * 0.1) * 1.5;
-    const flagGrad = bx.createLinearGradient(fx - 8, 0, fx + 6, 0);
-    flagGrad.addColorStop(0, '#c0a8e8');
-    flagGrad.addColorStop(1, '#7060a8');
+  {
+    let flagDrawY;
+    if (!flagDescending) {
+      flagDrawY = 3 * TILE + 2;
+    } else {
+      const poleBottom = 12 * TILE - 12;
+      flagDrawY = Math.min(Math.floor(mario.y), poleBottom);
+    }
+    const wave = flagDescending ? 0 : Math.sin(globalTick * 0.1) * 1.5;
+
+    // Triangular flag with logo purple color
+    const flagGrad = bx.createLinearGradient(fx - 14, 0, fx + 6, 0);
+    flagGrad.addColorStop(0, '#5050d0');
+    flagGrad.addColorStop(1, '#4040b0');
     bx.fillStyle = flagGrad;
     bx.beginPath();
-    bx.moveTo(fx + 6, 3 * TILE + 2);
-    bx.lineTo(fx - 8 + wave, 3 * TILE + 7);
-    bx.lineTo(fx + 6, 3 * TILE + 12);
+    bx.moveTo(fx + 6, flagDrawY);
+    bx.lineTo(fx - 14 + wave, flagDrawY + 7.5);
+    bx.lineTo(fx + 6, flagDrawY + 15);
     bx.closePath();
+    bx.fill();
+
+    // White "e" inside the flag (centered with padding)
+    const eCx = fx - 2 + wave * 0.35;
+    const eCy = flagDrawY + 7.5;
+    const eR = 2.2;
+    bx.strokeStyle = '#ffffff';
+    bx.lineWidth = 1.2;
+    bx.lineCap = 'round';
+    // Almost-full circle with opening at bottom-right
+    bx.beginPath();
+    bx.arc(eCx, eCy, eR, 0.5, 0, false);
+    bx.stroke();
+    // Horizontal crossbar through middle
+    bx.beginPath();
+    bx.moveTo(eCx - eR, eCy);
+    bx.lineTo(eCx + eR, eCy);
+    bx.stroke();
+
+    // Orange dot
+    bx.fillStyle = '#f0a030';
+    bx.beginPath();
+    bx.arc(eCx + eR + 0.8, eCy + 1.5, 0.8, 0, Math.PI * 2);
     bx.fill();
   }
 }
