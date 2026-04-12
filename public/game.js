@@ -1064,7 +1064,7 @@ function buildLevel() {
   stairDown(418, 4);
 
   // Boss arena: flat ground 422-443, gate at 444
-  for (let y = 2; y <= 13; y++) map[y][BOSS_GATE_X] = 5;
+  for (let y = 2; y <= 12; y++) map[y][BOSS_GATE_X] = 5;
 
   // Victory staircase after boss
   stairUp(452, 8);
@@ -1098,8 +1098,8 @@ const SKID_DECEL = 0.28;
 const COYOTE_FRAMES = 6;
 const JUMP_BUFFER_FRAMES = 6;
 
-const FLAGPOLE_X = 468;
-const CASTLE_X = 473;
+const FLAGPOLE_X = 466;
+const CASTLE_X = 471;
 const CHECKPOINT_XS = [120, 302, 396];
 
 // ================================================================
@@ -1433,24 +1433,23 @@ function onBossDefeated() {
 
 function updateBossIntro() {
   bossIntroTimer++;
-  const mh = mario.big ? 24 : 16;
+
+  // Freeze Mario completely during the entire cutscene
+  mario.vx = 0;
+  mario.vy = 0;
+  mario.frame = 0;
+  mario.frameTimer = 0;
+  mario.doubleJumpAnim = 0;
+  mario.skidding = false;
 
   if (bossIntroPhase === 1) {
-    mario.vx = 1.2;
-    mario.facing = 1;
-    mario.frame = (bossIntroTimer % 16 < 8) ? 1 : 2;
-
-    if (bossIntroTimer >= 30) {
+    // Brief pause before walls start rising
+    if (bossIntroTimer >= 15) {
       bossIntroPhase = 2;
       bossIntroTimer = 0;
-      bossIntroWallRow = 13;
-      mario.vx = 0;
-      mario.frame = 0;
-      mario.frameTimer = 0;
+      bossIntroWallRow = 12;
     }
   } else if (bossIntroPhase === 2) {
-    mario.vx = 0;
-    mario.frame = 0;
     if (bossIntroTimer % 3 === 0 && bossIntroWallRow >= 2) {
       levelMap[bossIntroWallRow][BOSS_ARENA_LEFT] = 5;
       bossIntroWallRow--;
@@ -1462,8 +1461,6 @@ function updateBossIntro() {
       bossIntroTimer = 0;
     }
   } else if (bossIntroPhase === 3) {
-    mario.vx = 0;
-    mario.frame = 0;
     if (bossIntroTimer === 10 && boss) {
       boss.hidden = false;
       boss.y = 2 * TILE;
@@ -1483,32 +1480,9 @@ function updateBossIntro() {
     }
   }
 
-  mario.vy += GRAVITY_DOWN;
-  if (mario.vy > MAX_FALL) mario.vy = MAX_FALL;
-
-  mario.x += mario.vx;
-  let hCol = tileCollision(mario.x + 1, mario.y, mario.w - 2, mh);
-  if (hCol) {
-    if (mario.vx > 0) mario.x = hCol.tx * TILE - mario.w;
-    else if (mario.vx < 0) mario.x = (hCol.tx + 1) * TILE;
-    mario.vx = 0;
-  }
-
-  mario.y += mario.vy;
-  mario.onGround = false;
-  let vCol = tileCollision(mario.x + 2, mario.y, mario.w - 4, mh);
-  if (vCol) {
-    if (mario.vy > 0) {
-      mario.y = vCol.ty * TILE - mh;
-      mario.onGround = true;
-    } else {
-      mario.y = (vCol.ty + 1) * TILE;
-    }
-    mario.vy = 0;
-  }
-
+  // Camera smoothly pans to arena
   const arenaCamX = BOSS_ARENA_LEFT * TILE;
-  camera.x += (arenaCamX - camera.x) * 0.08;
+  camera.x += (arenaCamX - camera.x) * 0.12;
   if (Math.abs(arenaCamX - camera.x) < 0.5) camera.x = arenaCamX;
   camera.targetX = camera.x;
   if (camera.x < 0) camera.x = 0;
@@ -1540,7 +1514,7 @@ function updateBossOutro() {
       bossOutroTimer = 0;
     }
   } else if (bossOutroPhase === 2) {
-    if (bossOutroTimer % 3 === 0 && bossOutroWallRow <= 13) {
+    if (bossOutroTimer % 3 === 0 && bossOutroWallRow <= 12) {
       levelMap[bossOutroWallRow][BOSS_GATE_X] = 0;
       levelMap[bossOutroWallRow][BOSS_ARENA_LEFT] = 0;
       bossOutroWallRow++;
@@ -1560,7 +1534,7 @@ function updateBossOutro() {
         }
       }
     }
-    if (bossOutroWallRow > 13) {
+    if (bossOutroWallRow > 12) {
       bossOutroPhase = 0;
       bossEncounterActive = false;
     }
@@ -2127,7 +2101,7 @@ function updateMario() {
     mario.vx = 0;
     mario.vy = 0;
     flagY = mario.y;
-    flagBonus = Math.max(0, (12 * TILE - mario.y)) * 5;
+    flagBonus = Math.round(Math.max(0, (12 * TILE - mario.y)) * 5);
     score += flagBonus;
     playSound('flagpole');
   }
@@ -4262,23 +4236,23 @@ function drawBossArenaWall(tileX, fromRow, toRow) {
 
 function drawBossGate() {
   if (bossOutroPhase === 2) {
-    if (bossOutroWallRow <= 13) {
-      drawBossArenaWall(BOSS_GATE_X, bossOutroWallRow, 13);
-      drawBossArenaWall(BOSS_ARENA_LEFT, bossOutroWallRow, 13);
+    if (bossOutroWallRow <= 12) {
+      drawBossArenaWall(BOSS_GATE_X, bossOutroWallRow, 12);
+      drawBossArenaWall(BOSS_ARENA_LEFT, bossOutroWallRow, 12);
     }
     return;
   }
   if (bossOutroPhase === 1) {
-    drawBossArenaWall(BOSS_GATE_X, 2, 13);
-    drawBossArenaWall(BOSS_ARENA_LEFT, 2, 13);
+    drawBossArenaWall(BOSS_GATE_X, 2, 12);
+    drawBossArenaWall(BOSS_ARENA_LEFT, 2, 12);
     return;
   }
   if (!boss || !boss.alive) return;
-  drawBossArenaWall(BOSS_GATE_X, 2, 13);
+  drawBossArenaWall(BOSS_GATE_X, 2, 12);
   if (bossEncounterActive) {
-    drawBossArenaWall(BOSS_ARENA_LEFT, 2, 13);
-  } else if (bossIntroPhase >= 2) {
-    drawBossArenaWall(BOSS_ARENA_LEFT, bossIntroWallRow + 1, 13);
+    drawBossArenaWall(BOSS_ARENA_LEFT, 2, 12);
+  } else if (bossIntroPhase >= 1 && bossIntroWallRow < 12) {
+    drawBossArenaWall(BOSS_ARENA_LEFT, bossIntroWallRow + 1, 12);
   }
 }
 
@@ -4932,7 +4906,7 @@ function render() {
     drawPixelText(bx, 'COINS: ' + coins + ' x200 = ' + (coins * 200), 32, VIEW_H / 2 - 8, '#e0d0f8', '#1a1028');
     drawPixelText(bx, 'ENEMIES: ' + enemiesKilled, 32, VIEW_H / 2 + 2, '#e0d0f8', '#1a1028');
 
-    const totalText = 'TOTAL: ' + score;
+    const totalText = 'TOTAL: ' + Math.round(score);
     drawPixelText(bx, totalText, 32, VIEW_H / 2 + 16, '#c0a8e8', '#1a1028');
 
     var prAlpha = 0.5 + 0.5 * Math.sin(globalTick * 0.06);
