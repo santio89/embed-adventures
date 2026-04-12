@@ -173,6 +173,34 @@ const COL = {
   hardBlockDark: '#303870',
 };
 
+const BG_STARS = [];
+for (let i = 0; i < 40; i++) {
+  BG_STARS.push({
+    tx: Math.random() * 480,
+    ty: Math.random() * 0.22,
+    size: 0.4 + Math.random() * 0.8,
+    speed: 0.3 + Math.random() * 0.7,
+    phase: Math.random() * Math.PI * 2,
+  });
+}
+
+let ambientMotes = [];
+function initAmbientMotes() {
+  ambientMotes = [];
+  for (let i = 0; i < 18; i++) {
+    ambientMotes.push({
+      x: Math.random() * 480 * 16,
+      y: 40 + Math.random() * 160,
+      vy: -0.08 - Math.random() * 0.12,
+      vx: (Math.random() - 0.5) * 0.15,
+      size: 0.6 + Math.random() * 1.0,
+      phase: Math.random() * Math.PI * 2,
+      alpha: 0.15 + Math.random() * 0.25,
+    });
+  }
+}
+initAmbientMotes();
+
 // ================================================================
 // SPRITE DRAWING
 // ================================================================
@@ -1056,18 +1084,18 @@ function buildLevel() {
   for (let x = 415; x <= 416; x++) map[7][x] = 5;
   map[4][415] = 4;
   for (let x = 410; x <= 411; x++) map[12][x] = 5;
-  ground(419, 421);
+  ground(413, 421);
 
   // === SECTION 10: GRAND FINALE (421-479) ===
   ground(422, 479);
-  stairUp(413, 4);
+  stairUp(414, 4);
   stairDown(418, 4);
 
   // Boss arena: flat ground 422-443, gate at 444
   for (let y = 2; y <= 12; y++) map[y][BOSS_GATE_X] = 5;
 
   // Victory staircase after boss
-  stairUp(452, 8);
+  stairUp(453, 8);
 
   // Pre-boss blocks
   map[9][424] = 3; map[9][426] = 2;
@@ -1231,6 +1259,7 @@ let flagBonus = 0;
 let timeBonus = 0;
 let boss = null;
 let bossFireballs = [];
+let bossShockwaves = [];
 let marioFireballs = [];
 let fireballCooldown = 0;
 let starMusicInterval = null;
@@ -1309,6 +1338,7 @@ function resetLevel() {
   jumpPressed = false;
   boss = null;
   bossFireballs = [];
+  bossShockwaves = [];
   bossEncounterActive = false;
   bossIntroPhase = 0;
   bossIntroTimer = 0;
@@ -1394,14 +1424,12 @@ function spawnMapCoins() {
     [339, 8], [340, 7],
     [345, 9], [346, 8],
     // Sprint section
-    [363, 11], [364, 11],
+    [366, 11], [367, 11],
     [376, 7], [377, 7],
     // Aerial playground - high coins (double jump required)
     [405, 9], [406, 8],
-    [410, 7], [411, 6],
-    [415, 5], [416, 4],
-    // Pre-boss
-    [424, 11], [426, 11],
+    [410, 7],
+    [417, 5], [416, 4],
   ];
   coinPositions.forEach(([tx, ty]) => {
     if (levelMap[ty] && levelMap[ty][tx]) ty--;
@@ -1415,7 +1443,13 @@ function spawnBoss() {
     vx: -0.5, vy: 0,
     w: 28, h: 32,
     hp: 3, alive: true, dying: false, deathTimer: 0,
-    jumpTimer: 0, fireTimer: 0,
+    jumpTimer: 0, fireTimer: 0, slamTimer: 0, dashTimer: 0,
+    slamming: false,
+    dashPhase: 0, dashDir: 1, meleeCooldown: 0, meleeAnim: 0,
+    nextJumpAt: 110 + Math.random() * 70,
+    nextFireAt: 160 + Math.random() * 80,
+    nextSlamAt: 160 + Math.random() * 60,
+    nextDashAt: 220 + Math.random() * 80,
     frame: 0, frameTimer: 0,
     invincible: 0,
     arenaLeft: (BOSS_ARENA_LEFT + 1) * TILE,
@@ -2255,7 +2289,6 @@ function updateEntities() {
       return;
     }
 
-    if (mario.invincible > 0) return;
     if (mx < e.x + e.w && mx + mw > e.x && my < e.y + e.h && my + mh > e.y) {
       if (e.type === 'koopa' && e.shell && !e.shellMoving) {
         e.shellMoving = true;
@@ -2316,7 +2349,7 @@ function updateEntities() {
         }
         mario.vy = -4.5;
         mario.jumpsUsed = 1;
-      } else {
+      } else if (mario.invincible <= 0) {
         mariodie();
       }
     }
@@ -2352,7 +2385,10 @@ function updateEntities() {
       if (shell.x < boss.x + boss.w && shell.x + shell.w > boss.x &&
           shell.y < boss.y + boss.h && shell.y + shell.h > boss.y) {
         boss.hp--;
-        boss.invincible = 40;
+        boss.invincible = 60;
+        boss.slamming = false;
+        boss.meleeAnim = 0;
+        if (boss.dashPhase > 0) { boss.dashPhase = 0; boss.dashTimer = 0; }
         shell.alive = false;
         shell.remove = true;
         screenShake = 4;
@@ -2403,6 +2439,24 @@ function updateBoss() {
     return true;
   });
 
+  // Update shockwaves
+  bossShockwaves = bossShockwaves.filter(w => {
+    w.x += w.vx;
+    w.life--;
+    if (w.life <= 0) return false;
+    if (!mario.dead && mario.invincible <= 0) {
+      const mh = mario.big ? (mario.crouching ? 16 : 24) : 16;
+      const my = mario.big && mario.crouching ? mario.y + 8 : mario.y;
+      const waveH = 14 * (w.life / w.maxLife);
+      const waveTop = w.y - waveH;
+      if (mario.x + mario.w > w.x - 6 && mario.x < w.x + 6 &&
+          my + mh > waveTop && my + mh <= w.y + 4) {
+        mariodie();
+      }
+    }
+    return true;
+  });
+
   if (!boss) return;
 
   if (boss.dying) {
@@ -2438,13 +2492,21 @@ function updateBoss() {
   var bossRage = boss.hp <= 1;
   var bossSpeed = bossRage ? 0.8 : 0.5;
 
-  // Horizontal movement - chase Mario slightly
-  if (boss.invincible <= 0) {
+  // Horizontal movement - chase Mario slightly (disabled during dash)
+  if (boss.invincible <= 0 && boss.dashPhase === 0) {
     var chaseStr = bossRage ? 0.01 : 0.004;
     if (mario.x < boss.x) boss.vx -= chaseStr;
     else boss.vx += chaseStr;
     if (boss.vx > bossSpeed) boss.vx = bossSpeed;
     if (boss.vx < -bossSpeed) boss.vx = -bossSpeed;
+  }
+
+  // Dash charge movement
+  if (boss.dashPhase === 2) {
+    var dashSpeed = bossRage ? 3.5 : 2.8;
+    boss.vx = boss.dashDir * dashSpeed;
+  } else if (boss.dashPhase === 3) {
+    boss.vx *= 0.88;
   }
 
   boss.x += boss.vx;
@@ -2458,46 +2520,136 @@ function updateBoss() {
   if (bc) {
     if (boss.vy > 0) {
       boss.y = bc.ty * TILE - boss.h; boss.vy = 0; boss.onGround = true;
-      if (bossRage) screenShake = Math.max(screenShake, 1.0);
+      if (boss.slamming) {
+        boss.slamming = false;
+        screenShake = Math.max(screenShake, 6);
+        playSound('gate_slam');
+        const groundY = bc.ty * TILE;
+        const waveCx = boss.x + boss.w / 2;
+        bossShockwaves.push({ x: waveCx, y: groundY, vx: -2.5, life: 55, maxLife: 55 });
+        bossShockwaves.push({ x: waveCx, y: groundY, vx: 2.5, life: 55, maxLife: 55 });
+        for (let i = 0; i < 8; i++) {
+          var slamLife = 20 + Math.random() * 15;
+          dustParticles.push({
+            x: waveCx + (Math.random() - 0.5) * 20,
+            y: groundY - Math.random() * 4,
+            vx: (Math.random() - 0.5) * 2,
+            vy: -Math.random() * 2.5,
+            life: slamLife, maxLife: slamLife,
+          });
+        }
+      } else if (bossRage) {
+        screenShake = Math.max(screenShake, 1.0);
+      }
     }
     else { boss.y = (bc.ty + 1) * TILE; boss.vy = 0; }
   }
 
-  // Jump
+  // --- Abilities: timers ALWAYS advance, but only trigger when not invincible ---
+  var bossCanAct = boss.invincible <= 0;
+
+  // Melee cooldown/anim always tick
+  if (boss.meleeCooldown > 0) boss.meleeCooldown--;
+  if (boss.meleeAnim > 0) boss.meleeAnim--;
+
+  // All timers advance every frame (even during flinch) so abilities charge up
   boss.jumpTimer++;
-  var jumpInterval = bossRage ? 70 + Math.random() * 40 : 110 + Math.random() * 70;
-  if (boss.jumpTimer > jumpInterval && boss.onGround) {
+  boss.fireTimer++;
+  if (boss.dashPhase === 0 && !boss.slamming) boss.slamTimer++;
+  if (boss.dashPhase === 0 && !boss.slamming) boss.dashTimer++;
+
+  // Active dash phases always advance (even during flinch so boss isn't stuck mid-dash)
+  if (boss.dashPhase > 0) {
+    boss.dashTimer++;
+    if (boss.dashPhase === 1 && boss.dashTimer > 30) {
+      boss.dashPhase = 2;
+      boss.dashTimer = 0;
+      playSound('boss_roar');
+      screenShake = Math.max(screenShake, 2);
+    } else if (boss.dashPhase === 2 && boss.dashTimer > 25) {
+      boss.dashPhase = 3;
+      boss.dashTimer = 0;
+    } else if (boss.dashPhase === 3 && boss.dashTimer > 20) {
+      boss.dashPhase = 0;
+      boss.dashTimer = 0;
+    }
+  }
+
+  // --- Trigger abilities only when bossCanAct ---
+
+  // Jump
+  if (bossCanAct && boss.dashPhase === 0 && !boss.slamming &&
+      boss.onGround && boss.jumpTimer > boss.nextJumpAt) {
     boss.vy = bossRage ? -7.5 : -6.5;
+    boss.jumpTimer = 0;
+    boss.nextJumpAt = bossRage ? 70 + Math.random() * 40 : 110 + Math.random() * 70;
+  }
+
+  // Ground pound slam
+  if (bossCanAct && boss.dashPhase === 0 && !boss.slamming &&
+      boss.onGround && boss.slamTimer > boss.nextSlamAt) {
+    boss.slamming = true;
+    boss.slamTimer = 0;
+    boss.nextSlamAt = bossRage ? 120 + Math.random() * 50 : 160 + Math.random() * 60;
+    boss.vy = bossRage ? -10 : -9;
     boss.jumpTimer = 0;
   }
 
-  // Throw fireballs toward Mario (aim at his position)
-  boss.fireTimer++;
-  var fireInterval = bossRage ? 140 + Math.random() * 80 : 200 + Math.random() * 120;
-  if (boss.fireTimer > fireInterval) {
+  // Dash attack (trigger)
+  if (bossCanAct && boss.dashPhase === 0 && !boss.slamming &&
+      boss.onGround && boss.dashTimer > boss.nextDashAt) {
+    boss.dashPhase = 1;
+    boss.dashTimer = 0;
+    boss.nextDashAt = bossRage ? 180 + Math.random() * 60 : 220 + Math.random() * 80;
+    boss.dashDir = mario.x < boss.x ? -1 : 1;
+    boss.vx = 0;
+  }
+
+  // Melee swipe when Mario gets close
+  var distToMario = Math.abs((mario.x + mario.w / 2) - (boss.x + boss.w / 2));
+  if (bossCanAct && distToMario < 35 && boss.meleeCooldown <= 0 && boss.onGround &&
+      boss.dashPhase === 0 && !boss.slamming && !mario.dead && mario.invincible <= 0) {
+    boss.meleeAnim = 15;
+    boss.meleeCooldown = bossRage ? 50 : 75;
+    screenShake = Math.max(screenShake, 1.5);
+    playSound('bump');
+    const meleeDir = mario.x < boss.x ? -1 : 1;
+    const mh = mario.big ? (mario.crouching ? 16 : 24) : 16;
+    const my = mario.big && mario.crouching ? mario.y + 8 : mario.y;
+    const meleeX = boss.x + boss.w / 2 + meleeDir * 20;
+    if (Math.abs(mario.x + mario.w / 2 - meleeX) < 20 && my + mh > boss.y + 4 && my < boss.y + boss.h) {
+      mariodie();
+    }
+  }
+
+  // Throw fireballs
+  if (bossCanAct && boss.fireTimer > boss.nextFireAt) {
     boss.fireTimer = 0;
+    boss.nextFireAt = bossRage ? 120 + Math.random() * 60 : 160 + Math.random() * 80;
     const dir = mario.x < boss.x ? -1 : 1;
-    var fbSpeed = (bossRage ? 2.0 : 1.5) + Math.random() * 0.8;
+    var fbSpeed = (bossRage ? 1.2 : 0.9) + Math.random() * 1.4;
     const fbX = boss.x + (dir > 0 ? boss.w : -8);
     const fbY = boss.y + 10;
     const dx = mario.x - fbX;
     const dy = mario.y - fbY;
     const dist = Math.max(Math.abs(dx), 1);
-    const aimVy = (dy / dist) * fbSpeed * 0.6 - 1.0;
+    var aimSpread = (Math.random() - 0.5) * 2.0;
+    var aimVy = (dy / dist) * fbSpeed * 0.5 - 0.8 + aimSpread;
     bossFireballs.push({
       x: fbX,
       y: fbY,
-      vx: dir * fbSpeed,
-      vy: Math.min(aimVy, -0.5),
+      vx: dir * fbSpeed + (Math.random() - 0.5) * 0.4,
+      vy: Math.min(aimVy, -0.3),
       life: 150,
     });
-    if (Math.random() < (bossRage ? 0.5 : 0.35)) {
-      var fb2Speed = (bossRage ? 1.3 : 1.0) + Math.random() * 0.8;
+    if (Math.random() < (bossRage ? 0.45 : 0.3)) {
+      var fb2Speed = (bossRage ? 1.0 : 0.7) + Math.random() * 1.2;
+      var aim2Spread = (Math.random() - 0.5) * 2.5;
       bossFireballs.push({
         x: fbX,
         y: boss.y + 14,
-        vx: dir * fb2Speed,
-        vy: Math.min(aimVy - 1.0, -1.5),
+        vx: dir * fb2Speed + (Math.random() - 0.5) * 0.5,
+        vy: Math.min(aimVy - 0.8 + aim2Spread, -1.0),
         life: 150,
       });
     }
@@ -2517,7 +2669,10 @@ function updateBoss() {
   if (mario.starPower > 0 && boss.invincible <= 0 &&
       mx < boss.x + boss.w && mx + mw > boss.x && my < boss.y + boss.h && my + mh > boss.y) {
     boss.hp -= 5;
-    boss.invincible = 40;
+    boss.invincible = 60;
+    boss.slamming = false;
+    boss.meleeAnim = 0;
+    if (boss.dashPhase > 0) { boss.dashPhase = 0; boss.dashTimer = 0; }
     if (boss.hp <= 0) {
       boss.alive = false; boss.dying = true; boss.vy = -5; boss.deathTimer = 0;
       score += ENEMY_POINTS.boss; addScorePopup(boss.x, boss.y - 16, ENEMY_POINTS.boss);
@@ -2529,11 +2684,13 @@ function updateBoss() {
     return;
   }
 
-  if (mario.invincible > 0) return;
   if (mx < boss.x + boss.w && mx + mw > boss.x && my < boss.y + boss.h && my + mh > boss.y) {
     if (mario.vy > 0 && my + mh - boss.y < 12 && boss.invincible <= 0) {
       boss.hp--;
-      boss.invincible = 40;
+      boss.invincible = 60;
+      boss.slamming = false;
+      boss.meleeAnim = 0;
+      if (boss.dashPhase > 0) { boss.dashPhase = 0; boss.dashTimer = 0; }
       mario.vy = -7;
       mario.jumpsUsed = 1;
       mario.invincible = Math.max(mario.invincible, 60);
@@ -2555,7 +2712,7 @@ function updateBoss() {
         score += 500;
         boss.vx = (mario.x < boss.x ? 1 : -1) * 1.5;
       }
-    } else if (boss.invincible <= 0) {
+    } else if (mario.invincible <= 0 && boss.invincible <= 0) {
       mariodie();
     }
   }
@@ -2682,7 +2839,10 @@ function updateMarioFireballs() {
       if (fb.x + fb.w > boss.x && fb.x < boss.x + boss.w &&
           fb.y + fb.h > boss.y && fb.y < boss.y + boss.h) {
         boss.hp--;
-        boss.invincible = 40;
+        boss.invincible = 60;
+        boss.slamming = false;
+        boss.meleeAnim = 0;
+        if (boss.dashPhase > 0) { boss.dashPhase = 0; boss.dashTimer = 0; }
         fb.remove = true;
         screenShake = 3;
         playSound('bosshit');
@@ -2737,6 +2897,12 @@ function updateParticles() {
     d.x += d.vx; d.y += d.vy; d.life--;
   });
   dustParticles = dustParticles.filter(d => d.life > 0);
+
+  for (const m of ambientMotes) {
+    m.x += m.vx;
+    m.y += m.vy;
+    if (m.y < 20) { m.y = 210; m.x = camera.x + Math.random() * VIEW_W; }
+  }
 }
 
 // ================================================================
@@ -2807,8 +2973,16 @@ function drawTile(x, y, tile) {
       gGrad.addColorStop(1, COL.groundDark);
       bx.fillStyle = gGrad;
       bx.fillRect(sx, y, TILE, TILE);
-      bx.fillStyle = 'rgba(255,255,255,0.12)';
-      bx.fillRect(sx, y, TILE, 1);
+      const isSurface = tileY === 13 || (tileY > 0 && (!levelMap[tileY - 1] || levelMap[tileY - 1][tileX] === 0));
+      if (isSurface) {
+        bx.fillStyle = 'rgba(200,180,240,0.25)';
+        bx.fillRect(sx, y, TILE, 1);
+        bx.fillStyle = 'rgba(160,140,210,0.12)';
+        bx.fillRect(sx, y + 1, TILE, 1);
+      } else {
+        bx.fillStyle = 'rgba(255,255,255,0.12)';
+        bx.fillRect(sx, y, TILE, 1);
+      }
       bx.fillStyle = 'rgba(0,0,0,0.1)';
       bx.fillRect(sx + 7, y + 1, 1, 6);
       bx.fillRect(sx + 3, y + 7, 1, 2);
@@ -2871,6 +3045,16 @@ function drawTile(x, y, tile) {
         break;
       }
       const glow = Math.sin(globalTick * 0.08) * 0.3 + 0.7;
+      const glowAlpha = glow * (tile === 7 ? 0.18 : 0.10);
+      const glowCol = tile === 7 ? '#c8a8f0' : tile === 6 ? '#80d0e8' : '#f0d868';
+      bx.save();
+      bx.globalAlpha = glowAlpha;
+      const bkGlw = bx.createRadialGradient(sx + 8, y + 8, 2, sx + 8, y + 8, 14);
+      bkGlw.addColorStop(0, glowCol);
+      bkGlw.addColorStop(1, 'rgba(0,0,0,0)');
+      bx.fillStyle = bkGlw;
+      bx.fillRect(sx - 6, y - 6, TILE + 12, TILE + 12);
+      bx.restore();
       const is1up = tile === 6;
       const isStar = tile === 7;
       const blockBg = is1up ? '#80c0e0' : isStar ? '#a890d0' : COL.block;
@@ -2964,16 +3148,23 @@ function drawTile(x, y, tile) {
       pG12.addColorStop(1, COL.pipeDark);
       bx.fillStyle = pG12;
       bx.fillRect(sx - 2, y, TILE + 2, TILE);
-      bx.fillStyle = 'rgba(255,255,255,0.22)';
-      bx.fillRect(sx - 2, y, TILE + 4, 1.5);
-      bx.fillStyle = 'rgba(255,255,255,0.12)';
+      bx.fillStyle = 'rgba(255,255,255,0.28)';
+      bx.fillRect(sx - 2, y, TILE + 4, 1);
+      bx.fillStyle = 'rgba(255,255,255,0.15)';
+      bx.fillRect(sx - 2, y + 1, TILE + 4, 1);
+      bx.fillStyle = 'rgba(255,255,255,0.14)';
       bx.fillRect(sx + 1, y + 1, 2, TILE - 2);
-      bx.fillStyle = 'rgba(0,0,0,0.1)';
+      bx.fillStyle = 'rgba(0,0,0,0.12)';
       bx.fillRect(sx - 2, y + TILE - 1, TILE + 4, 1);
       bx.fillStyle = 'rgba(0,0,0,0.08)';
       bx.fillRect(sx - 1, y + 2, TILE + 2, 1);
       bx.fillStyle = 'rgba(255,255,255,0.06)';
       bx.fillRect(sx, y + 3, TILE - 2, 1);
+      bx.save();
+      bx.globalAlpha = 0.08;
+      bx.fillStyle = '#a0f0d0';
+      bx.fillRect(sx - 2, y, 1, TILE);
+      bx.restore();
       break;
     }
     case 13: {
@@ -2984,14 +3175,21 @@ function drawTile(x, y, tile) {
       pG13.addColorStop(1, COL.pipeHighlight);
       bx.fillStyle = pG13;
       bx.fillRect(sx, y, TILE + 2, TILE);
-      bx.fillStyle = 'rgba(255,255,255,0.18)';
-      bx.fillRect(sx, y, TILE + 2, 1.5);
+      bx.fillStyle = 'rgba(255,255,255,0.24)';
+      bx.fillRect(sx, y, TILE + 2, 1);
+      bx.fillStyle = 'rgba(255,255,255,0.12)';
+      bx.fillRect(sx, y + 1, TILE + 2, 1);
       bx.fillStyle = 'rgba(0,0,0,0.08)';
       bx.fillRect(sx, y + 2, TILE + 2, 1);
       bx.fillStyle = 'rgba(255,255,255,0.05)';
       bx.fillRect(sx + 1, y + 3, TILE, 1);
-      bx.fillStyle = 'rgba(0,0,0,0.08)';
+      bx.fillStyle = 'rgba(0,0,0,0.1)';
       bx.fillRect(sx, y + TILE - 1, TILE + 2, 1);
+      bx.save();
+      bx.globalAlpha = 0.08;
+      bx.fillStyle = '#a0f0d0';
+      bx.fillRect(sx + TILE + 1, y, 1, TILE);
+      bx.restore();
       break;
     }
   }
@@ -3016,6 +3214,43 @@ function drawBackground() {
   warmGlow.addColorStop(1, 'rgba(200,150,220,0)');
   bx.fillStyle = warmGlow;
   bx.fillRect(0, 0, VIEW_W, VIEW_H);
+
+  // --- STARS (twinkling in the upper sky) ---
+  for (const star of BG_STARS) {
+    const starSx = Math.floor(star.tx * TILE - camera.rx * 0.08) % (VIEW_W + 40);
+    const starSxW = ((starSx % (VIEW_W + 40)) + VIEW_W + 40) % (VIEW_W + 40) - 20;
+    const starSy = star.ty * VIEW_H;
+    const twinkle = Math.sin(globalTick * 0.04 * star.speed + star.phase);
+    const starAlpha = 0.15 + (twinkle * 0.5 + 0.5) * 0.55;
+    bx.save();
+    bx.globalAlpha = starAlpha;
+    bx.fillStyle = '#e8e0fc';
+    bx.beginPath();
+    bx.arc(starSxW, starSy, star.size, 0, Math.PI * 2);
+    bx.fill();
+    if (star.size > 0.9 && twinkle > 0.6) {
+      bx.globalAlpha = (twinkle - 0.6) * 1.2;
+      bx.fillStyle = '#fff';
+      bx.fillRect(starSxW - 2, starSy - 0.3, 4, 0.6);
+      bx.fillRect(starSxW - 0.3, starSy - 2, 0.6, 4);
+    }
+    bx.restore();
+  }
+
+  // --- AMBIENT FLOATING MOTES ---
+  for (const m of ambientMotes) {
+    const moteSx = Math.floor(m.x - camera.rx * 0.6);
+    if (moteSx < -10 || moteSx > VIEW_W + 10) continue;
+    const bob = Math.sin(globalTick * 0.03 + m.phase) * 3;
+    const mAlpha = m.alpha * (0.6 + Math.sin(globalTick * 0.025 + m.phase * 2) * 0.4);
+    bx.save();
+    bx.globalAlpha = mAlpha;
+    bx.fillStyle = '#d8c8f0';
+    bx.beginPath();
+    bx.arc(moteSx, m.y + bob, m.size, 0, Math.PI * 2);
+    bx.fill();
+    bx.restore();
+  }
 
   const GY = 13 * TILE;
   const T = TILE;
@@ -3143,6 +3378,12 @@ function drawBackground() {
         if (cx < 0 || cx >= LEVEL_WIDTH || getTile(cx, 13) === 0) { bushOnGround = false; break; }
       }
       if (!bushOnGround) continue;
+      let bushBlocked = false;
+      for (let bt = 0; bt < bushTileSpan; bt++) {
+        const cx = bushStartTile + bt;
+        if (getTile(cx, 12) !== 0 || (cx >= BOSS_ARENA_LEFT - 1 && cx <= BOSS_GATE_X + 1) || cx >= FLAGPOLE_X - 3) { bushBlocked = true; break; }
+      }
+      if (bushBlocked) continue;
       for (let i = 0; i < bp.bumps; i++) {
         const bcx = bsx + i * spacing + bushR;
         const buGrad = bx.createRadialGradient(bcx - 2, GY - 1 - bushR * 0.4, bushR * 0.15, bcx, GY - 1, bushR + 1);
@@ -3171,6 +3412,9 @@ function drawBackground() {
       if (tsx < -30 || tsx > VIEW_W + 30) continue;
       const treeTileX = Math.floor((base + tp.tx * T) / T);
       if (treeTileX < 0 || treeTileX >= LEVEL_WIDTH || getTile(treeTileX, 13) === 0) continue;
+      if (getTile(treeTileX, 12) !== 0) continue;
+      if (treeTileX >= BOSS_ARENA_LEFT - 1 && treeTileX <= BOSS_GATE_X + 1) continue;
+      if (treeTileX >= FLAGPOLE_X - 3) continue;
       const s = tp.s;
       const trunkW = Math.floor(4 * s);
       const trunkH = Math.floor(12 * s);
@@ -3210,7 +3454,9 @@ function drawBackground() {
       let fenceOnGround = true;
       for (let fp = 0; fp < 4; fp++) {
         const checkX = fenceTileX + fp;
-        if (checkX < 0 || checkX >= LEVEL_WIDTH || getTile(checkX, 13) === 0) { fenceOnGround = false; break; }
+        if (checkX < 0 || checkX >= LEVEL_WIDTH || getTile(checkX, 13) === 0 || getTile(checkX, 12) !== 0) { fenceOnGround = false; break; }
+        if (checkX >= BOSS_ARENA_LEFT - 1 && checkX <= BOSS_GATE_X + 1) { fenceOnGround = false; break; }
+        if (checkX >= FLAGPOLE_X - 3) { fenceOnGround = false; break; }
       }
       if (!fenceOnGround) continue;
       for (let p = 0; p < 4; p++) {
@@ -3408,7 +3654,7 @@ function drawMario() {
   } else if (!mario.onGround) {
     drawFoot(cx - 2, feetY - 0.5, footW * 0.8, footH * 0.7, 0);
     drawFoot(cx + 2, feetY - 0.5, footW * 0.8, footH * 0.7, 0);
-  } else if (Math.abs(mario.vx) > 0.3) {
+  } else if (Math.abs(mario.vx) > 0.3 && !mario.crouching) {
     const phase = mario.frame % 3;
     const stride = isBig ? 4 : 3;
     let f1 = 0, f2 = 0;
@@ -3849,7 +4095,7 @@ function drawParticles() {
     const dsx = Math.floor(d.x - camera.rx);
     var maxLife = d.maxLife || 10;
     var t = 1 - d.life / maxLife;
-    var rad = d.sparkle ? (0.8 + t * 0.8) : (1.2 + t * 1.5);
+    var rad = Math.max(0.1, d.sparkle ? (0.8 + t * 0.8) : (1.2 + t * 1.5));
     var alpha = (1 - t * t) * (d.sparkle ? 0.8 : 0.55);
     bx.save();
     bx.globalAlpha = alpha;
@@ -3891,6 +4137,21 @@ function drawBoss() {
     bx.globalAlpha = 0.3;
   }
 
+  // Slam glow when airborne and about to slam
+  if (boss.slamming && !boss.onGround && boss.vy > 0) {
+    bx.save();
+    var slamPulse = 0.4 + Math.sin(globalTick * 0.6) * 0.15;
+    var slamGrad = bx.createRadialGradient(cx, cy + bodyH * 0.4, bodyW * 0.3, cx, cy + bodyH * 0.4, bodyW + 8);
+    slamGrad.addColorStop(0, 'rgba(255,100,200,' + slamPulse + ')');
+    slamGrad.addColorStop(0.5, 'rgba(180,40,140,' + (slamPulse * 0.5) + ')');
+    slamGrad.addColorStop(1, 'rgba(100,20,80,0)');
+    bx.fillStyle = slamGrad;
+    bx.beginPath();
+    bx.ellipse(cx, cy + bodyH * 0.4, bodyW + 8, bodyH * 0.7 + 6, 0, 0, Math.PI * 2);
+    bx.fill();
+    bx.restore();
+  }
+
   // Shadow on ground
   bx.save();
   bx.globalAlpha = 0.25;
@@ -3915,6 +4176,56 @@ function drawBoss() {
     bx.restore();
   }
 
+  // === CAPE (draped from shoulders to feet) ===
+  var capeDir = -dir;
+  var feetY = sy + boss.h;
+  var shoulderLx = cx - bodyW * 0.55;
+  var shoulderRx = cx + bodyW * 0.55;
+  var shoulderY = cy + bodyH * 0.12;
+  var capeBottomY = feetY + 1;
+  var sway = Math.sin(globalTick * 0.07) * 1.5;
+
+  bx.save();
+  var capeGrad = bx.createLinearGradient(cx, shoulderY, cx + capeDir * 4, capeBottomY);
+  capeGrad.addColorStop(0, rage ? '#802040' : '#4a1870');
+  capeGrad.addColorStop(0.4, rage ? '#601028' : '#321050');
+  capeGrad.addColorStop(1, rage ? '#480818' : '#220838');
+  bx.fillStyle = capeGrad;
+  bx.beginPath();
+  bx.moveTo(shoulderLx, shoulderY);
+  bx.lineTo(shoulderRx, shoulderY);
+  bx.quadraticCurveTo(
+    shoulderRx + capeDir * 2 + sway, shoulderY + (capeBottomY - shoulderY) * 0.5,
+    cx + bodyW * 0.45 + sway, capeBottomY
+  );
+  bx.lineTo(cx - bodyW * 0.45 + sway, capeBottomY);
+  bx.quadraticCurveTo(
+    shoulderLx + capeDir * 2 + sway, shoulderY + (capeBottomY - shoulderY) * 0.5,
+    shoulderLx, shoulderY
+  );
+  bx.closePath();
+  bx.fill();
+
+  bx.globalAlpha = 0.12;
+  bx.fillStyle = rage ? '#ff8090' : '#9878c8';
+  bx.beginPath();
+  bx.moveTo(cx - bodyW * 0.2, shoulderY + 2);
+  bx.quadraticCurveTo(cx + capeDir * 3, shoulderY + (capeBottomY - shoulderY) * 0.4, cx, capeBottomY - 2);
+  bx.lineTo(cx - bodyW * 0.1, shoulderY + 4);
+  bx.closePath();
+  bx.fill();
+  bx.restore();
+
+  // Gold clasp at neck
+  bx.save();
+  bx.strokeStyle = '#c8a030';
+  bx.lineWidth = 1.5;
+  bx.beginPath();
+  bx.moveTo(shoulderLx + 1, shoulderY);
+  bx.lineTo(shoulderRx - 1, shoulderY);
+  bx.stroke();
+  bx.restore();
+
   // Body shadow
   var shadGrad = bx.createRadialGradient(cx - 2, cy + bodyH * 0.3, 1, cx, cy + bodyH * 0.4, bodyW * 1.1);
   shadGrad.addColorStop(0, '#4a2068');
@@ -3934,38 +4245,139 @@ function drawBoss() {
   bx.ellipse(cx, cy + bodyH * 0.4, bodyW, bodyH * 0.55, 0, 0, Math.PI * 2);
   bx.fill();
 
-  // Body highlight
+  // === GOLD ARMOR PLATE ===
+  var armorCy = cy + bodyH * 0.4;
+  var armorW = bodyW * 0.7;
+  var armorH = bodyH * 0.35;
+  var armorGrad = bx.createLinearGradient(cx - armorW, armorCy - armorH, cx + armorW * 0.5, armorCy + armorH);
+  armorGrad.addColorStop(0, rage ? '#c87828' : '#d4a840');
+  armorGrad.addColorStop(0.3, rage ? '#e8a040' : '#f0d068');
+  armorGrad.addColorStop(0.5, rage ? '#ffc850' : '#fcf0a0');
+  armorGrad.addColorStop(0.7, rage ? '#c87828' : '#d4a840');
+  armorGrad.addColorStop(1, rage ? '#804010' : '#a07828');
+  bx.fillStyle = armorGrad;
+  bx.beginPath();
+  bx.ellipse(cx + dir * 1.5, armorCy, armorW, armorH, 0, Math.PI * 0.15, Math.PI * 0.85);
+  bx.closePath();
+  bx.fill();
+
+  // Armor edge/rim
+  bx.strokeStyle = rage ? '#a06020' : '#b08830';
+  bx.lineWidth = 0.8;
+  bx.beginPath();
+  bx.ellipse(cx + dir * 1.5, armorCy, armorW, armorH, 0, Math.PI * 0.15, Math.PI * 0.85);
+  bx.stroke();
+
+  // Armor highlight
   bx.save();
-  bx.globalAlpha = 0.2;
+  bx.globalAlpha = 0.35;
+  bx.fillStyle = '#fff8e0';
+  bx.beginPath();
+  bx.ellipse(cx + dir * 1.5 + 2, armorCy - armorH * 0.2, armorW * 0.35, armorH * 0.25, -0.3, 0, Math.PI * 2);
+  bx.fill();
+  bx.restore();
+
+  // Center gem on armor
+  var gemX = cx + dir * 1.5;
+  var gemY = armorCy + armorH * 0.15;
+  var gemGrad = bx.createRadialGradient(gemX - 0.5, gemY - 0.5, 0.2, gemX, gemY, 2.2);
+  gemGrad.addColorStop(0, '#fff');
+  gemGrad.addColorStop(0.3, rage ? '#ff4060' : '#60e0a0');
+  gemGrad.addColorStop(1, rage ? '#801020' : '#206040');
+  bx.fillStyle = gemGrad;
+  bx.beginPath();
+  bx.arc(gemX, gemY, 2, 0, Math.PI * 2);
+  bx.fill();
+
+  // === SHOULDER GUARDS ===
+  var shX1 = cx - bodyW * 0.75;
+  var shX2 = cx + bodyW * 0.75;
+  var shY = cy + bodyH * 0.22;
+  for (var shi = 0; shi < 2; shi++) {
+    var shX = shi === 0 ? shX1 : shX2;
+    var shGrad = bx.createRadialGradient(shX, shY - 1, 0.5, shX, shY + 1, 4.5);
+    shGrad.addColorStop(0, rage ? '#ffc040' : '#f0d868');
+    shGrad.addColorStop(0.6, rage ? '#c87828' : '#c8a030');
+    shGrad.addColorStop(1, rage ? '#804018' : '#806020');
+    bx.fillStyle = shGrad;
+    bx.beginPath();
+    bx.ellipse(shX, shY, 4, 3, 0, 0, Math.PI * 2);
+    bx.fill();
+    bx.save();
+    bx.globalAlpha = 0.4;
+    bx.fillStyle = '#fff8d0';
+    bx.beginPath();
+    bx.arc(shX - 0.8, shY - 1, 1, 0, Math.PI * 2);
+    bx.fill();
+    bx.restore();
+  }
+
+  // Body highlight (over armor edges)
+  bx.save();
+  bx.globalAlpha = 0.12;
   bx.fillStyle = '#c0a0e0';
   bx.beginPath();
   bx.ellipse(cx + bodyW * 0.15, cy + bodyH * 0.15, bodyW * 0.4, bodyH * 0.2, -0.3, 0, Math.PI * 2);
   bx.fill();
   bx.restore();
 
-  // Spikes on top (crown-like)
-  var spikeCol = rage ? '#c04060' : '#a080d0';
-  var spikeDark = rage ? '#802040' : '#6848a0';
+  // === CROWN (enhanced spikes) ===
+  var spikeCol = rage ? '#ffc040' : '#f0d060';
+  var spikeDark = rage ? '#a07020' : '#b09030';
+  var spikeLight = rage ? '#ffe880' : '#fcf8b0';
   for (var si = 0; si < 5; si++) {
     var sa = -0.7 + si * 0.35;
     var spx = cx + Math.sin(sa) * bodyW * 0.7;
     var spy = cy + bodyH * 0.4 - Math.cos(sa) * bodyH * 0.5;
-    var spikeH = 5 + (si === 2 ? 3 : 0) + breathe * 0.5;
+    var spikeH = 6 + (si === 2 ? 4 : si % 2 === 0 ? 1 : 0) + breathe * 0.5;
     bx.fillStyle = spikeDark;
     bx.beginPath();
-    bx.moveTo(spx - 2.5, spy + 1);
+    bx.moveTo(spx - 2.8, spy + 1);
     bx.lineTo(spx, spy - spikeH);
-    bx.lineTo(spx + 2.5, spy + 1);
+    bx.lineTo(spx + 2.8, spy + 1);
     bx.closePath();
     bx.fill();
     bx.fillStyle = spikeCol;
     bx.beginPath();
-    bx.moveTo(spx - 2, spy);
+    bx.moveTo(spx - 2.2, spy);
     bx.lineTo(spx, spy - spikeH + 1);
-    bx.lineTo(spx + 2, spy);
+    bx.lineTo(spx + 2.2, spy);
     bx.closePath();
     bx.fill();
+    bx.save();
+    bx.globalAlpha = 0.3;
+    bx.fillStyle = spikeLight;
+    bx.beginPath();
+    bx.moveTo(spx - 0.8, spy);
+    bx.lineTo(spx, spy - spikeH + 2);
+    bx.lineTo(spx + 0.5, spy);
+    bx.closePath();
+    bx.fill();
+    bx.restore();
+    if (si === 2) {
+      var tipGem = bx.createRadialGradient(spx, spy - spikeH + 1, 0.2, spx, spy - spikeH + 1, 1.5);
+      tipGem.addColorStop(0, '#fff');
+      tipGem.addColorStop(0.4, rage ? '#ff5060' : '#80f0c0');
+      tipGem.addColorStop(1, rage ? '#a02030' : '#308060');
+      bx.fillStyle = tipGem;
+      bx.beginPath();
+      bx.arc(spx, spy - spikeH + 1.5, 1.3, 0, Math.PI * 2);
+      bx.fill();
+    }
   }
+  // Crown band connecting spikes
+  bx.save();
+  bx.strokeStyle = spikeCol;
+  bx.lineWidth = 1.5;
+  bx.beginPath();
+  bx.arc(cx, cy + bodyH * 0.4, bodyW * 0.72, -Math.PI * 0.82, -Math.PI * 0.18);
+  bx.stroke();
+  bx.strokeStyle = spikeDark;
+  bx.lineWidth = 0.6;
+  bx.beginPath();
+  bx.arc(cx, cy + bodyH * 0.4, bodyW * 0.72 + 1.2, -Math.PI * 0.82, -Math.PI * 0.18);
+  bx.stroke();
+  bx.restore();
 
   // Eyes
   var eyeSpread = 4.5;
@@ -4087,6 +4499,54 @@ function drawBoss() {
     bx.restore();
   }
 
+  // Dash telegraph glow (phase 1: winding up)
+  if (boss.dashPhase === 1) {
+    bx.save();
+    var telPulse = 0.3 + Math.sin(globalTick * 0.8) * 0.2;
+    bx.globalAlpha = telPulse;
+    bx.fillStyle = '#ff6040';
+    bx.beginPath();
+    bx.ellipse(cx + boss.dashDir * 6, cy + bodyH * 0.4, bodyW + 5, bodyH * 0.5 + 3, 0, 0, Math.PI * 2);
+    bx.fill();
+    bx.restore();
+  }
+
+  // Dash speed lines (phase 2: charging)
+  if (boss.dashPhase === 2) {
+    bx.save();
+    bx.globalAlpha = 0.4;
+    bx.strokeStyle = '#ff8060';
+    bx.lineWidth = 1.5;
+    for (var sl = 0; sl < 4; sl++) {
+      var slY = cy + bodyH * (0.1 + sl * 0.25);
+      var slX = cx - boss.dashDir * (bodyW + 4 + sl * 3);
+      bx.beginPath();
+      bx.moveTo(slX, slY);
+      bx.lineTo(slX - boss.dashDir * (8 + Math.random() * 6), slY);
+      bx.stroke();
+    }
+    bx.restore();
+  }
+
+  // Melee swipe arc
+  if (boss.meleeAnim > 0) {
+    bx.save();
+    var swipeT = 1 - boss.meleeAnim / 15;
+    var swipeDir = mario.x < boss.x ? -1 : 1;
+    var swipeAngle = swipeT * Math.PI * 0.8;
+    var swipeR = bodyW + 8;
+    bx.globalAlpha = (1 - swipeT) * 0.6;
+    bx.strokeStyle = '#e0a0ff';
+    bx.lineWidth = 3 - swipeT * 2;
+    bx.lineCap = 'round';
+    bx.beginPath();
+    var arcStart = swipeDir > 0 ? -Math.PI * 0.6 : Math.PI * 0.6 - swipeAngle;
+    var arcEnd = swipeDir > 0 ? -Math.PI * 0.6 + swipeAngle : Math.PI * 0.6;
+    bx.arc(cx + swipeDir * 4, cy + bodyH * 0.3, swipeR, arcStart, arcEnd);
+    bx.stroke();
+    bx.restore();
+  }
+
   // HP bar
   var barW = 30;
   var barY = sy - 10;
@@ -4179,6 +4639,46 @@ function drawBossFireballs() {
     bx.fillStyle = '#fff';
     bx.beginPath();
     bx.arc(bfcx - 1, bfcy - 1, 1.2, 0, Math.PI * 2);
+    bx.fill();
+    bx.restore();
+  });
+}
+
+function drawBossShockwaves() {
+  bossShockwaves.forEach(w => {
+    const wx = Math.floor(w.x - camera.rx);
+    const wy = Math.floor(w.y);
+    if (wx < -20 || wx > VIEW_W + 20) return;
+    const t = w.life / w.maxLife;
+    const waveH = 14 * t;
+    const waveW = 6 + 4 * (1 - t);
+
+    bx.save();
+    bx.globalAlpha = t * 0.35;
+    bx.fillStyle = '#a040c0';
+    bx.beginPath();
+    bx.ellipse(wx, wy - waveH * 0.3, waveW + 3, waveH + 4, 0, 0, Math.PI * 2);
+    bx.fill();
+    bx.restore();
+
+    const wGrad = bx.createRadialGradient(wx, wy - waveH * 0.4, 1, wx, wy - waveH * 0.3, waveW + 1);
+    wGrad.addColorStop(0, '#fcf0ff');
+    wGrad.addColorStop(0.3, '#d070e0');
+    wGrad.addColorStop(0.7, '#8030a0');
+    wGrad.addColorStop(1, 'rgba(80,20,100,0)');
+    bx.save();
+    bx.globalAlpha = t * 0.8;
+    bx.fillStyle = wGrad;
+    bx.beginPath();
+    bx.ellipse(wx, wy - waveH * 0.3, waveW, waveH, 0, 0, Math.PI * 2);
+    bx.fill();
+    bx.restore();
+
+    bx.save();
+    bx.globalAlpha = t * 0.5;
+    bx.fillStyle = '#fff';
+    bx.beginPath();
+    bx.ellipse(wx, wy - waveH * 0.5, waveW * 0.4, waveH * 0.3, 0, 0, Math.PI * 2);
     bx.fill();
     bx.restore();
   });
@@ -4328,6 +4828,31 @@ function drawCheckpoint() {
 
     if (ci <= checkpointIndex) {
       const pulse = Math.sin(globalTick * 0.12) * 0.3 + 0.7;
+
+      bx.save();
+      var beamAlpha = 0.06 + Math.sin(globalTick * 0.05 + ci) * 0.03;
+      bx.globalAlpha = beamAlpha;
+      var beamGrad = bx.createLinearGradient(0, poleTop - 30, 0, poleTop + poleH + 10);
+      beamGrad.addColorStop(0, 'rgba(200,180,240,0)');
+      beamGrad.addColorStop(0.3, '#c8b8f0');
+      beamGrad.addColorStop(0.7, '#c8b8f0');
+      beamGrad.addColorStop(1, 'rgba(200,180,240,0)');
+      bx.fillStyle = beamGrad;
+      bx.fillRect(cfx + 2, poleTop - 30, 12, poleH + 40);
+      bx.restore();
+
+      bx.save();
+      bx.globalAlpha = pulse * 0.5;
+      var orbGlow = bx.createRadialGradient(cfx + 8, poleTop - 1, 1, cfx + 8, poleTop - 1, 8);
+      orbGlow.addColorStop(0, '#f0e8ff');
+      orbGlow.addColorStop(0.5, '#c0a8e8');
+      orbGlow.addColorStop(1, 'rgba(160,120,200,0)');
+      bx.fillStyle = orbGlow;
+      bx.beginPath();
+      bx.arc(cfx + 8, poleTop - 1, 8, 0, Math.PI * 2);
+      bx.fill();
+      bx.restore();
+
       bx.save();
       bx.globalAlpha = pulse;
       const cpfGrad = bx.createLinearGradient(cfx + 1, 0, cfx + 7, 0);
@@ -4400,7 +4925,7 @@ function drawFlagPole() {
     bx.fill();
 
     // White "e" inside the flag (centered with padding)
-    const eCx = fx - 2 + wave * 0.35;
+    const eCx = fx + wave * 0.35;
     const eCy = flagDrawY + 7.5;
     const eR = 2.2;
     bx.strokeStyle = '#ffffff';
@@ -4849,6 +5374,7 @@ function render() {
   drawEntities();
   drawBoss();
   drawBossFireballs();
+  drawBossShockwaves();
   drawMarioFireballs();
   drawParticles();
   drawMario();
