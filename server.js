@@ -198,6 +198,7 @@ io.on('connection', (socket) => {
     p.gameScore = msg.gameScore || 0;
     p.progress = Math.min(1, msg.progress || 0);
     io.to(roomCode).emit('room_state', roomSnapshot(room));
+    socket.to(roomCode).emit('player_eliminated', { name: p.name });
     checkMatchEnd(room);
   });
 

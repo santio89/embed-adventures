@@ -2543,6 +2543,10 @@ function update() {
   }
   if (eliminated) {
     globalTick++;
+    if (hudMessage) {
+      hudMessage.life--;
+      if (hudMessage.life <= 0) hudMessage = null;
+    }
     return;
   }
   updateMario();
@@ -4190,26 +4194,6 @@ function drawCastle() {
   bx.fillRect(ccx + 3.5 * TILE - 1, 5 * TILE, 1, 3 * TILE);
 }
 
-var lastTimelineUpdate = 0;
-
-function updateTimelineLocal() {
-  if (!multiplayerMode || racePlayers.length === 0 || gameState !== 'playing') return;
-  var now = Date.now();
-  if (now - lastTimelineUpdate < 250) return;
-  lastTimelineUpdate = now;
-
-  if (!eliminated) {
-    var me = racePlayers.find(function(p) { return p.id === myPlayerId; });
-    if (me && !me.finished && me.alive) {
-      me.progress = Math.min(1, mario.x / ((LEVEL_WIDTH - 15) * TILE));
-      me.coins = coins;
-      me.gameScore = score;
-      me.alive = !mario.dead && lives > 0;
-    }
-  }
-  updateTimeline(racePlayers);
-}
-
 function drawProgressBar() {
   if (!multiplayerMode || racePlayers.length === 0) return;
 
@@ -4219,8 +4203,6 @@ function drawProgressBar() {
       me.progress = Math.min(1, mario.x / ((LEVEL_WIDTH - 15) * TILE));
     }
   }
-
-  updateTimelineLocal();
 
   const barX = 16;
   const barY = 29;
@@ -4566,7 +4548,7 @@ function render() {
     drawBlobIcon(VIEW_W / 2 - 10, VIEW_H / 2 + 2, 10, mySelectedColor, false);
     drawPixelText(bx, 'x  ' + (lives - 1), (VIEW_W / 2 + 6) | 0, (VIEW_H / 2) | 0, '#e0d0f8', null);
     if (multiplayerMode) {
-      document.getElementById('raceTimeline').classList.add('visible');
+      drawProgressBar();
     }
     ctx.drawImage(buf, 0, 0, buf.width, buf.height, 0, 0, canvas.width, canvas.height);
     drawScanlines();
@@ -4614,7 +4596,6 @@ function render() {
   }
 
   if (eliminated && multiplayerMode) {
-    document.getElementById('raceTimeline').classList.add('visible');
 
     bx.fillStyle = 'rgba(16,8,24,0.85)';
     bx.fillRect(0, 0, VIEW_W, VIEW_H);
@@ -4641,6 +4622,28 @@ function render() {
     var waitW = waitText.length * 6;
     drawPixelText(bx, waitText, Math.round((VIEW_W - waitW) / 2), VIEW_H / 2 + 34, '#a898c8', '#1a1028');
     bx.restore();
+
+    if (hudMessage) {
+      var hm2 = hudMessage;
+      var fi2 = Math.min(1, (hm2.maxLife - hm2.life) / 15);
+      var fo2 = Math.min(1, hm2.life / 20);
+      var a2 = Math.min(fi2, fo2);
+      var sy2 = (1 - fi2) * -8;
+      bx.save();
+      bx.globalAlpha = a2 * 0.6;
+      var w2 = hm2.text.length * 6 + 20;
+      var x2 = Math.round((VIEW_W - w2) / 2);
+      var y2 = Math.round(VIEW_H * 0.32 + sy2);
+      bx.fillStyle = '#1a1028';
+      bx.beginPath();
+      bx.roundRect(x2, y2 - 2, w2, 14, 4);
+      bx.fill();
+      bx.globalAlpha = a2;
+      drawPixelText(bx, hm2.text, Math.round((VIEW_W - hm2.text.length * 6) / 2), y2 + 1, '#e0d0f8', null);
+      bx.restore();
+    }
+
+    drawProgressBar();
   }
 
   if (gameState === 'win' && !multiplayerMode) {
@@ -4857,7 +4860,6 @@ function connectSocket() {
           roomMatchDuration = data.matchDuration || MATCH_DURATION;
           matchTimeRemaining = roomMatchDuration;
           matchEnding = false;
-          document.getElementById('raceTimeline').classList.add('visible');
         }
         if (!eliminated) {
           var localProgress = Math.min(1, mario.x / ((LEVEL_WIDTH - 15) * TILE));
@@ -4872,7 +4874,6 @@ function connectSocket() {
           }
         }
         racePlayers = playersList;
-        updateTimeline(playersList);
         break;
 
       case 'finished':
@@ -4891,6 +4892,12 @@ function connectSocket() {
 
   ws.on('room_closed', function() {
     leaveRoom();
+  });
+
+  ws.on('player_eliminated', function(data) {
+    if (gameState === 'playing') {
+      hudMessage = { text: data.name + ' ELIMINATED', life: 150, maxLife: 150 };
+    }
   });
 }
 
