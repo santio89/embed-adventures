@@ -1046,7 +1046,7 @@ function buildLevel() {
   stairDown(418, 4);
 
   // Boss arena: flat ground 422-443, gate at 444
-  for (let y = 0; y <= 12; y++) map[y][BOSS_GATE_X] = 5;
+  for (let y = 2; y <= 13; y++) map[y][BOSS_GATE_X] = 5;
 
   // Victory staircase after boss
   stairUp(452, 8);
@@ -1392,8 +1392,8 @@ function spawnBoss() {
 }
 
 function onBossDefeated() {
-  for (let gy = 0; gy <= 12; gy++) levelMap[gy][BOSS_GATE_X] = 0;
-  for (let gy = 0; gy <= 12; gy++) levelMap[gy][BOSS_ARENA_LEFT] = 0;
+  for (let gy = 2; gy <= 13; gy++) levelMap[gy][BOSS_GATE_X] = 0;
+  for (let gy = 2; gy <= 13; gy++) levelMap[gy][BOSS_ARENA_LEFT] = 0;
   bossEncounterActive = false;
 }
 
@@ -1735,7 +1735,7 @@ function updateMario() {
   // Trigger boss encounter when Mario enters the arena
   if (!bossEncounterActive && boss && boss.alive && mario.x >= BOSS_ARENA_LEFT * TILE) {
     bossEncounterActive = true;
-    for (let gy = 0; gy <= 12; gy++) levelMap[gy][BOSS_ARENA_LEFT] = 5;
+    for (let gy = 2; gy <= 13; gy++) levelMap[gy][BOSS_ARENA_LEFT] = 5;
   }
 
   // Clamp Mario inside the boss arena
@@ -4024,7 +4024,7 @@ function drawMarioFireballs() {
 function drawBossArenaWall(tileX) {
   const gx = Math.floor(tileX * TILE - camera.rx);
   if (gx < -TILE || gx > VIEW_W + TILE) return;
-  for (let row = 0; row <= 12; row++) {
+  for (let row = 2; row <= 13; row++) {
     const gy = row * TILE;
     const bgGrad = bx.createLinearGradient(gx, 0, gx + TILE, 0);
     bgGrad.addColorStop(0, '#6858b8');
