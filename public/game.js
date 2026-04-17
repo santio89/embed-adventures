@@ -1924,6 +1924,16 @@ function buildLevel() {
   for (let y = 9; y <= 12; y++) map[y][368] = 5;
   map[9][371] = 3; map[9][372] = 2; map[9][373] = 4; map[9][374] = 2;
   map[5][376] = 3;                                   // high ? in clear column (no row 9 below)
+  // Small full pyramid (5-3-1) — answers the desert biome's two big
+  // pyramids and visually balances the lava section's broken-top
+  // volcano silhouette in the background. Same odd-width treatment
+  // as the desert pyramids: stairUp + stairDown produce a clean
+  // single-tile apex at col 380 / row 10. Heights: 1,2,3,2,1.
+  // Cleared columns on both sides (377 and 383) keep the silhouette
+  // reading as a tidy isolated triangle, with the high ?-block at
+  // col 376 and the 1-up at col 384 framing it from a distance.
+  stairUp(378, 3);                                   // base→apex (cols 378-380)
+  stairDown(381, 2);                                 // apex→base (cols 381-382)
   map[5][384] = 6;                                   // 1-up (lava biome's own life reward, clear column)
   // Lava chasm 1 (389-392)
   ground(393, 410);
@@ -2485,7 +2495,7 @@ function spawnMapCoins() {
     [352, 11], [353, 11],                           // approach to lava (extra)
     // ----- LAVA -----
     [364, 9], [368, 7],                             // obsidian rises
-    [380, 11],                                      // hot path (extra)
+    [380, 9],                                       // small lava pyramid apex peak (apex tile at row 10)
     [389, 9], [390, 9], [391, 9], [392, 9],         // lava chasm 1
     [400, 6], [401, 6], [403, 6],                   // floating island (skip col 402 — has ?-block)
     [411, 9], [412, 9], [413, 9],                   // lava chasm 2
@@ -8500,23 +8510,17 @@ function render() {
     var bobY = Math.round(Math.sin(llTick * 0.08) * 1.2);
     var blobR = 13;
     // groupY is chosen so the blob + LIVES LEFT caption are centred
-    // vertically inside the dark cavity (roughly equal padding above
-    // the blob and below the caption, within ±1 px from the odd
-    // remainder).
-    var groupY = llY + 41;
-    // Lay out blob + "x" + big number as a single centred group so the
-    // whole row reads as a balanced unit regardless of card width or
-    // lives-count digit width. Pixel-font chars advance 6 px per cell;
-    // the big number is drawn via a 2x context scale so its cells are
-    // 12 px wide.
+    // vertically inside the dark cavity — exactly equal padding above
+    // the blob and below the caption (11 / 11).
+    var groupY = llY + 40;
+    // Blob is centred horizontally in the card so it sits on the same
+    // vertical axis as the LIVES LEFT caption below. The "x N" counter
+    // flows off to the right of the blob in classic "MARIO x N" style.
     var livesCount = Math.max(0, lives - 1);
     var bigLivesStr = String(livesCount);
-    var bigNumW = bigLivesStr.length * 12;
     var groupGap = 6;
-    var groupW = (2 * blobR) + groupGap + 6 + groupGap + bigNumW;
-    var groupX = llX + Math.floor((llW - groupW) / 2);
-    var blobX  = groupX + blobR;
-    var xMarkX = groupX + (2 * blobR) + groupGap;
+    var blobX   = llX + (llW >> 1);
+    var xMarkX  = blobX + blobR + groupGap;
     var bigNumX = xMarkX + 6 + groupGap;
 
     drawBlobIcon(blobX, groupY + bobY, blobR, mySelectedColor, false);
@@ -8563,25 +8567,26 @@ function render() {
     bx.fillRect(llX + 2, ll_fsY, llW - 4, 1);
 
     // ---- "LIVES LEFT" caption (centred). Anchored to the blob group
-    // (fixed 8-px gap under the blob's bottom edge) so the whole
-    // content block stays together and remains vertically centred
-    // inside the dark cavity — equal padding above the blob and below
-    // this caption.
+    // (10 empty rows under the blob's bottom edge → "+11" offset) so
+    // the whole content block stays together and is vertically centred
+    // inside the dark cavity with exactly equal padding above the blob
+    // and below the caption.
     var llCap = 'LIVES LEFT';
     var llCapW = llCap.length * 6;
-    drawPixelText(bx, llCap, llX + Math.floor((llW - llCapW) / 2), groupY + blobR + 8, '#b890ff', null);
+    drawPixelText(bx, llCap, llX + Math.floor((llW - llCapW) / 2), groupY + blobR + 11, '#b890ff', null);
 
-    // Animated "GET READY!" prompt blinking in green like a SMB1 ready prompt
-    var grPhase = Math.floor(llTick / 18) % 4;
-    if (grPhase < 3) {
-      var grAlpha = 0.6 + 0.4 * Math.sin(llTick * 0.18);
-      bx.save();
-      bx.globalAlpha = grAlpha;
-      var grStr = 'GET READY!';
-      var grW = grStr.length * 6;
-      drawPixelText(bx, grStr, llX + Math.floor((llW - grW) / 2), ll_fsY + 5, '#80e8a0', null);
-      bx.restore();
-    }
+    // Animated "GET READY!" prompt — smooth sinusoidal breathe in green
+    // like a SMB1 ready prompt. The previous version also gated the
+    // prompt behind an on/off phase cycle, which made it fully vanish
+    // for ~0.3 s every beat; now it just modulates alpha between ~0.55
+    // and 1.0 so it pulses without ever disappearing.
+    var grAlpha = 0.775 + 0.225 * Math.sin(llTick * 0.22);
+    bx.save();
+    bx.globalAlpha = grAlpha;
+    var grStr = 'GET READY!';
+    var grW = grStr.length * 6;
+    drawPixelText(bx, grStr, llX + Math.floor((llW - grW) / 2), ll_fsY + 5, '#80e8a0', null);
+    bx.restore();
 
     ctx.drawImage(buf, 0, 0, buf.width, buf.height, 0, 0, canvas.width, canvas.height);
     drawScanlines();
