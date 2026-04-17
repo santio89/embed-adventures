@@ -8605,6 +8605,7 @@ function connectSocket() {
           matchEnding = false;
           remoteStates.clear();
           lastStateSend = 0;
+          _idleLatch = null;
         }
         if (!eliminated) {
           var localProgress = Math.min(1, mario.x / ((LEVEL_WIDTH - 15) * TILE));
@@ -8694,6 +8695,22 @@ function writeProgress() {
 // Throttled to REMOTE_SEND_MS so the network stays light. Allowed in
 // 'playing' AND 'win' (so opponents see your flag descent + castle
 // walk), but suppressed once eliminated/finished tear-down has run.
+//
+// Idle-position latch ---------------------------------------------
+// Physics friction is multiplicative (`vx *= 0.9`-ish per frame) so
+// `mario.vx` asymptotes to zero but never quite reaches it. Sub-pixel
+// residuals keep inching `mario.x` forward after the player has
+// visually stopped. Even though we clamp `sendVx`/`sendVy` to exactly
+// 0 below our 0.1 threshold, `Math.round(mario.x)` will eventually
+// step across an integer boundary — at which point the receiver sees
+// two zero-velocity snapshots with different positions and Hermite-
+// interpolates a 1-px slide. From the other player's POV the stationary
+// blob visibly "ticks" forward ~1 px every few seconds.
+// Latching the rounded outgoing coordinate at the moment we declare
+// ourselves idle guarantees bit-identical packets until real input
+// resumes, so two consecutive snapshots collapse the curve to a
+// perfectly flat constant.
+var _idleLatch = null;
 function sendPlayerState() {
   if (!ws || !ws.connected || !multiplayerMode) return;
   if (gameState !== 'playing' && gameState !== 'win') return;
@@ -8724,9 +8741,26 @@ function sendPlayerState() {
   var sendVx = Math.abs(mario.vx) < 0.1 ? 0 : mario.vx;
   var sendVy = Math.abs(mario.vy) < 0.1 ? 0 : mario.vy;
 
+  var sx = Math.round(mario.x);
+  var sy = Math.round(mario.y);
+
+  // Truly idle = grounded, not dead, IDLE anim, both velocities
+  // already clamped to zero. Any of those being false means the
+  // player is legitimately in motion and the latch must release
+  // immediately, otherwise we'd freeze a running blob in place.
+  var trulyIdle = (anim === ANIM_IDLE && sendVx === 0 && sendVy === 0 &&
+                   mario.onGround && !mario.dead && !mario.crouching);
+  if (trulyIdle) {
+    if (!_idleLatch) _idleLatch = { x: sx, y: sy };
+    sx = _idleLatch.x;
+    sy = _idleLatch.y;
+  } else {
+    _idleLatch = null;
+  }
+
   ws.emit('player_state', {
-    x: Math.round(mario.x),
-    y: Math.round(mario.y),
+    x: sx,
+    y: sy,
     vx: sendVx,
     vy: sendVy,
     facing: mario.facing,
@@ -8763,6 +8797,7 @@ function cleanupRoom() {
   matchEnding = false;
   lastProgressWrite = 0;
   lastStateSend = 0;
+  _idleLatch = null;
   remoteStates.clear();
 }
 
