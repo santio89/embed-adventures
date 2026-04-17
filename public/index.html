@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Embeddablob</title>
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -57,28 +60,37 @@
     display: block;
     border-radius: 6px;
   }
+  /* Pixel-art CRT toggle — chunky 2-px frame, pixel font, hard offset
+     shadow. Matches the rest of the retro UI language. */
   #scanlineToggle {
     position: absolute;
-    top: 10px; left: 10px;
+    /* Bottom-left corner of the play area — well clear of every HUD
+       counter (BLOB/score top-left, TIME top-right) and the progress
+       bar at the very top. */
+    bottom: 10px;
+    left: 10px;
     z-index: 12;
-    background: var(--bg-1);
-    border: 1px solid var(--line);
-    color: var(--fg-mute);
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 10px;
-    font-weight: 500;
-    padding: 4px 9px;
+    background: #0d0b16;
+    border: 2px solid #6a4dc6;
+    color: #fff5b0;
+    font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 7px;
+    font-weight: 400;
+    padding: 6px 10px;
     border-radius: 0;
     cursor: pointer;
-    letter-spacing: 1.2px;
+    letter-spacing: 1.5px;
     text-transform: uppercase;
+    box-shadow: 2px 2px 0 #1a0a3e;
     transition: all 0.12s ease;
+    -webkit-font-smoothing: none;
+    text-shadow: 1px 1px 0 #1a0a3e;
   }
   #scanlineToggle:hover {
-    background: var(--bg-2);
-    color: var(--fg);
-    border-color: var(--accent);
-    box-shadow: 3px 3px 0 var(--accent-deep);
+    background: #1a0a3e;
+    color: #fff;
+    border-color: #b890ff;
+    box-shadow: 3px 3px 0 #b890ff;
     transform: translate(-1px, -1px);
   }
   /* Mouse-only control — never trap keyboard focus (Space is the jump key
@@ -104,15 +116,245 @@
   }
   .overlay.hidden { display: none; }
 
-  /* Brutalist canvas: deep black, faint dot grid, thin diagonal hatch.
-     The grid uses a tiled background-image so it stays perfectly crisp at
-     any zoom. Purple is reserved for the accent vignette only. */
+  /* Calm Nintendo-style night sky — deep cosmic indigo at top fading
+     into a soft twilight purple horizon. NO magenta/peach gradient —
+     it now feels like the cosmic biome from the game (the moment right
+     after sunset, big star field, distant hills). Two soft radial
+     nebula glows add depth without breaking the pixel-art mood. */
   #menuOverlay {
     background:
-      radial-gradient(ellipse at 78% 12%, rgba(184,144,255,0.10) 0%, rgba(184,144,255,0) 55%),
-      radial-gradient(ellipse at 18% 92%, rgba(106,77,198,0.08) 0%, rgba(106,77,198,0) 60%),
-      linear-gradient(180deg, #07060c 0%, #050409 100%);
+      radial-gradient(ellipse at 22% 30%, rgba(184,144,255,0.18) 0%, rgba(184,144,255,0) 55%),
+      radial-gradient(ellipse at 78% 70%, rgba(120,160,255,0.14) 0%, rgba(120,160,255,0) 55%),
+      linear-gradient(180deg,
+        #060418 0%,
+        #0c0830 18%,
+        #1a0e48 40%,
+        #28186a 65%,
+        #3a206a 85%,
+        #4a2868 100%);
     overflow: hidden;
+  }
+  /* ---- MENU SCENE --------------------------------------------------
+     Full-bleed decorative layer that sits BEHIND the menu cards. Holds
+     pixel stars, parallax clouds, distant hills, the ground silhouette
+     and the blob mascot. Pointer-events disabled so it never steals
+     clicks from the buttons in front. */
+  .menu-scene {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+  .menu-scene .stars {
+    position: absolute;
+    inset: 0;
+    /* Tiny sharp pixel stars. Three layered backgrounds at different
+       sizes give a parallax twinkle effect. */
+    background-image:
+      radial-gradient(1px 1px at 12% 14%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 23% 32%, #fff5b0 50%, transparent 51%),
+      radial-gradient(1px 1px at 47% 8%,  #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 67% 22%, #b890ff 50%, transparent 51%),
+      radial-gradient(1px 1px at 83% 11%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 92% 28%, #fff5b0 50%, transparent 51%),
+      radial-gradient(1px 1px at 8% 42%,  #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 35% 18%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 56% 38%, #b890ff 50%, transparent 51%),
+      radial-gradient(1px 1px at 74% 46%, #fff 50%, transparent 51%);
+    animation: starTwinkle 3.2s steps(4, end) infinite;
+    opacity: 0.9;
+  }
+  .menu-scene .stars.layer2 {
+    background-image:
+      radial-gradient(1px 1px at 18% 24%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 38% 5%,  #fff5b0 50%, transparent 51%),
+      radial-gradient(1px 1px at 64% 14%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 86% 38%, #80c8ff 50%, transparent 51%),
+      radial-gradient(1px 1px at 4% 30%,  #fff 50%, transparent 51%);
+    animation-delay: 1.6s;
+    animation-duration: 2.2s;
+    opacity: 0.7;
+  }
+  @keyframes starTwinkle {
+    0%, 100% { opacity: 0.85; }
+    50% { opacity: 0.35; }
+  }
+
+  /* Pixel-art clouds — built with chunky box-shadows so they stay sharp
+     at any zoom. Each cloud floats horizontally on its own loop. */
+  .menu-scene .cloud {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: transparent;
+    border-radius: 0;
+    animation: cloudDrift linear infinite;
+    image-rendering: pixelated;
+    opacity: 0.85;
+  }
+  .menu-scene .cloud::before,
+  .menu-scene .cloud::after {
+    content: '';
+    position: absolute;
+    background: #f3eefe;
+  }
+  .menu-scene .cloud::before {
+    width: 36px; height: 6px;
+    left: -6px; top: 6px;
+    box-shadow:
+      6px -6px 0 #f3eefe,    /* top1 */
+      12px -6px 0 #f3eefe,   /* top2 */
+      18px -6px 0 #f3eefe,   /* top3 */
+      0 6px 0 #d8c8f0,       /* shade row */
+      6px 6px 0 #d8c8f0,
+      12px 6px 0 #d8c8f0,
+      18px 6px 0 #d8c8f0,
+      24px 6px 0 #d8c8f0,
+      30px 6px 0 #d8c8f0;
+  }
+  .menu-scene .cloud.c1 { top: 14%; left: -60px; animation-duration: 48s; transform: scale(1.3); }
+  .menu-scene .cloud.c2 { top: 28%; left: -60px; animation-duration: 70s; animation-delay: -22s; transform: scale(0.85); opacity: 0.7; }
+  .menu-scene .cloud.c3 { top: 44%; left: -60px; animation-duration: 60s; animation-delay: -45s; transform: scale(1.0); opacity: 0.6; }
+  @keyframes cloudDrift {
+    0%   { transform: translateX(0) scale(var(--s, 1)); }
+    100% { transform: translateX(110vw) scale(var(--s, 1)); }
+  }
+
+  /* Distant pixel mountain silhouette across the bottom horizon — uses
+     a tiled SVG so it scales without antialiasing. Painted in deep
+     indigo so it reads as cosmic-night mountains instead of magenta
+     candy hills. Two parallax layers (back lighter & taller, front
+     darker & shorter) sell depth.  */
+  .menu-scene .hills {
+    position: absolute;
+    left: 0; right: 0;
+    bottom: 78px;
+    height: 64px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 32' shape-rendering='crispEdges'><path d='M0,32 L0,22 L8,22 L8,18 L16,18 L16,14 L24,14 L24,10 L32,10 L32,14 L40,14 L40,18 L48,18 L48,22 L56,22 L56,26 L64,26 L64,20 L72,20 L72,14 L80,14 L80,8 L88,8 L88,12 L96,12 L96,16 L104,16 L104,22 L112,22 L112,26 L120,26 L120,18 L128,18 L128,12 L136,12 L136,16 L144,16 L144,22 L152,22 L152,26 L160,26 L160,32 Z' fill='%23150a30'/></svg>");
+    background-repeat: repeat-x;
+    background-size: 320px 64px;
+    opacity: 1;
+    image-rendering: pixelated;
+  }
+  .menu-scene .hills.back {
+    bottom: 102px;
+    height: 48px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 32' shape-rendering='crispEdges'><path d='M0,32 L0,22 L8,22 L8,18 L16,18 L16,14 L24,14 L24,10 L32,10 L32,14 L40,14 L40,18 L48,18 L48,22 L56,22 L56,26 L64,26 L64,20 L72,20 L72,14 L80,14 L80,8 L88,8 L88,12 L96,12 L96,16 L104,16 L104,22 L112,22 L112,26 L120,26 L120,18 L128,18 L128,12 L136,12 L136,16 L144,16 L144,22 L152,22 L152,26 L160,26 L160,32 Z' fill='%23241458'/></svg>");
+    background-size: 280px 48px;
+    opacity: 0.7;
+  }
+
+  /* Solid pixel ground strip — deep indigo so it harmonises with the
+     night sky. Top edge gets a soft lavender highlight (not the harsh
+     magenta/peach) and a checker pixel texture row. */
+  .menu-scene .ground {
+    position: absolute;
+    left: 0; right: 0;
+    bottom: 0;
+    height: 78px;
+    background:
+      linear-gradient(180deg, #1a0e3a 0%, #08041a 100%);
+  }
+  .menu-scene .ground::before {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; top: 0;
+    height: 2px;
+    background: #b890ff;
+    box-shadow: 0 2px 0 #6a4dc6;
+  }
+  .menu-scene .ground::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; top: 6px;
+    height: 4px;
+    background-image: linear-gradient(90deg, rgba(184,144,255,0.16) 50%, transparent 50%);
+    background-size: 8px 4px;
+    opacity: 0.6;
+  }
+
+  /* Coin-pixels sprinkled along the ground for that arcade postcard feel */
+  .menu-scene .coin {
+    position: absolute;
+    width: 6px; height: 6px;
+    background: #ffd86a;
+    box-shadow:
+      0 -2px 0 #ffd86a, 0 2px 0 #ffd86a,
+      -2px 0 0 #ffd86a, 2px 0 0 #ffd86a,
+      0 0 0 1px #7a5810;
+    border-radius: 50%;
+    animation: coinSpin 1.6s steps(4, end) infinite;
+    image-rendering: pixelated;
+  }
+  .menu-scene .coin.k2 { animation-delay: -0.4s; }
+  .menu-scene .coin.k3 { animation-delay: -0.8s; }
+  @keyframes coinSpin {
+    0%   { transform: scaleX(1); }
+    25%  { transform: scaleX(0.4); }
+    50%  { transform: scaleX(1); }
+    75%  { transform: scaleX(0.4); }
+    100% { transform: scaleX(1); }
+  }
+
+  /* ---- BLOB MASCOT ------------------------------------------------- */
+  /* Pixel mascot lives INSIDE the centred menu card now (not floating
+     somewhere off in the scene where it could get cropped or hidden).
+     A wrapper at the very top of #menuMain with negative top-margin
+     makes the blob peek over the top edge of the panel — like Mario
+     leaning out of the SMW title plate. The body of the SVG bobs and
+     the eyes blink on a slow loop. Tiny pixel sparkles pop around it
+     for that 1-up shimmer. */
+  .menu-blob-wrap {
+    position: relative;
+    width: 104px;
+    height: 104px;
+    margin-top: -74px;
+    margin-bottom: 10px;
+    pointer-events: none;
+    z-index: 3;
+    flex-shrink: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .menu-blob-wrap .blob-mascot {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    animation: blobBob 2.4s ease-in-out infinite;
+    /* Subtle purple drop-shadow only — no glow halo, so the blob blends
+       naturally into the cosmic sky instead of looking pasted on top. */
+    filter: drop-shadow(0 2px 0 rgba(58,32,104,0.55));
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+  @keyframes blobBob {
+    0%, 100% { transform: translateY(0) scaleY(1); }
+    50%      { transform: translateY(-6px) scaleY(1.03); }
+  }
+  .menu-blob-wrap .spark {
+    position: absolute;
+    width: 4px; height: 4px;
+    background: #fff5b0;
+    box-shadow: 0 0 0 1px #ffd86a;
+    animation: sparkPop 2.8s ease-in-out infinite;
+    image-rendering: pixelated;
+    pointer-events: none;
+  }
+  .menu-blob-wrap .spark.s1 { top: -4px;  left: -10px; animation-delay: 0s;    }
+  .menu-blob-wrap .spark.s2 { top: 12px;  right: -12px; animation-delay: -1s;  }
+  .menu-blob-wrap .spark.s3 { top: 48px;  left: -16px; animation-delay: -1.8s; }
+  .menu-blob-wrap .spark.s4 { top: -10px; right: 18px;  animation-delay: -0.6s;}
+  @keyframes sparkPop {
+    0%, 100% { transform: scale(0); opacity: 0; }
+    40%, 60% { transform: scale(1); opacity: 1; }
+  }
+  @media (max-width: 480px) {
+    .menu-blob-wrap { width: 84px; height: 84px; margin-top: -60px; }
   }
   #crtOverlay {
     position: absolute;
@@ -170,63 +412,136 @@
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    padding: 64px 28px 56px 28px;
+    padding: 36px 28px 32px 28px;
     max-width: 460px;
     width: 92%;
     position: relative;
-    z-index: 1;
+    z-index: 2;
+    margin: 0 auto;
+  }
+  /* Sub-menus (single player, create, join, lobby, results) get the
+     same chunky pixel-arcade frame as the main menu so every screen
+     shares the same visual language. We exclude #menuMain from this
+     selector — it has its own positioning + backdrop styling below. */
+  #menuOverlay .menu-container:not(#menuMain) {
+    background: #0d0b16;
+    border: 2px solid #f3eefe;
+    box-shadow:
+      4px 4px 0 #6a4dc6,
+      8px 8px 0 #1a0a3e;
+    padding: 32px 28px 28px 28px;
+  }
+  /* Main attract-screen card — perfectly CENTRED on the overlay (the
+     blob mascot peeks above it via .menu-blob-wrap). Solid pixel
+     arcade frame so it reads as a chunky title plate over the night
+     sky, with a hard purple double offset shadow.  */
+  #menuMain.menu-container {
+    margin: 0 auto;
+    max-width: 420px;
+    background: #0d0b22;
+    border: 2px solid #f3eefe;
+    box-shadow:
+      4px 4px 0 #6a4dc6,
+      8px 8px 0 #1a0a3e;
+    padding: 16px 26px 26px 26px;
+    align-items: center;
+    text-align: center;
+  }
+  /* Center the wordmark + subtitle on the main attract screen */
+  #menuMain .menu-logo,
+  #menuMain .menu-subtitle {
+    text-align: center;
+    margin-left: 0;
+    margin-right: 0;
+  }
+  #menuMain .controls-hint { text-align: center; }
+  @media (max-width: 480px) {
+    #menuMain.menu-container { padding: 12px 18px 22px 18px; }
   }
 
   /* HERO BLOCK ----------------------------------------------------- */
+  /* Pixel-arcade ribbon: solid purple chip on the left holding the
+     section number, then the section label in pixel font, then a 2-px
+     dotted purple bar that fills the remaining width. Mirrors the
+     in-game scoreboard title strip styling. */
   .hero-eyebrow {
     display: flex;
     align-items: center;
     gap: 10px;
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 10px;
-    color: var(--fg-mute);
-    letter-spacing: 2.4px;
+    font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 8px;
+    color: #fff5b0;
+    letter-spacing: 2px;
     text-transform: uppercase;
-    margin-bottom: 14px;
+    margin-bottom: 16px;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: none;
+    text-shadow: 1px 1px 0 #0a0420;
   }
   .hero-eyebrow .bar {
-    flex: 1; height: 1px; background: var(--line);
+    flex: 1; height: 4px;
+    background-image: linear-gradient(90deg, #6a4dc6 50%, transparent 50%);
+    background-size: 4px 4px;
+    image-rendering: pixelated;
   }
   .hero-eyebrow .accent {
-    color: var(--accent);
-    font-weight: 600;
+    color: #fff;
+    background: #6a4dc6;
+    padding: 3px 6px;
+    box-shadow: 2px 2px 0 #1a0a3e;
+    text-shadow: 1px 1px 0 #1a0a3e;
   }
 
-  /* True 8-bit wordmark. Press Start 2P is the canonical NES/SNES
-     pixel face — paired with a hard 4-step purple stack shadow it
-     reads exactly like a Mario / Kirby / Metroid arcade title card.
-     No blur, no negative tracking, pixel-perfect rendering. */
+  /* True 8-bit wordmark. Each letter gets one of the five biome colours
+     so the title pops like a Super Mario / Kirby logo. Stack-shadow
+     stays uniform-dark so the colour reads on the gradient sky. */
+  /* Main wordmark — sized so the 11-letter "Embeddablob" + dot fits
+     comfortably inside the 420px-wide centred title plate without any
+     horizontal overflow on small screens. */
   .menu-logo {
     font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
-    font-size: clamp(20px, 4.6vw, 36px);
+    font-size: clamp(16px, 4.2vw, 28px);
     font-weight: 400;
     color: var(--fg);
     letter-spacing: 0;
-    line-height: 1.1;
-    margin: 4px 0 14px 0;
+    line-height: 1.15;
+    margin: 8px 0 10px 0;
     text-align: left;
     position: relative;
     text-transform: none;
     white-space: nowrap;
-    /* Stacked single-pixel shadows produce that classic arcade depth
-       without any antialiased glow. Each step is the brand purple. */
-    text-shadow:
-      2px 0   0 var(--accent-deep),
-      0   2px 0 var(--accent-deep),
-      2px 2px 0 var(--accent-deep),
-      4px 4px 0 var(--accent-deep);
     image-rendering: pixelated;
     -webkit-font-smoothing: none;
     -moz-osx-font-smoothing: none;
   }
-  /* Drop the duplicated ::before halo — the sharp text-shadow stack
-     above already provides the retro depth. */
   .menu-logo::before { content: none; }
+  .menu-logo .ch {
+    display: inline-block;
+    text-shadow:
+      2px 0   0 #1a0a3e,
+      0   2px 0 #1a0a3e,
+      2px 2px 0 #1a0a3e,
+      4px 4px 0 #0a0420;
+    animation: titleHop 2.6s ease-in-out infinite;
+  }
+  /* Per-letter biome colours — Forest > Snow > Desert > Lava > Cosmic,
+     repeating across the 11-letter wordmark.  */
+  .menu-logo .ch:nth-child(11n+1) { color: #80e8a0; animation-delay: 0.00s; }   /* forest mint */
+  .menu-logo .ch:nth-child(11n+2) { color: #80c8ff; animation-delay: 0.07s; }   /* snow ice */
+  .menu-logo .ch:nth-child(11n+3) { color: #f0c060; animation-delay: 0.14s; }   /* desert sand */
+  .menu-logo .ch:nth-child(11n+4) { color: #ff7a70; animation-delay: 0.21s; }   /* lava flame */
+  .menu-logo .ch:nth-child(11n+5) { color: #d8a0ff; animation-delay: 0.28s; }   /* cosmic violet */
+  .menu-logo .ch:nth-child(11n+6) { color: #80e8a0; animation-delay: 0.35s; }
+  .menu-logo .ch:nth-child(11n+7) { color: #80c8ff; animation-delay: 0.42s; }
+  .menu-logo .ch:nth-child(11n+8) { color: #f0c060; animation-delay: 0.49s; }
+  .menu-logo .ch:nth-child(11n+9) { color: #ff7a70; animation-delay: 0.56s; }
+  .menu-logo .ch:nth-child(11n+10){ color: #d8a0ff; animation-delay: 0.63s; }
+  .menu-logo .ch:nth-child(11n+11){ color: #80e8a0; animation-delay: 0.70s; }
+  @keyframes titleHop {
+    0%, 100% { transform: translateY(0); }
+    20%      { transform: translateY(-3px); }
+    40%      { transform: translateY(0); }
+  }
   .menu-logo .dot {
     display: inline-block;
     width: 10px; height: 10px;
@@ -234,115 +549,183 @@
     margin-left: 6px;
     margin-bottom: 0;
     vertical-align: baseline;
-    /* Pure square pixel — no glow — matches the arcade aesthetic. */
     box-shadow: none;
     animation: blink 1.0s steps(2, end) infinite;
   }
   .menu-subtitle {
     font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
     font-size: clamp(8px, 1.2vw, 11px);
-    color: var(--fg-mute);
+    color: #fff5b0;
     margin: 0 0 28px 2px;
     letter-spacing: 4px;
     text-transform: uppercase;
     font-weight: 400;
     text-align: left;
+    text-shadow:
+      1px 0 0 #1a0a3e,
+      0 1px 0 #1a0a3e,
+      1px 1px 0 #1a0a3e;
     -webkit-font-smoothing: none;
     -moz-osx-font-smoothing: none;
   }
   .menu-subtitle .sep { color: var(--accent); margin: 0 8px; }
+  /* Tiny pixel star next to the subtitle for extra arcade flavour */
+  .menu-subtitle::before {
+    content: '\2605';
+    color: #ffd86a;
+    margin-right: 8px;
+    text-shadow: 1px 1px 0 #1a0a3e;
+    animation: blink 0.9s steps(2, end) infinite;
+  }
 
+  /* Section header (Single Player / Create Room / Match Results …)
+     uses the same pixel font as the main wordmark so every screen
+     feels like part of the same arcade. Stack-shadow gives that
+     chunky stamped-tin lift. */
   .menu-section-title {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: clamp(20px, 4vw, 30px);
-    font-weight: 700;
-    color: var(--fg);
-    margin: 0 0 4px 0;
-    letter-spacing: -0.5px;
+    font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
+    font-size: clamp(14px, 3.2vw, 22px);
+    font-weight: 400;
+    color: #fff5b0;
+    margin: 0 0 12px 0;
+    letter-spacing: 0;
+    line-height: 1.25;
+    text-transform: uppercase;
+    text-shadow:
+      2px 0   0 #6a4dc6,
+      0   2px 0 #6a4dc6,
+      2px 2px 0 #6a4dc6,
+      4px 4px 0 #1a0a3e;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: none;
+    image-rendering: pixelated;
   }
   .menu-section-sub {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: clamp(10px, 1.6vw, 12px);
-    color: var(--fg-mute);
-    margin-bottom: 24px;
+    font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
+    font-size: clamp(7px, 1.4vw, 9px);
+    color: #d8a0ff;
+    margin-bottom: 22px;
     font-weight: 400;
-    letter-spacing: 1.5px;
+    letter-spacing: 2px;
     text-transform: uppercase;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: none;
+    text-shadow: 1px 1px 0 #0a0420;
   }
 
   /* BUTTONS -------------------------------------------------------- */
   .btn-row {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     width: 100%;
     margin-bottom: 8px;
   }
+  /* Inline mode kept for back-compat, but the labels never wrap now —
+     the buttons stay full-width inside the centred main menu. */
   .btn-row.inline {
     flex-direction: row;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
   }
-  .btn-row.inline .menu-btn { flex: 1; min-width: 130px; }
+  .btn-row.inline .menu-btn { flex: 1; min-width: 140px; }
 
-  /* Brutalist primary button: sharp rectangle, 1px border, hard purple
-     offset shadow appears on hover. Number prefix in monospace creates
-     the catalog-card vibe. */
+  /* Pixel arcade button: solid 2-px frame, chunky offset shadow, pixel
+     font label. Reads like a Mario menu option ("> 1 PLAYER GAME"). */
   .menu-btn {
-    background: var(--bg-1);
-    border: 1px solid var(--line-strong);
-    color: var(--fg);
-    padding: 16px 20px;
-    font-size: clamp(12px, 1.7vw, 14px);
-    font-family: 'Space Grotesk', sans-serif;
-    font-weight: 600;
+    background: #15102a;
+    border: 2px solid #6a4dc6;
+    color: #fff5b0;
+    padding: 12px 16px;
+    font-size: clamp(9px, 1.4vw, 11px);
+    font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 400;
     cursor: pointer;
-    min-width: 170px;
+    min-width: 0;
     text-align: left;
     letter-spacing: 1.5px;
     border-radius: 0;
     position: relative;
     overflow: hidden;
     text-transform: uppercase;
-    text-shadow: none;
-    transition: transform 0.12s ease, box-shadow 0.12s ease,
-                background 0.12s ease, border-color 0.12s ease,
-                color 0.12s ease;
+    text-shadow: 1px 1px 0 #08041a;
+    box-shadow: 3px 3px 0 #1a0a3e;
+    transition: transform 0.10s ease, box-shadow 0.10s ease,
+                background 0.10s ease, border-color 0.10s ease,
+                color 0.10s ease;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: none;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .menu-btn > span:first-child {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
   }
   .menu-btn .num {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 10px;
-    color: var(--fg-dim);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    color: #b890ff;
     letter-spacing: 1.5px;
     margin-right: 10px;
     transition: color 0.12s ease;
+    flex-shrink: 0;
   }
   .menu-btn .arrow {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-family: 'Press Start 2P', monospace;
     font-size: 14px;
-    color: var(--fg-dim);
+    color: #b890ff;
     transition: transform 0.18s ease, color 0.12s ease;
+    flex-shrink: 0;
   }
   .menu-btn:hover, .menu-btn:focus-visible {
-    background: var(--bg-2);
-    border-color: var(--accent);
-    color: var(--fg);
+    background: #1a1238;
+    border-color: var(--btn-accent, #b890ff);
+    color: #fff;
     transform: translate(-2px, -2px);
-    box-shadow: 5px 5px 0 var(--accent-deep);
+    box-shadow: 5px 5px 0 var(--btn-accent-deep, #6a4dc6);
     outline: none;
   }
-  .menu-btn:hover .num, .menu-btn:focus-visible .num { color: var(--accent); }
+  .menu-btn:hover .num, .menu-btn:focus-visible .num { color: var(--btn-accent, #fff5b0); }
   .menu-btn:hover .arrow, .menu-btn:focus-visible .arrow {
-    color: var(--accent);
-    transform: translateX(4px);
+    color: var(--btn-accent, #fff5b0);
+    transform: translateX(3px);
   }
   .menu-btn:active {
     transform: translate(0, 0);
-    box-shadow: 1px 1px 0 var(--accent-deep);
+    box-shadow: 1px 1px 0 var(--btn-accent-deep, #6a4dc6);
+  }
+  /* Biome-tinted button accents — each menu action wears one of the
+     game's zone colours so the panel reads as colourful instead of mono.
+     The base stays dark; the hover/focus state lights up the border,
+     numbering, and offset shadow in the chosen tint. */
+  .menu-btn.btn-forest { --btn-accent: #80e8a0; --btn-accent-deep: #1a8848; }
+  .menu-btn.btn-desert { --btn-accent: #f0c060; --btn-accent-deep: #a86018; }
+  .menu-btn.btn-cosmic { --btn-accent: #d8a0ff; --btn-accent-deep: #6a4dc6; }
+  .menu-btn.btn-snow   { --btn-accent: #80c8ff; --btn-accent-deep: #2868c0; }
+  .menu-btn.btn-lava   { --btn-accent: #ff7a70; --btn-accent-deep: #b02828; }
+  /* Always-on tint for the number prefix so the buttons look colourful
+     even at rest (not just on hover). */
+  .menu-btn.btn-forest .num { color: #80e8a0; }
+  .menu-btn.btn-desert .num { color: #f0c060; }
+  .menu-btn.btn-cosmic .num { color: #d8a0ff; }
+  .menu-btn.btn-snow   .num { color: #80c8ff; }
+  .menu-btn.btn-lava   .num { color: #ff7a70; }
+  /* Tiny coloured chip on the left edge of every coloured button */
+  .menu-btn[class*='btn-']::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: var(--btn-accent, var(--accent));
   }
   /* "Ghost" variant for back / secondary actions */
   .menu-btn.ghost {
@@ -359,13 +742,16 @@
   }
 
   /* INPUTS --------------------------------------------------------- */
+  /* Chunky pixel input — solid dark cavity, 2-px purple frame, hard
+     offset shadow on focus. Pixel font keeps the typed characters
+     looking like score entry on an arcade cabinet. */
   .menu-input {
-    background: var(--bg-0);
-    border: 1px solid var(--line-strong);
-    color: var(--fg);
+    background: #0d0b16;
+    border: 2px solid #6a4dc6;
+    color: #fff5b0;
     padding: 14px 16px;
-    font-size: clamp(13px, 2vw, 15px);
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: clamp(11px, 1.7vw, 14px);
+    font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
     text-align: center;
     margin: 4px 0;
     width: 100%;
@@ -373,153 +759,214 @@
     letter-spacing: 4px;
     text-transform: uppercase;
     border-radius: 0;
+    box-shadow: 3px 3px 0 #1a0a3e;
     transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
-    caret-color: var(--accent);
+    caret-color: #ffd86a;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: none;
   }
   .menu-input:focus {
     outline: none;
-    border-color: var(--accent);
-    box-shadow: 4px 4px 0 var(--accent-deep);
+    border-color: #b890ff;
+    box-shadow: 4px 4px 0 #b890ff;
     transform: translate(-1px, -1px);
+    background: #1a0a3e;
   }
   .menu-input::placeholder {
-    color: var(--fg-dim);
+    color: #5b5470;
     letter-spacing: 2px;
     text-transform: uppercase;
   }
+  /* Pixel label with leading "►" arrow chip — instantly recognisable
+     as a retro field caption. */
   .menu-label {
-    color: var(--fg-mute);
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: clamp(9px, 1.4vw, 11px);
+    color: #b890ff;
+    font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
+    font-size: clamp(8px, 1.2vw, 10px);
     margin-top: 14px;
-    margin-bottom: 4px;
-    font-weight: 500;
+    margin-bottom: 6px;
+    font-weight: 400;
     letter-spacing: 2px;
     text-transform: uppercase;
     display: flex; align-items: center; gap: 8px;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: none;
+    text-shadow: 1px 1px 0 #1a0a3e;
   }
   .menu-label::before {
     content: '';
     display: inline-block;
-    width: 6px; height: 1px;
-    background: var(--accent);
+    width: 0; height: 0;
+    border-style: solid;
+    border-width: 4px 0 4px 6px;
+    border-color: transparent transparent transparent #ffd86a;
   }
 
+  /* Big chunky room code "scoreboard" display with a pixel arcade frame */
   .room-code {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: clamp(28px, 5.5vw, 40px);
-    color: var(--fg);
-    letter-spacing: 12px;
+    font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
+    font-size: clamp(20px, 4vw, 30px);
+    color: #fff5b0;
+    letter-spacing: 8px;
     margin: 8px 0 18px 0;
-    font-weight: 700;
-    background: var(--bg-1);
-    border: 1px solid var(--line-strong);
-    padding: 16px 20px 16px 32px;
+    font-weight: 400;
+    background: #0d0b16;
+    border: 2px solid #f3eefe;
+    padding: 18px 20px 18px 28px;
     text-align: center;
-    box-shadow: 5px 5px 0 var(--accent-deep);
+    box-shadow:
+      4px 4px 0 #6a4dc6,
+      8px 8px 0 #1a0a3e;
+    text-shadow:
+      2px 0 0 #6a4dc6,
+      0 2px 0 #6a4dc6,
+      2px 2px 0 #6a4dc6;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: none;
   }
+  /* Pixel-art player roster card — solid dark cavity, 2-px frame,
+     each row gets a coloured "blob chip" + name in pixel font.       */
   .player-list {
-    color: var(--fg-mute);
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: clamp(10px, 1.7vw, 12px);
+    color: #d8c8f0;
+    font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
+    font-size: clamp(8px, 1.3vw, 10px);
     margin: 8px 0;
-    line-height: 1.9;
+    line-height: 1.5;
     text-align: left;
-    min-width: 220px;
-    max-width: 320px;
+    min-width: 240px;
+    max-width: 360px;
     width: 100%;
-    border: 1px solid var(--line);
-    background: var(--bg-1);
+    border: 2px solid #6a4dc6;
+    background: #0d0b16;
     padding: 6px;
+    box-shadow: 3px 3px 0 #1a0a3e;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: none;
+    max-height: 240px;
+    overflow-y: auto;
   }
   .player-list div {
-    padding: 6px 10px;
-    transition: background 0.12s;
-    color: var(--fg);
+    padding: 6px 8px;
+    color: #f3eefe;
     text-transform: uppercase;
-    letter-spacing: 1.2px;
+    letter-spacing: 1.5px;
+    border-bottom: 1px dotted #22183a;
+    text-shadow: 1px 1px 0 #1a0a3e;
   }
-  .player-list div:nth-child(odd) { background: rgba(255,255,255,0.025); }
+  .player-list div:last-child { border-bottom: none; }
+  .player-list div:nth-child(odd) { background: #15102a; }
+  /* Custom retro scrollbar for the roster */
+  .player-list::-webkit-scrollbar { width: 8px; }
+  .player-list::-webkit-scrollbar-track { background: #0a0710; }
+  .player-list::-webkit-scrollbar-thumb {
+    background: #b890ff;
+    box-shadow: inset 1px 1px 0 #fff5b0, inset -1px -1px 0 #6a4dc6;
+  }
   .error-msg {
-    color: var(--danger);
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 10px;
-    margin-top: 8px;
+    color: #ff7090;
+    font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 8px;
+    margin-top: 10px;
     min-height: 16px;
     letter-spacing: 1.4px;
     text-transform: uppercase;
+    -webkit-font-smoothing: none;
+    text-shadow: 1px 1px 0 #1a0a3e;
   }
+  /* Pixel back-link styled like an arcade "BACK" prompt */
   .back-link {
-    color: var(--fg-dim);
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: clamp(10px, 1.5vw, 11px);
+    color: #b890ff;
+    font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
+    font-size: clamp(8px, 1.2vw, 10px);
     cursor: pointer;
     margin-top: 18px;
-    transition: color 0.15s, transform 0.15s;
-    font-weight: 500;
-    letter-spacing: 1.8px;
+    transition: color 0.15s, transform 0.15s, text-shadow 0.15s;
+    font-weight: 400;
+    letter-spacing: 2px;
     text-transform: uppercase;
     align-self: flex-start;
+    -webkit-font-smoothing: none;
+    text-shadow: 1px 1px 0 #1a0a3e;
   }
-  .back-link:hover { color: var(--accent); transform: translateX(-2px); }
+  .back-link:hover { color: #fff5b0; transform: translate(-2px, -2px); text-shadow: 2px 2px 0 #6a4dc6; }
 
   .color-picker-label {
-    color: var(--fg-mute);
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: clamp(9px, 1.4vw, 11px);
+    color: #b890ff;
+    font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
+    font-size: clamp(8px, 1.2vw, 10px);
     margin-top: 14px;
-    margin-bottom: 12px;
-    font-weight: 500;
+    margin-bottom: 10px;
+    font-weight: 400;
     letter-spacing: 2px;
     text-transform: uppercase;
     display: flex; align-items: center; gap: 8px;
+    -webkit-font-smoothing: none;
+    text-shadow: 1px 1px 0 #1a0a3e;
   }
   .color-picker-label::before {
     content: '';
     display: inline-block;
-    width: 6px; height: 1px;
-    background: var(--accent);
+    width: 0; height: 0;
+    border-style: solid;
+    border-width: 4px 0 4px 6px;
+    border-color: transparent transparent transparent #ffd86a;
   }
-  /* Square swatches with thin frames — brutalist palette card. */
+  /* Pixel-art palette tiles — chunky 2-px frame, hard offset shadow,
+     tile-style selection state with a glowing yellow border + checker
+     pixel pop. Reads as a Mario Kart character-select grid. */
   .color-picker {
     display: grid;
     grid-template-columns: repeat(6, 34px);
     gap: 10px;
     justify-content: start;
     margin-bottom: 16px;
+    image-rendering: pixelated;
   }
   .color-swatch {
     width: 34px; height: 34px;
     border-radius: 0;
-    border: 1px solid var(--line);
+    border: 2px solid #1a0a3e;
     cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
     position: relative;
-    box-shadow: none;
+    box-shadow: 2px 2px 0 #0a0420;
+    image-rendering: pixelated;
   }
   .color-swatch:hover {
     transform: translate(-2px, -2px);
-    box-shadow: 3px 3px 0 var(--bg-2);
-    border-color: var(--line-strong);
+    box-shadow: 4px 4px 0 #6a4dc6;
+    border-color: #b890ff;
   }
   .color-swatch.selected {
-    border-color: var(--fg);
+    border-color: #ffd86a;
     transform: translate(-2px, -2px);
-    box-shadow: 3px 3px 0 var(--accent-deep);
+    box-shadow:
+      0 0 0 2px #1a0a3e,
+      4px 4px 0 #ffd86a;
+  }
+  .color-swatch.selected::before {
+    content: '';
+    position: absolute;
+    top: -8px; right: -4px;
+    width: 6px; height: 6px;
+    background: #ffd86a;
+    box-shadow: 1px 1px 0 #1a0a3e;
   }
   .color-swatch.taken {
-    opacity: 0.18;
+    opacity: 0.22;
     cursor: not-allowed;
     pointer-events: none;
+    border-color: #2a2030;
   }
   .color-swatch.taken::after {
     content: '\00d7';
     position: absolute;
     top: 50%; left: 50%;
     transform: translate(-50%, -50%);
-    color: #fff;
-    font-size: 16px;
-    font-weight: 700;
+    color: #ff7090;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 14px;
+    font-weight: 400;
     text-shadow: 1px 1px 0 #000;
   }
 
@@ -541,92 +988,291 @@
   }
 
   /* PAUSE OVERLAY -------------------------------------------------- */
+  /* Retro arcade pause card — same chunky frame language as the
+     scoreboard / death screens so every overlay feels unified. */
   #pauseOverlay .menu-container {
     padding: 28px;
-    max-width: 360px;
-    border: 1px solid var(--line-strong);
-    background: var(--bg-1);
-    box-shadow: 6px 6px 0 var(--accent-deep);
+    max-width: 380px;
+    border: 2px solid #f3eefe;
+    background: #0d0b16;
+    box-shadow:
+      4px 4px 0 #6a4dc6,
+      8px 8px 0 #1a0a3e;
   }
   #pauseOverlay .menu-btn {
     margin-bottom: 10px;
     width: 100%;
   }
   .pause-title {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: clamp(22px, 4.5vw, 32px);
-    font-weight: 700;
-    color: var(--fg);
-    margin-bottom: 8px;
-    letter-spacing: -0.5px;
+    font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
+    font-size: clamp(16px, 3.6vw, 24px);
+    font-weight: 400;
+    color: #fff5b0;
+    margin-bottom: 12px;
+    letter-spacing: 0;
     text-align: left;
     width: 100%;
     position: relative;
+    -webkit-font-smoothing: none;
+    text-shadow:
+      2px 0   0 #6a4dc6,
+      0   2px 0 #6a4dc6,
+      2px 2px 0 #6a4dc6,
+      4px 4px 0 #1a0a3e;
   }
   .pause-title::after {
     content: '';
     display: block;
-    width: 32px; height: 2px;
-    background: var(--accent);
-    margin-top: 12px;
+    width: 80%;
+    height: 4px;
+    background-image: linear-gradient(90deg, #6a4dc6 50%, transparent 50%);
+    background-size: 4px 4px;
+    margin-top: 14px;
+    image-rendering: pixelated;
   }
   .pause-sub {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 11px;
-    color: var(--fg-mute);
+    font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 9px;
+    color: #d8a0ff;
     letter-spacing: 2px;
     text-transform: uppercase;
     margin-bottom: 22px;
     text-align: left;
     width: 100%;
+    -webkit-font-smoothing: none;
+    text-shadow: 1px 1px 0 #1a0a3e;
   }
 
-  /* Controls strip — compact mono row pinned at bottom */
+  /* Controls strip — compact pixel-font row pinned at bottom */
   .controls-hint {
-    color: var(--fg-dim);
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: clamp(9px, 1.3vw, 10px);
+    color: #d8c8f0;
+    font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
+    font-size: clamp(7px, 1.1vw, 9px);
     font-weight: 400;
-    margin-top: 26px;
-    line-height: 1.9;
-    text-align: left;
+    margin-top: 22px;
     letter-spacing: 1.2px;
     text-transform: uppercase;
-    border-top: 1px solid var(--line);
+    border-top: 2px dotted rgba(216,160,255,0.35);
     padding-top: 14px;
     width: 100%;
+    -webkit-font-smoothing: none;
+    text-shadow: 1px 1px 0 #1a0a3e;
+    /* Clean 3-column grid on the main menu so each control sits in its
+       own cell with the key chip on the left + label on the right —
+       no more uneven wrapping. Auto-collapses to 2 columns on very
+       narrow screens via the @media block at the bottom of the file.*/
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    column-gap: 14px;
+    row-gap: 10px;
+    align-items: center;
+    justify-items: start;
+    text-align: left;
+  }
+  .controls-hint .ctrl {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #d8c8f0;
+    white-space: nowrap;
   }
   .controls-hint .key {
-    display: inline-block;
-    border: 1px solid var(--line-strong);
-    color: var(--fg);
-    padding: 1px 6px;
-    margin: 0 4px 0 0;
-    background: var(--bg-1);
-    font-size: 9px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #b890ff;
+    color: #fff5b0;
+    padding: 2px 6px;
+    background: #1a0a3e;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 7px;
     letter-spacing: 1px;
+    box-shadow: 2px 2px 0 #6a4dc6;
+    text-shadow: 1px 1px 0 #0a0420;
+    min-width: 30px;
+    height: 16px;
+    box-sizing: border-box;
+    flex-shrink: 0;
   }
-  .controls-hint .sep {
-    display: inline-block;
-    width: 2px; height: 2px;
-    background: var(--accent);
-    border-radius: 0;
-    margin: 0 10px;
-    vertical-align: middle;
-  }
+  .controls-hint .sep { display: none; }
 
+  /* Big chunky pixel-font countdown — gold cream with deep purple
+     stack-shadow so it reads from across the room. */
   #countdown {
     position: absolute;
     top: 50%; left: 50%;
     transform: translate(-50%,-50%);
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: clamp(40px, 10vw, 84px);
-    font-weight: 700;
-    color: var(--fg);
-    text-shadow: 4px 4px 0 var(--accent-deep);
-    letter-spacing: -2px;
+    font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
+    font-size: clamp(36px, 9vw, 72px);
+    font-weight: 400;
+    color: #fff5b0;
+    text-shadow:
+      4px 0 0 #6a4dc6,
+      0 4px 0 #6a4dc6,
+      4px 4px 0 #6a4dc6,
+      8px 8px 0 #1a0a3e;
+    letter-spacing: 2px;
     z-index: 20;
     display: none;
+    -webkit-font-smoothing: none;
+  }
+
+  /* ========== MATCH RESULTS — retro arcade scoreboard panel ========== */
+  /* Outer frame mirrors the in-game scoreboard styling: chunky 2-px
+     bright border, dark cavity, hard purple offset shadow. Each row
+     is a flat coloured tile. The leader gets a gold "1ST" tag and
+     extra-bright row tint. */
+  .results-board {
+    width: 100%;
+    background: #0d0b16;
+    border: 2px solid #f3eefe;
+    box-shadow:
+      3px 3px 0 #6a4dc6,
+      6px 6px 0 #1a0a3e;
+    padding: 0;
+    margin: 8px 0 4px 0;
+    image-rendering: pixelated;
+    -webkit-font-smoothing: none;
+  }
+  .results-board .results-title {
+    background: #3a2470;
+    border-bottom: 1px solid #1a1040;
+    box-shadow: inset 0 1px 0 #7050b8;
+    color: #fff5b0;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-align: center;
+    padding: 9px 6px 8px 6px;
+    text-transform: uppercase;
+    text-shadow: 1px 1px 0 #1a0a3e;
+    position: relative;
+  }
+  .results-board .results-title::before,
+  .results-board .results-title::after {
+    content: '';
+    position: absolute; top: 50%;
+    width: 6px; height: 6px;
+    background: #ffd86a;
+    box-shadow: 1px 1px 0 #1a0a3e;
+    transform: translateY(-50%);
+  }
+  .results-board .results-title::before { left: 10px; }
+  .results-board .results-title::after  { right: 10px; }
+  .results-board .results-rows {
+    padding: 4px;
+    background: #0d0b16;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+  .results-board .results-rows::-webkit-scrollbar { width: 8px; }
+  .results-board .results-rows::-webkit-scrollbar-track { background: #0a0710; }
+  .results-board .results-rows::-webkit-scrollbar-thumb {
+    background: #b890ff;
+    box-shadow: inset 1px 1px 0 #fff5b0, inset -1px -1px 0 #6a4dc6;
+  }
+  .results-row {
+    display: grid;
+    grid-template-columns: 26px 1fr 70px;
+    align-items: center;
+    background: #15102a;
+    border: 1px solid #22183a;
+    padding: 6px 8px;
+    margin: 3px 0;
+    color: #f3eefe;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    text-shadow: 1px 1px 0 #0a0710;
+    position: relative;
+  }
+  .results-row.is-me {
+    background: #2a1c50;
+    border-color: #b890ff;
+    box-shadow: inset 2px 0 0 var(--row-col, #b890ff), inset -2px 0 0 var(--row-col, #b890ff);
+  }
+  .results-row.rank-1 {
+    background: #3a2470;
+    border-color: #ffd86a;
+    box-shadow: inset 2px 0 0 #ffd86a, inset -2px 0 0 #ffd86a;
+  }
+  .results-row .r-rank {
+    color: #fff5b0;
+    font-size: 11px;
+    text-align: left;
+  }
+  .results-row.rank-1 .r-rank { color: #ffd86a; text-shadow: 1px 1px 0 #5a3010; }
+  .results-row.rank-2 .r-rank { color: #d8d8e8; }
+  .results-row.rank-3 .r-rank { color: #e09870; }
+  .results-row .r-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+  }
+  .results-row .r-chip {
+    width: 10px; height: 10px;
+    background: var(--chip-col, #b890ff);
+    box-shadow:
+      inset 1px 1px 0 rgba(255,255,255,0.55),
+      0 0 0 1px #1a0a3e;
+    flex-shrink: 0;
+    image-rendering: pixelated;
+  }
+  .results-row .r-name {
+    color: var(--name-col, #f3eefe);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+  .results-row.is-me .r-name { color: #fff5b0; }
+  .results-row .r-score {
+    text-align: right;
+    color: #fff5b0;
+    font-size: 11px;
+  }
+  .results-row .r-meta {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-between;
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px dotted #3a2870;
+    color: #b890ff;
+    font-size: 7px;
+    letter-spacing: 1.5px;
+  }
+  .results-row .r-status.finished { color: #80e8a0; }
+  .results-row .r-status.dead { color: #ff7090; }
+  .results-row .r-coin { color: #ffd86a; }
+  .results-row .r-tag {
+    position: absolute;
+    top: -7px; right: 10px;
+    background: #ffd86a;
+    color: #5a3010;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 7px;
+    padding: 2px 5px;
+    box-shadow: 1px 1px 0 #1a0a3e;
+    letter-spacing: 1px;
+  }
+  .results-board .results-footer {
+    background: #22183a;
+    border-top: 1px solid #3a2870;
+    color: #b890ff;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    text-align: center;
+    padding: 7px 6px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-shadow: 1px 1px 0 #0a0710;
+  }
+  .results-board .results-footer .winner-name {
+    color: #fff5b0;
+    margin-left: 6px;
   }
 
   #raceTimeline {
@@ -726,9 +1372,17 @@
     .menu-topbar .left-pad { padding-left: 80px; }
   }
   @media (max-width: 400px) {
-    .menu-btn { min-width: 120px; padding: 12px 14px; font-size: 11px; }
-    .menu-logo { font-size: clamp(18px, 6.5vw, 26px); }
-    .menu-subtitle { font-size: 8px; letter-spacing: 3px; }
+    .menu-btn { padding: 10px 12px; font-size: 9px; letter-spacing: 1px; }
+    .menu-btn .num { font-size: 8px; margin-right: 8px; }
+    .menu-logo { font-size: clamp(15px, 6.2vw, 22px); }
+    .menu-subtitle { font-size: 7px; letter-spacing: 3px; }
+    .controls-hint {
+      font-size: 7px;
+      grid-template-columns: repeat(2, 1fr);
+      column-gap: 10px;
+      row-gap: 8px;
+    }
+    .controls-hint .key { font-size: 6px; padding: 1px 4px; min-width: 26px; height: 14px; }
   }
 </style>
 </head>
@@ -739,33 +1393,60 @@
   <button id="scanlineToggle" onclick="toggleScanlines()">CRT: OFF</button>
 
   <div id="menuOverlay" class="overlay">
+    <!-- Decorative attract-screen scene (stars, clouds, hills only;
+         the blob mascot lives INSIDE the menu card now so it stays
+         glued to the title plate and never gets cropped offscreen). -->
+    <div class="menu-scene" aria-hidden="true">
+      <div class="stars layer1"></div>
+      <div class="stars layer2"></div>
+      <div class="cloud c1"></div>
+      <div class="cloud c2"></div>
+      <div class="cloud c3"></div>
+      <div class="hills back"></div>
+      <div class="hills"></div>
+      <div class="ground"></div>
+      <div class="coin"     style="left:14%;  bottom:34px;"></div>
+      <div class="coin k2"  style="left:36%;  bottom:42px;"></div>
+      <div class="coin k3"  style="left:62%;  bottom:34px;"></div>
+      <div class="coin"     style="right:18%; bottom:42px;"></div>
+    </div>
     <div id="menuMain" class="menu-container">
-      <h1 class="menu-logo" data-text="Embeddablob">Embeddablob<span class="dot"></span></h1>
+      <div class="menu-blob-wrap" aria-hidden="true">
+        <span class="spark s1"></span>
+        <span class="spark s2"></span>
+        <span class="spark s3"></span>
+        <span class="spark s4"></span>
+        <!-- APNG version of the character so we get true per-pixel alpha
+             (the source GIF has disposal-mode quirks that paint a faint
+             dark square around the sprite on most browsers). All modern
+             browsers play APNG; older ones just see the first frame. -->
+        <img class="blob-mascot" src="embeddablob.png" alt="Embeddablob" draggable="false">
+      </div>
+
+      <h1 class="menu-logo" data-text="Embeddablob"><span class="ch">E</span><span class="ch">m</span><span class="ch">b</span><span class="ch">e</span><span class="ch">d</span><span class="ch">d</span><span class="ch">a</span><span class="ch">b</span><span class="ch">l</span><span class="ch">o</span><span class="ch">b</span><span class="dot"></span></h1>
       <div class="menu-subtitle">Adventures</div>
 
       <div class="btn-row">
-        <button class="menu-btn" onclick="showSinglePlayerSetup()">
+        <button class="menu-btn btn-forest" onclick="showSinglePlayerSetup()">
           <span><span class="num">01</span>SINGLE PLAYER</span>
           <span class="arrow">&rsaquo;</span>
         </button>
-      </div>
-      <div class="btn-row inline">
-        <button class="menu-btn" onclick="showCreateRoom()">
+        <button class="menu-btn btn-desert" onclick="showCreateRoom()">
           <span><span class="num">02</span>CREATE ROOM</span>
           <span class="arrow">&rsaquo;</span>
         </button>
-        <button class="menu-btn" onclick="showJoinRoom()">
+        <button class="menu-btn btn-cosmic" onclick="showJoinRoom()">
           <span><span class="num">03</span>JOIN ROOM</span>
           <span class="arrow">&rsaquo;</span>
         </button>
       </div>
 
       <div class="controls-hint">
-        <span class="key">&larr; &rarr;</span>MOVE<span class="sep"></span>
-        <span class="key">SPACE</span>JUMP&times;2<span class="sep"></span>
-        <span class="key">SHIFT</span>RUN<span class="sep"></span>
-        <span class="key">X</span>SHOOT<span class="sep"></span>
-        <span class="key">ESC</span>PAUSE
+        <span class="ctrl"><span class="key">&larr; &rarr;</span>MOVE</span>
+        <span class="ctrl"><span class="key">SPACE</span>JUMP&times;2</span>
+        <span class="ctrl"><span class="key">SHIFT</span>RUN</span>
+        <span class="ctrl"><span class="key">X</span>SHOOT</span>
+        <span class="ctrl"><span class="key">ESC</span>PAUSE</span>
       </div>
     </div>
 
@@ -861,7 +1542,7 @@
       </div>
       <div class="menu-section-title">Match Results</div>
       <div class="menu-section-sub">// Final standings</div>
-      <div class="player-list" id="resultsPlayers" style="min-width:260px;"></div>
+      <div id="resultsPlayers" style="width:100%;"></div>
       <div class="btn-row" style="margin-top:14px;">
         <button class="menu-btn" id="replayBtn" onclick="returnToLobby()" style="display:none;">
           <span><span class="num">&gt;</span>PLAY AGAIN</span>

@@ -1769,9 +1769,14 @@ function buildLevel() {
   // Sand pyramids, clay pipes, longer flat sprints with cacti.
   // ==========================================================
   ground(240, 268);
-  // Pyramid 1
+  // Pyramid 1 — 5-step stairs leave a 2-tile flat plateau at the top
+  // (cols 248-249 on row 8). Drop a single apex block at row 7 above
+  // col 248 so the silhouette reads as a proper triangle peak instead
+  // of a flat-topped step. The peak is still trivially walkable / no
+  // dead ends — Mario can hop on top from either side.
   stairUp(244, 5);
   stairDown(249, 5);
+  map[7][248] = 5;
   map[9][254] = 3;
   map[9][258] = 2; map[9][259] = 3; map[9][260] = 4; map[9][261] = 2;
   // Sand gap (269-271)
@@ -1782,9 +1787,12 @@ function buildLevel() {
   // Floating oasis platform
   platform(287, 291, 8);
   map[5][289] = 3;                                   // row 5 above row 8 platform — flush stand + bonk on jump
-  // Pyramid 2 (taller)
+  // Pyramid 2 (taller) — same apex treatment as pyramid 1: flat 2-tile
+  // top at row 7 (cols 299-300) gets a single capstone block at row 6
+  // for a clean triangular silhouette.
   stairUp(294, 6);
   stairDown(300, 6);
+  map[6][299] = 5;
   ground(301, 326);
   // Mid-section: blocks + cactus row (cacti are background only)
   map[9][308] = 2; map[9][309] = 3; map[9][310] = 2;
@@ -2215,11 +2223,14 @@ function spawnMapCoins() {
     [220, 5], [221, 5], [223, 5], [224, 5],         // tower bridge (skip col 222 — has STAR block)
     [233, 11], [234, 11],                           // approach to checkpoint (extra)
     // ----- DESERT -----
-    [244, 11], [248, 7],                            // pyramid 1 sides
+    // Pyramid coins: side coin at the base + a "peak" coin floating
+    // one tile above the apex block (row 6 above the new apex on row 7
+    // for pyramid 1, row 5 above the new apex on row 6 for pyramid 2).
+    [244, 11], [248, 6],                            // pyramid 1 (base + apex peak)
     [256, 11], [257, 11],                           // sand path (extra)
     [269, 9], [270, 8], [271, 9],                   // sand gap arc
     [287, 6], [288, 6], [290, 6], [291, 6],         // oasis platform top (skip col 289 — has ?-block)
-    [294, 11], [299, 7],                            // pyramid 2 sides
+    [294, 11], [299, 5],                            // pyramid 2 (base + apex peak)
     [305, 11], [306, 11], [307, 11],
     [318, 11], [319, 11],                           // sand path (extra)
     [327, 9], [328, 8], [329, 8], [330, 9],         // quicksand gap arc
@@ -6759,7 +6770,10 @@ function drawProgressBar() {
   }
 
   const barX = 14;
-  const barY = 30;
+  // Push the bar a couple pixels below the (now shorter) HUD strip so
+  // the YOU label above it has clear space and isn't clipped by the
+  // score row's shadow.
+  const barY = 33;
   const barW = VIEW_W - 28;
   const barH = 3;
 
@@ -6887,9 +6901,12 @@ function drawProgressBar() {
     const cy = barY + barH / 2;
     const px = myEntry.px + 1.5;
     // Outer halo ring (pulses softly so the eye snaps to it).
-    const pulse = 0.55 + 0.45 * Math.sin(globalTick * 0.2);
+    // Slow, subtle breathing pulse for the YOU marker — period ~2.6s
+    // (tick * 0.04) and a narrow alpha range so it just glows softly
+    // instead of flashing.
+    const pulse = 0.75 + 0.25 * Math.sin(globalTick * 0.04);
     bx.save();
-    bx.globalAlpha = 0.55 * pulse;
+    bx.globalAlpha = 0.40 * pulse;
     bx.fillStyle = '#fff';
     bx.beginPath();
     bx.arc(px, cy, 5.2, 0, Math.PI * 2);
@@ -6905,13 +6922,15 @@ function drawProgressBar() {
     bx.beginPath();
     bx.arc(px, cy, 2.5, 0, Math.PI * 2);
     bx.fill();
-    // Initial above the bar with a tiny pixel pin
+    // Initial above the bar with a tiny pixel pin. Smaller font + a
+    // little extra lift so it sits cleanly between the HUD score row
+    // and the bar marker (was getting clipped at 6px / barY-6).
     bx.save();
-    bx.font = 'bold 6px sans-serif';
+    bx.font = 'bold 5px sans-serif';
     bx.textAlign = 'center';
     bx.textBaseline = 'middle';
     bx.fillStyle = '#fff';
-    bx.fillText('YOU', px, barY - 6);
+    bx.fillText('YOU', px, barY - 5);
     bx.restore();
     bx.fillStyle = '#fff';
     bx.fillRect(myEntry.px + 1, barY - 2, 1, 2);
@@ -6923,12 +6942,12 @@ function drawProgressBar() {
   for (const e of finishers) {
     const initial = (e.p.name || '?')[0].toUpperCase();
     bx.save();
-    bx.font = 'bold 5px sans-serif';
+    bx.font = 'bold 4px sans-serif';
     bx.textAlign = 'center';
     bx.textBaseline = 'middle';
     bx.fillStyle = e.col;
     bx.globalAlpha = 0.9;
-    bx.fillText(initial, e.px + 1.5, barY - 4);
+    bx.fillText(initial, e.px + 1.5, barY - 3);
     bx.restore();
   }
 }
@@ -6942,21 +6961,21 @@ function drawProgressBar() {
 let _hudStripSprite = null;
 function getHudStripSprite() {
   if (_hudStripSprite) return _hudStripSprite;
-  const stripH = 26;
+  // Strip height tightened from 26 -> 23 px so the HUD takes ~1% less
+  // vertical space, freeing room between the score row and the player
+  // timeline labels (the "YOU" tag was getting clipped by the score's
+  // shadow).
+  const stripH = 23;
   const c = document.createElement('canvas');
   c.width = VIEW_W;
   c.height = stripH;
   const g = c.getContext('2d');
   const hudG = g.createLinearGradient(0, 0, 0, stripH);
   hudG.addColorStop(0, 'rgba(7,6,12,0.78)');
-  hudG.addColorStop(0.65, 'rgba(7,6,12,0.55)');
+  hudG.addColorStop(0.7,  'rgba(7,6,12,0.50)');
   hudG.addColorStop(1, 'rgba(7,6,12,0)');
   g.fillStyle = hudG;
   g.fillRect(0, 0, VIEW_W, stripH);
-  g.fillStyle = 'rgba(255,255,255,0.10)';
-  g.fillRect(0, stripH - 1, VIEW_W, 1);
-  g.fillStyle = '#b890ff';
-  g.fillRect(VIEW_W / 2 - 6, stripH - 1, 12, 1);
   _hudStripSprite = c;
   return c;
 }
@@ -7082,20 +7101,28 @@ function drawScoreboard() {
     return (b.progress || 0) - (a.progress || 0);
   });
 
-  const rowH = 10;
-  const titleH = 13;
-  const colHeaderH = 10;
+  const rowH = 11;
+  const titleH = 14;
+  const colHeaderH = 12;
   const headerH = titleH + colHeaderH;
+  const footerH = 14;            // dedicated footer strip — text + padding
 
   // Use as much vertical space as we can — fit the panel within ~88% of
   // the viewport so the player can see their blob underneath.
-  const panelW = 240;
+  const panelW = 244;
   const panelX = Math.floor((VIEW_W - panelW) / 2);
   const maxPanelH = Math.floor(VIEW_H * 0.88);
-  const padBottom = 9;
-  const maxRowsByHeight = Math.max(4, Math.floor((maxPanelH - headerH - padBottom) / rowH));
+  const maxRowsByHeight = Math.max(4, Math.floor((maxPanelH - headerH - footerH - 5) / rowH));
   const visibleRows = Math.min(sorted.length, maxRowsByHeight);
-  const panelH = headerH + visibleRows * rowH + padBottom;
+  // panelH math:
+  //  - top:    2px outer dark frame + 1px inner accent
+  //  - title:  titleH
+  //  - colhdr: colHeaderH (includes 1px divider at the bottom)
+  //  - rows:   visibleRows * rowH (row band starts at headerH + 1)
+  //  - gap:    2px between last row and footer strip
+  //  - footer: footerH
+  //  - bottom: 2px outer dark frame + 1px inner accent
+  const panelH = headerH + 1 + visibleRows * rowH + 2 + footerH + 2;
   const panelY = Math.floor((VIEW_H - panelH) / 2);
 
   // Auto-snap scroll to keep "me" visible the FIRST frame the scoreboard
@@ -7113,11 +7140,15 @@ function drawScoreboard() {
   if (scoreboardScroll < 0) scoreboardScroll = 0;
   if (scoreboardScroll > maxScroll) scoreboardScroll = maxScroll;
 
-  const colName = panelX + 22;
-  const colProgC = panelX + 118;
-  const colCoinsC = panelX + 152;
-  const colScoreC = panelX + 188;
-  const colStatusC = panelX + 218;
+  // Column anchors (right-edge for numeric columns so values stay
+  // perfectly aligned regardless of digit count).
+  const colRank   = panelX + 8;        // left edge of rank number
+  const colChip   = panelX + 18;       // colour chip
+  const colName   = panelX + 26;       // left edge of name text
+  const colProgR  = panelX + 132;      // right edge of PROG value
+  const colCoinR  = panelX + 168;      // right edge of COIN value
+  const colScoreR = panelX + 212;      // right edge of SCORE value
+  const colStatR  = panelX + panelW - 12;  // right edge of status flag
 
   // ---- Retro arcade panel ----
   // Solid two-tone pixel border (dark outer + bright inner), classic SMW /
@@ -7156,7 +7187,7 @@ function drawScoreboard() {
   // Solid coloured bar across the top of the panel with the title text
   // centred — classic Mario Kart / SMW status header.
   const titleStripY = panelY + 2;
-  const titleStripH = titleH - 1;
+  const titleStripH = titleH;
   bx.fillStyle = '#3a2470';
   bx.fillRect(panelX + 2, titleStripY, panelW - 4, titleStripH);
   // Top highlight + bottom shadow lines on the strip
@@ -7166,34 +7197,39 @@ function drawScoreboard() {
   bx.fillRect(panelX + 2, titleStripY + titleStripH - 1, panelW - 4, 1);
   // Two purple coin-pixels framing the title
   bx.fillStyle = '#b890ff';
-  bx.fillRect(panelX + 6, titleStripY + 4, 3, 3);
-  bx.fillRect(panelX + panelW - 9, titleStripY + 4, 3, 3);
+  bx.fillRect(panelX + 7, titleStripY + 5, 3, 3);
+  bx.fillRect(panelX + panelW - 10, titleStripY + 5, 3, 3);
 
-  var titleStr = 'RANKINGS  ' + racePlayers.length + '/50';
+  // Show the actual range of ranks present in the room — "1-4" reads as
+  // "ranks 1 through 4". Avoids advertising a misleading "/50" cap when
+  // the lobby isn't actually full.
+  var titleStr = 'RANKINGS  1-' + racePlayers.length;
   var titleW = titleStr.length * 6;
-  drawPixelText(bx, titleStr, panelX + Math.floor((panelW - titleW) / 2), titleStripY + 3, '#fff5b0', null);
+  drawPixelText(bx, titleStr, panelX + Math.floor((panelW - titleW) / 2), titleStripY + 4, '#fff5b0', null);
 
   // ---- Column header row ----
-  var colY = panelY + titleH + 1;
+  var colY = panelY + titleH + 3;
   // Column header strip background (slightly lifted from cavity)
   bx.fillStyle = '#1a1230';
-  bx.fillRect(panelX + 3, colY - 1, panelW - 6, colHeaderH - 1);
+  bx.fillRect(panelX + 3, panelY + titleH + 1, panelW - 6, colHeaderH - 2);
 
   var hCol = '#b890ff';
-  drawPixelText(bx, '#',     panelX + 6,  colY, hCol, null);
-  drawPixelText(bx, 'NAME',  colName,     colY, hCol, null);
-  drawPixelText(bx, 'PROG',  colProgC - 12, colY, hCol, null);
-  drawPixelText(bx, 'COIN',  colCoinsC - 12, colY, hCol, null);
-  drawPixelText(bx, 'SCORE', colScoreC - 15, colY, hCol, null);
+  drawPixelText(bx, '#',     colRank, colY, hCol, null);
+  drawPixelText(bx, 'NAME',  colName, colY, hCol, null);
+  drawPixelText(bx, 'PROG',  colProgR  - 4 * 6, colY, hCol, null);
+  drawPixelText(bx, 'COIN',  colCoinR  - 4 * 6, colY, hCol, null);
+  drawPixelText(bx, 'SCORE', colScoreR - 5 * 6, colY, hCol, null);
 
-  // Solid white pixel divider between header and rows (no alpha)
+  // Solid pixel divider between header and rows
   bx.fillStyle = '#6a4dc6';
   bx.fillRect(panelX + 3, panelY + headerH - 1, panelW - 6, 1);
+  bx.fillStyle = '#3a2870';
+  bx.fillRect(panelX + 3, panelY + headerH, panelW - 6, 1);
 
   // Row clip so dragging the scrollbar can't bleed text outside the panel.
   bx.save();
   bx.beginPath();
-  bx.rect(panelX + 3, panelY + headerH, panelW - 6, visibleRows * rowH);
+  bx.rect(panelX + 3, panelY + headerH + 1, panelW - 6, visibleRows * rowH);
   bx.clip();
 
   const startIdx = Math.floor(scoreboardScroll);
@@ -7202,18 +7238,18 @@ function drawScoreboard() {
     if (rowIdx >= sorted.length) break;
     var p = sorted[rowIdx];
     var col = getPlayerDisplayColor(p.color || 'lavender');
-    var rowY = panelY + headerH + i * rowH;
+    var rowY = panelY + headerH + 1 + i * rowH;
     var isMe = p.id === myPlayerId;
+    var textY = rowY + 3;       // vertically centred inside an 11px row
 
-    // Solid alternating row backgrounds (no alpha — arcade flat colour).
+    // Alternating row backgrounds — solid flat colours for arcade feel.
     if (rowIdx % 2 === 1) {
       bx.fillStyle = '#15102a';
       bx.fillRect(panelX + 3, rowY, panelW - 6, rowH);
     }
     if (isMe) {
-      // Solid bright row tint in your blob colour, framed with a chunky
-      // 2-px left bar and a 1-px right cap. Stands out instantly even
-      // when the panel is full of opponents.
+      // Bright row tint in your blob colour, framed with a chunky 2-px
+      // left bar so your row is instantly findable.
       bx.fillStyle = '#2a1c50';
       bx.fillRect(panelX + 3, rowY, panelW - 6, rowH);
       bx.fillStyle = col;
@@ -7221,44 +7257,46 @@ function drawScoreboard() {
       bx.fillRect(panelX + panelW - 5, rowY, 2, rowH);
     }
 
-    // Rank cell. Gold for #1, silver for #2, bronze for #3. Static after.
+    // Rank cell. Gold for #1, silver for #2, bronze for #3, mute after.
     var rankCol = '#9890b0';
     if (rowIdx === 0) rankCol = '#ffd86a';
     else if (rowIdx === 1) rankCol = '#d8d8e8';
     else if (rowIdx === 2) rankCol = '#e09870';
-    drawPixelText(bx, String(rowIdx + 1), panelX + 6, rowY + 2, rankCol, null);
+    drawPixelText(bx, String(rowIdx + 1), colRank, textY, rankCol, null);
 
-    // Tiny coloured player chip (3x3 px) before the name, like the lobby
-    // initial badges — instantly tells you who is who at a glance.
+    // 3x3 colour chip before the name (with 1-px highlight pixel) so
+    // every player has a recognisable identity badge.
     bx.fillStyle = col;
-    bx.fillRect(colName - 9, rowY + 3, 3, 3);
-    bx.fillStyle = '#0a0710';
-    bx.fillRect(colName - 9, rowY + 3, 1, 1);
+    bx.fillRect(colChip, rowY + 4, 3, 3);
+    bx.fillStyle = '#fff';
+    bx.globalAlpha = 0.6;
+    bx.fillRect(colChip, rowY + 4, 1, 1);
+    bx.globalAlpha = 1;
 
     var nameStr = p.name || 'Blobby';
-    if (nameStr.length > 12) nameStr = nameStr.substring(0, 12);
+    if (nameStr.length > 13) nameStr = nameStr.substring(0, 13);
     var nameCol = isMe ? '#fff5b0' : col;
-    drawPixelText(bx, nameStr, colName, rowY + 2, nameCol, null);
+    drawPixelText(bx, nameStr, colName, textY, nameCol, null);
 
     var pctStr = Math.round((p.progress || 0) * 100) + '%';
-    drawPixelText(bx, pctStr, colProgC - Math.floor(pctStr.length * 3), rowY + 2, '#f3eefe', null);
+    drawPixelText(bx, pctStr, colProgR - pctStr.length * 6, textY, '#f3eefe', null);
 
     var coinStr = String(p.coins || 0);
-    drawPixelText(bx, coinStr, colCoinsC - Math.floor(coinStr.length * 3), rowY + 2, '#f0d050', null);
+    drawPixelText(bx, coinStr, colCoinR - coinStr.length * 6, textY, '#f0d050', null);
 
     var scoreStr = String(p.gameScore || 0);
-    drawPixelText(bx, scoreStr, colScoreC - Math.floor(scoreStr.length * 3), rowY + 2, '#f3eefe', null);
+    drawPixelText(bx, scoreStr, colScoreR - scoreStr.length * 6, textY, '#f3eefe', null);
 
     var statusStr = '';
     if (p.finished) statusStr = (p.finishTime / 1000).toFixed(1) + 'S';
     else if (!p.alive) statusStr = 'OUT';
     var statusCol = p.finished ? '#80e8a0' : '#ff7090';
-    if (statusStr) drawPixelText(bx, statusStr, colStatusC - Math.floor(statusStr.length * 3), rowY + 2, statusCol, null);
+    if (statusStr) drawPixelText(bx, statusStr, colStatR - statusStr.length * 6, textY, statusCol, null);
 
-    // Pixel-dotted divider under each row (skipped on the last visible row)
+    // Faint dotted divider under each row (skipped on the last one).
     if (i < visibleRows - 1 && rowIdx < sorted.length - 1) {
       bx.fillStyle = '#22183a';
-      for (var dx = 4; dx < panelW - 8; dx += 2) {
+      for (var dx = 6; dx < panelW - 10; dx += 2) {
         bx.fillRect(panelX + dx, rowY + rowH - 1, 1, 1);
       }
     }
@@ -7269,10 +7307,10 @@ function drawScoreboard() {
   // ---- Scrollbar ----
   // Chunky pixel-art scrollbar (4 px wide track, solid colours, no alpha)
   // so it reads as a retro arcade element rather than a modern UI widget.
-  const sbX = panelX + panelW - 8;
+  const sbX = panelX + panelW - 9;
   const sbW = 4;
-  const sbY = panelY + headerH + 1;
-  const sbH = visibleRows * rowH - 2;
+  const sbY = panelY + headerH + 2;
+  const sbH = visibleRows * rowH - 4;
   let thumbY = sbY, thumbH = sbH;
   if (sorted.length > visibleRows) {
     // Track: dark recessed channel
@@ -7310,16 +7348,22 @@ function drawScoreboard() {
   }
 
   // ---- Footer ----
-  // Solid coloured footer strip with a row counter on the left and a
-  // status hint on the right. Mirrors the title-strip styling.
-  const footY = panelY + panelH - 7;
+  // Dedicated footer strip mirroring the title strip — solid background,
+  // top hairline, vertically centred text. The strip has its own
+  // reserved height (footerH) so text never collides with the bottom
+  // bright frame.
+  const footStripY = panelY + panelH - footerH - 2;
   bx.fillStyle = '#22183a';
-  bx.fillRect(panelX + 3, footY - 1, panelW - 6, 7);
+  bx.fillRect(panelX + 3, footStripY, panelW - 6, footerH);
   bx.fillStyle = '#3a2870';
-  bx.fillRect(panelX + 3, footY - 1, panelW - 6, 1);
+  bx.fillRect(panelX + 3, footStripY, panelW - 6, 1);     // top hi
+  bx.fillStyle = '#0d0b16';
+  bx.fillRect(panelX + 3, footStripY + footerH - 1, panelW - 6, 1); // bot shadow
+  // Footer text Y — vertically centred in a 14px strip with a 5-px font
+  const footTextY = footStripY + Math.floor((footerH - 5) / 2) + 1;
 
   const counterStr = (startIdx + 1) + '-' + Math.min(sorted.length, startIdx + visibleRows) + ' / ' + sorted.length;
-  drawPixelText(bx, counterStr, panelX + 6, footY, '#b890ff', null);
+  drawPixelText(bx, counterStr, panelX + 7, footTextY, '#b890ff', null);
 
   // Status / hint on the right side. Show different text depending on
   // whether the player is alive, eliminated, or finished — so a dead
@@ -7337,7 +7381,7 @@ function drawScoreboard() {
   }
   var rightCol = eliminated ? '#ff90a8' : (gameState === 'win' ? '#80e8a0' : '#9890b0');
   var rightW = rightStr.length * 6;
-  drawPixelText(bx, rightStr, panelX + panelW - rightW - 8, footY, rightCol, null);
+  drawPixelText(bx, rightStr, panelX + panelW - rightW - 9, footTextY, rightCol, null);
 
   _scoreboardGeom = {
     panelX, panelY, panelW, panelH,
@@ -7537,41 +7581,100 @@ function render() {
   }
 
   if (gameState === 'gameover') {
-    // Backdrop: deep black with a soft purple vignette in the corners
-    bx.fillStyle = '#07060c';
+    // ---- Backdrop: solid black + dim red vignette + sparse stars ---
+    bx.fillStyle = '#000';
     bx.fillRect(0, 0, VIEW_W, VIEW_H);
-    var goVig = bx.createRadialGradient(VIEW_W * 0.2, VIEW_H * 0.2, 0, VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.8);
-    goVig.addColorStop(0, 'rgba(106,77,198,0.10)');
+    var goVig = bx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, 0, VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.7);
+    goVig.addColorStop(0, 'rgba(176,40,40,0.18)');
     goVig.addColorStop(1, 'rgba(0,0,0,0)');
     bx.fillStyle = goVig;
     bx.fillRect(0, 0, VIEW_W, VIEW_H);
+    for (var gs = 0; gs < 24; gs++) {
+      var gsx = (gs * 73 + 17) % VIEW_W;
+      var gsy = (gs * 41 + 23) % VIEW_H;
+      var gsT = (Math.floor(globalTick / 14) + gs) % 4;
+      bx.fillStyle = gsT === 0 ? '#fff5b0' : '#3a2030';
+      bx.fillRect(gsx, gsy, 1, 1);
+    }
 
-    // Brutalist panel
-    var goPanelW = 168, goPanelH = 96;
+    // ---- Retro arcade panel ----
+    var goPanelW = 176, goPanelH = 108;
     var goPanelX = (VIEW_W - goPanelW) >> 1;
-    var goPanelY = ((VIEW_H - goPanelH) >> 1) - 4;
-    drawBrutalistPanel(goPanelX, goPanelY, goPanelW, goPanelH);
+    var goPanelY = ((VIEW_H - goPanelH) >> 1) - 6;
 
-    // Mono eyebrow
-    drawPixelText(bx, '/ SYSTEM HALT',  goPanelX + 14, goPanelY + 12, '#9890b0', null);
+    // Drop shadow
+    bx.fillStyle = '#0a0710';
+    bx.fillRect(goPanelX + 3, goPanelY + 3, goPanelW, goPanelH);
+    // Outer dark frame
+    bx.fillStyle = '#2a1020';
+    bx.fillRect(goPanelX, goPanelY, goPanelW, goPanelH);
+    // Bright pixel border
+    bx.fillStyle = '#f3eefe';
+    bx.fillRect(goPanelX,                  goPanelY,                    goPanelW, 1);
+    bx.fillRect(goPanelX,                  goPanelY + goPanelH - 1,     goPanelW, 1);
+    bx.fillRect(goPanelX,                  goPanelY,                    1,        goPanelH);
+    bx.fillRect(goPanelX + goPanelW - 1,   goPanelY,                    1,        goPanelH);
+    // Inner cavity
+    bx.fillStyle = '#0d0b16';
+    bx.fillRect(goPanelX + 2, goPanelY + 2, goPanelW - 4, goPanelH - 4);
+    // Inner red accent stroke (game-over mood)
+    bx.fillStyle = '#a13050';
+    bx.fillRect(goPanelX + 1,                 goPanelY + 1,                 goPanelW - 2, 1);
+    bx.fillRect(goPanelX + 1,                 goPanelY + goPanelH - 2,      goPanelW - 2, 1);
+    bx.fillRect(goPanelX + 1,                 goPanelY + 1,                 1,            goPanelH - 2);
+    bx.fillRect(goPanelX + goPanelW - 2,      goPanelY + 1,                 1,            goPanelH - 2);
+    // Corner notches
+    bx.fillStyle = '#0a0710';
+    bx.fillRect(goPanelX,                goPanelY,                    1, 1);
+    bx.fillRect(goPanelX + goPanelW - 1, goPanelY,                    1, 1);
+    bx.fillRect(goPanelX,                goPanelY + goPanelH - 1,     1, 1);
+    bx.fillRect(goPanelX + goPanelW - 1, goPanelY + goPanelH - 1,     1, 1);
 
-    // Sad blob portrait
-    drawBlobIcon(VIEW_W / 2, goPanelY + 38, 11, mySelectedColor, true);
+    // ---- Title strip in red ----
+    var go_tsY = goPanelY + 2;
+    var go_tsH = 14;
+    bx.fillStyle = '#5a1830';
+    bx.fillRect(goPanelX + 2, go_tsY, goPanelW - 4, go_tsH);
+    bx.fillStyle = '#a14060';
+    bx.fillRect(goPanelX + 2, go_tsY, goPanelW - 4, 1);
+    bx.fillStyle = '#1a0410';
+    bx.fillRect(goPanelX + 2, go_tsY + go_tsH - 1, goPanelW - 4, 1);
+    bx.fillStyle = '#ff7090';
+    bx.fillRect(goPanelX + 7, go_tsY + 5, 3, 3);
+    bx.fillRect(goPanelX + goPanelW - 10, go_tsY + 5, 3, 3);
 
-    // Title — clean white with subtle phase shimmer
-    var goPhase = Math.floor(globalTick / 6) % 2;
-    var goCol = goPhase ? '#f3eefe' : '#e6deff';
+    var go_titleStr = 'WORLD  1-1';
+    var go_titleW = go_titleStr.length * 6;
+    drawPixelText(bx, go_titleStr, goPanelX + Math.floor((goPanelW - go_titleW) / 2), go_tsY + 4, '#ffd0d8', null);
+
+    // Sad blob portrait, slowly drifting down a hair (defeated body language)
+    var goBob = Math.round(Math.sin(globalTick * 0.04) * 0.8);
+    drawBlobIcon(VIEW_W / 2, goPanelY + 44 + goBob, 13, mySelectedColor, true);
+
+    // ---- Big "GAME OVER" — 2x scaled pixel font, soft red flicker ---
+    var goPhase = Math.floor(globalTick / 8) % 6;
+    var goCol = (goPhase === 5) ? '#ff7090' : '#ffd86a';
     var goText = 'GAME OVER';
-    var goW = goText.length * 6;
-    drawPixelText(bx, goText, ((VIEW_W - goW) / 2) | 0, goPanelY + 56, goCol, 'rgba(0,0,0,0.85)');
+    bx.save();
+    var goTextX = ((VIEW_W - goText.length * 12) / 2) | 0;
+    bx.translate(goTextX, goPanelY + 64);
+    bx.scale(2, 2);
+    drawPixelText(bx, goText, 0, 0, goCol, '#1a0410');
+    bx.restore();
 
-    // Footer prompt with breathing alpha
+    // ---- Footer strip with blinking prompt ----
+    var go_fsY = goPanelY + goPanelH - 14;
+    bx.fillStyle = '#22183a';
+    bx.fillRect(goPanelX + 2, go_fsY, goPanelW - 4, 12);
+    bx.fillStyle = '#3a2870';
+    bx.fillRect(goPanelX + 2, go_fsY, goPanelW - 4, 1);
+
     var goAlpha = 0.55 + 0.45 * Math.sin(globalTick * 0.06);
     bx.save();
     bx.globalAlpha = goAlpha;
-    var goPrompt = '> PRESS ENTER';
+    var goPrompt = '> PRESS ENTER TO RETRY';
     var goPW = goPrompt.length * 6;
-    drawPixelText(bx, goPrompt, ((VIEW_W - goPW) / 2) | 0, goPanelY + 76, '#b890ff', null);
+    drawPixelText(bx, goPrompt, ((VIEW_W - goPW) / 2) | 0, go_fsY + 4, '#b890ff', null);
     bx.restore();
 
     ctx.drawImage(buf, 0, 0, buf.width, buf.height, 0, 0, canvas.width, canvas.height);
@@ -7579,27 +7682,143 @@ function render() {
     return;
   }
   if (gameState === 'lifeLost') {
-    // Backdrop
-    bx.fillStyle = '#07060c';
+    // ---- Backdrop: solid arcade black with a soft purple glow + a
+    // sparse field of pixel stars twinkling like an attract screen.
+    bx.fillStyle = '#000';
     bx.fillRect(0, 0, VIEW_W, VIEW_H);
-    var llVig = bx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, 0, VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.6);
-    llVig.addColorStop(0, 'rgba(106,77,198,0.08)');
+    var llVig = bx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, 0, VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.55);
+    llVig.addColorStop(0, 'rgba(106,77,198,0.18)');
     llVig.addColorStop(1, 'rgba(0,0,0,0)');
     bx.fillStyle = llVig;
     bx.fillRect(0, 0, VIEW_W, VIEW_H);
+    for (var ls = 0; ls < 28; ls++) {
+      var lsx = (ls * 73 + 17) % VIEW_W;
+      var lsy = (ls * 41 + 23) % VIEW_H;
+      var lsTwinkle = (Math.floor(globalTick / 12) + ls) % 5;
+      bx.fillStyle = lsTwinkle === 0 ? '#fff5b0'
+                   : lsTwinkle === 1 ? '#b890ff'
+                   : '#3a2870';
+      bx.fillRect(lsx, lsy, 1, 1);
+    }
 
-    // Compact brutalist card
-    var llW = 132, llH = 64;
+    // ---- Retro arcade panel (matches the scoreboard styling) ----
+    var llW = 168, llH = 100;
     var llX = (VIEW_W - llW) >> 1;
-    var llY = ((VIEW_H - llH) >> 1) - 4;
-    drawBrutalistPanel(llX, llY, llW, llH);
+    var llY = ((VIEW_H - llH) >> 1) - 6;
+    // Drop shadow
+    bx.fillStyle = '#0a0710';
+    bx.fillRect(llX + 3, llY + 3, llW, llH);
+    // Outer dark frame
+    bx.fillStyle = '#1a1230';
+    bx.fillRect(llX, llY, llW, llH);
+    // Bright pixel border
+    bx.fillStyle = '#f3eefe';
+    bx.fillRect(llX,            llY,            llW, 1);
+    bx.fillRect(llX,            llY + llH - 1,  llW, 1);
+    bx.fillRect(llX,            llY,            1,   llH);
+    bx.fillRect(llX + llW - 1,  llY,            1,   llH);
+    // Inner cavity
+    bx.fillStyle = '#0d0b16';
+    bx.fillRect(llX + 2, llY + 2, llW - 4, llH - 4);
+    // Inner purple accent stroke
+    bx.fillStyle = '#6a4dc6';
+    bx.fillRect(llX + 1,           llY + 1,           llW - 2, 1);
+    bx.fillRect(llX + 1,           llY + llH - 2,     llW - 2, 1);
+    bx.fillRect(llX + 1,           llY + 1,           1,       llH - 2);
+    bx.fillRect(llX + llW - 2,     llY + 1,           1,       llH - 2);
+    // Corner notches
+    bx.fillStyle = '#0a0710';
+    bx.fillRect(llX,            llY,            1, 1);
+    bx.fillRect(llX + llW - 1,  llY,            1, 1);
+    bx.fillRect(llX,            llY + llH - 1,  1, 1);
+    bx.fillRect(llX + llW - 1,  llY + llH - 1,  1, 1);
 
-    drawPixelText(bx, '/ ZONE 1-1', llX + 14, llY + 12, '#9890b0', null);
+    // ---- Title strip: solid purple band, biome zone label ----
+    var ll_tsY = llY + 2;
+    var ll_tsH = 14;
+    bx.fillStyle = '#3a2470';
+    bx.fillRect(llX + 2, ll_tsY, llW - 4, ll_tsH);
+    bx.fillStyle = '#7050b8';
+    bx.fillRect(llX + 2, ll_tsY, llW - 4, 1);
+    bx.fillStyle = '#1a1040';
+    bx.fillRect(llX + 2, ll_tsY + ll_tsH - 1, llW - 4, 1);
+    // Coin pixels framing the title
+    bx.fillStyle = '#ffd86a';
+    bx.fillRect(llX + 7, ll_tsY + 5, 3, 3);
+    bx.fillRect(llX + llW - 10, ll_tsY + 5, 3, 3);
 
-    // Blob + remaining lives counter, side by side
-    drawBlobIcon(llX + 36, llY + 42, 10, mySelectedColor, false);
-    drawPixelText(bx, 'x ' + Math.max(0, lives - 1), llX + 64, llY + 38, '#f3eefe', 'rgba(0,0,0,0.85)');
-    drawPixelText(bx, 'LIVES LEFT', llX + 64, llY + 50, '#9890b0', null);
+    var ll_titleStr = 'WORLD  1-1';
+    var ll_titleW = ll_titleStr.length * 6;
+    drawPixelText(bx, ll_titleStr, llX + Math.floor((llW - ll_titleW) / 2), ll_tsY + 4, '#fff5b0', null);
+
+    // ---- Blob + lives counter (Mario-style "MARIO x N") ----
+    // Soft idle bob on the blob portrait so the screen feels alive.
+    var bobY = Math.round(Math.sin(globalTick * 0.08) * 1.2);
+    var blobR = 13;
+    var groupY = llY + 50;
+    var blobX  = llX + 40;
+    var xMarkX = llX + 68;
+    var bigNumX = llX + 92;
+
+    drawBlobIcon(blobX, groupY + bobY, blobR, mySelectedColor, false);
+    // Tiny ground shadow ellipse under the blob
+    bx.save();
+    bx.globalAlpha = 0.45;
+    bx.fillStyle = '#000';
+    bx.beginPath();
+    bx.ellipse(blobX, groupY + blobR + 2, blobR * 0.7, 2, 0, 0, Math.PI * 2);
+    bx.fill();
+    bx.restore();
+
+    // The "x" character — small pixel, in cream
+    drawPixelText(bx, 'X', xMarkX, groupY - 3, '#fff5b0', 'rgba(0,0,0,0.85)');
+
+    // Big chunky 2x-scaled lives number — reads like the SMW life
+    // counter. We just draw the same pixel font scaled up via context
+    // transform so it stays perfectly crisp.
+    var livesCount = Math.max(0, lives - 1);
+    var bigLivesStr = String(livesCount);
+    bx.save();
+    bx.translate(bigNumX, groupY - 8);
+    bx.scale(2, 2);
+    drawPixelText(bx, bigLivesStr, 0, 0, '#fff5b0', '#1a1040');
+    bx.restore();
+
+    // Sparkles next to the big number for that arcade pop
+    var sparkPhase = Math.floor(globalTick / 6) % 3;
+    if (sparkPhase === 0) {
+      bx.fillStyle = '#fff5b0';
+      bx.fillRect(bigNumX + 26, groupY - 6, 2, 2);
+      bx.fillStyle = '#ffd86a';
+      bx.fillRect(bigNumX + 26, groupY - 6, 1, 1);
+    } else if (sparkPhase === 1) {
+      bx.fillStyle = '#b890ff';
+      bx.fillRect(bigNumX + 28, groupY + 4, 2, 2);
+    }
+
+    // ---- "LIVES LEFT" caption (centred) ----
+    var llCap = 'LIVES LEFT';
+    var llCapW = llCap.length * 6;
+    drawPixelText(bx, llCap, llX + Math.floor((llW - llCapW) / 2), llY + llH - 24, '#b890ff', null);
+
+    // Footer divider strip (mirrors title strip)
+    var ll_fsY = llY + llH - 14;
+    bx.fillStyle = '#22183a';
+    bx.fillRect(llX + 2, ll_fsY, llW - 4, 12);
+    bx.fillStyle = '#3a2870';
+    bx.fillRect(llX + 2, ll_fsY, llW - 4, 1);
+
+    // Animated "GET READY!" prompt blinking in green like a SMB1 ready prompt
+    var grPhase = Math.floor(globalTick / 18) % 4;
+    if (grPhase < 3) {
+      var grAlpha = 0.6 + 0.4 * Math.sin(globalTick * 0.18);
+      bx.save();
+      bx.globalAlpha = grAlpha;
+      var grStr = '> GET READY!';
+      var grW = grStr.length * 6;
+      drawPixelText(bx, grStr, llX + Math.floor((llW - grW) / 2), ll_fsY + 4, '#80e8a0', null);
+      bx.restore();
+    }
 
     ctx.drawImage(buf, 0, 0, buf.width, buf.height, 0, 0, canvas.width, canvas.height);
     drawScanlines();
@@ -8065,35 +8284,70 @@ function showResults(rankings) {
   document.getElementById('raceTimeline').classList.remove('visible');
 
   const div = document.getElementById('resultsPlayers');
-  const medals = ['\u{1F947}', '\u{1F948}', '\u{1F949}'];
   const winner = rankings[0];
-  let headerHtml = '';
-  if (winner) {
-    var winMsg = winner.finished ? winner.name + ' WINS!' : 'MATCH OVER';
-    headerHtml = `<div style="color:#e0d0f8; font-size:18px; margin-bottom:12px; text-align:center; text-shadow:0 0 8px rgba(160,120,220,0.5);">${winMsg}</div>`;
-  }
-  div.innerHTML = headerHtml + rankings.map((p, i) => {
-    const medal = medals[i] || `#${i + 1}`;
+
+  // Helper: rank label as a fixed-width pixel string (#1, #2, …).
+  const rankLabel = (i) => '#' + (i + 1);
+
+  // Title strip text: classic arcade "MATCH OVER" or winner shoutout.
+  const titleStr = (winner && winner.finished)
+    ? winner.name.toUpperCase() + ' WINS'
+    : 'MATCH OVER';
+
+  // Build the rows. Each row is a flat coloured tile with a chip,
+  // name, score, and a status / coin meta-line.
+  const rowsHtml = rankings.map((p, i) => {
     const col = getPlayerDisplayColor(p.color || 'lavender');
-    let statusStr = '';
-    if (p.finished) statusStr = `FINISHED ${(p.finishTime / 1000).toFixed(2)}s`;
-    else if (!p.alive) statusStr = 'ELIMINATED';
-    else statusStr = `${Math.round((p.progress || 0) * 100)}% progress`;
+    const isMe = p.id === myPlayerId;
+
+    let statusCls = 'r-status';
+    let statusStr;
+    if (p.finished) {
+      statusStr = 'FIN ' + (p.finishTime / 1000).toFixed(2) + 'S';
+      statusCls += ' finished';
+    } else if (!p.alive) {
+      statusStr = 'ELIMINATED';
+      statusCls += ' dead';
+    } else {
+      statusStr = Math.round((p.progress || 0) * 100) + '% PROG';
+    }
+
     const finalScore = p.finalScore || 0;
     const coinCount = p.coins || 0;
-    const isWinner = i === 0;
-    const bgCol = isWinner ? 'rgba(100,70,160,0.3)' : 'rgba(40,25,70,0.2)';
-    return `<div style="background:${bgCol}; border-radius:6px; padding:6px 8px; margin:4px 0; border:1px solid rgba(120,90,180,0.3);">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-size:14px;">${medal} <span style="color:${col}; font-weight:bold;">${p.name}</span></span>
-        <span style="color:#e0d0f8; font-size:15px; font-weight:bold;">${finalScore}</span>
-      </div>
-      <div style="color:#a898c8; font-size:10px; margin-top:3px; display:flex; justify-content:space-between;">
-        <span>${statusStr}</span>
-        <span>Coins: ${coinCount}</span>
+
+    const cls = ['results-row', 'rank-' + (i + 1)];
+    if (isMe) cls.push('is-me');
+    const tag = (i === 0)
+      ? '<span class="r-tag">1ST</span>'
+      : (isMe ? '<span class="r-tag" style="background:#b890ff; color:#1a0a3e;">YOU</span>' : '');
+
+    const safeName = String(p.name || 'BLOBBY').toUpperCase().replace(/[<>&]/g, '');
+
+    return `<div class="${cls.join(' ')}" style="--row-col:${col}; --chip-col:${col}; --name-col:${col};">
+      ${tag}
+      <span class="r-rank">${rankLabel(i)}</span>
+      <span class="r-name-cell"><span class="r-chip"></span><span class="r-name">${safeName}</span></span>
+      <span class="r-score">${finalScore}</span>
+      <div class="r-meta">
+        <span class="${statusCls}">${statusStr}</span>
+        <span class="r-coin">COINS x${coinCount}</span>
       </div>
     </div>`;
   }).join('');
+
+  // Footer: winner shoutout if someone finished, otherwise total players.
+  let footerHtml;
+  if (winner && winner.finished) {
+    footerHtml = `WINNER<span class="winner-name" style="color:${getPlayerDisplayColor(winner.color || 'lavender')}">${String(winner.name || '').toUpperCase()}</span>`;
+  } else {
+    footerHtml = rankings.length + ' BLOB' + (rankings.length === 1 ? '' : 'S') + ' RANKED';
+  }
+
+  div.innerHTML = `<div class="results-board">
+    <div class="results-title">${titleStr}</div>
+    <div class="results-rows">${rowsHtml}</div>
+    <div class="results-footer">${footerHtml}</div>
+  </div>`;
 
   if (isHost) {
     document.getElementById('replayBtn').style.display = '';
@@ -8122,11 +8376,18 @@ function hideAllMenuPanels() {
   ['menuMain','menuSinglePlayer','menuCreate','menuJoin','menuLobby','menuResults'].forEach(id => {
     document.getElementById(id).style.display = 'none';
   });
+  // The decorative attract-screen scene (blob mascot, hills, clouds)
+  // belongs to the main attract screen only — sub-panels get the
+  // simpler dark surface so the form fields stay readable.
+  const scene = document.querySelector('#menuOverlay .menu-scene');
+  if (scene) scene.style.display = 'none';
 }
 
 function showMenu() {
   hideAllMenuPanels();
   document.getElementById('menuMain').style.display = '';
+  const scene = document.querySelector('#menuOverlay .menu-scene');
+  if (scene) scene.style.display = '';
   document.getElementById('menuOverlay').classList.remove('hidden');
   document.getElementById('raceTimeline').classList.remove('visible');
 }
@@ -8138,6 +8399,8 @@ function hideMenu() {
 function showMainMenu() {
   hideAllMenuPanels();
   document.getElementById('menuMain').style.display = '';
+  const scene = document.querySelector('#menuOverlay .menu-scene');
+  if (scene) scene.style.display = '';
 }
 
 function showCreateRoom() {
