@@ -192,8 +192,6 @@ const BIOME_FOREST = {
   brick: '#7a5840', brickShade: '#5a3e28', brickHi: '#a07858', brickMortar: '#3a2418',
   // Hard block (mossy stone)
   hard: '#6a7a5a', hardHi: '#9bab8a', hardLo: '#3a4632',
-  // Question/coin block accents
-  qBlockBg: '#f0c860', qBlockShade: '#b88828', qBlockDark: '#7c5a14',
   // Pipes
   pipe: '#3a9a58', pipeHi: '#7adc94', pipeLo: '#1c5230',
   // Hill/decor colors
@@ -214,7 +212,6 @@ const BIOME_SNOW = {
   groundBody: '#5a78a8', groundBodyHi: '#88a8d0', groundBodyLo: '#2a3a68',
   brick: '#8aa6c8', brickShade: '#5a78a0', brickHi: '#c0d4e8', brickMortar: '#384a68',
   hard: '#7a98c0', hardHi: '#bcd4ea', hardLo: '#3a567c',
-  qBlockBg: '#9fd8f0', qBlockShade: '#5fa0c8', qBlockDark: '#2a5878',
   pipe: '#5fb8d8', pipeHi: '#a8e8f4', pipeLo: '#2a6890',
   hillCol1: '#a8c0e0', hillCol2: '#5a78a8', hillCol3: '#1c2a48',
   cloudCol: '#fcfcfc', cloudShade: '#d8e4f0',
@@ -232,7 +229,6 @@ const BIOME_DESERT = {
   groundBody: '#a06028', groundBodyHi: '#c88848', groundBodyLo: '#5a3010',
   brick: '#c89058', brickShade: '#8a5828', brickHi: '#f0c08a', brickMortar: '#5a3010',
   hard: '#b07840', hardHi: '#e0a868', hardLo: '#6a3a14',
-  qBlockBg: '#f0d068', qBlockShade: '#b88828', qBlockDark: '#7a5810',
   pipe: '#d06840', pipeHi: '#f4a878', pipeLo: '#7a2818',
   hillCol1: '#e8a868', hillCol2: '#a06030', hillCol3: '#4a200c',
   cloudCol: '#fae0c0', cloudShade: '#e0a878',
@@ -250,7 +246,6 @@ const BIOME_LAVA = {
   groundBody: '#2a0c0c', groundBodyHi: '#5a1810', groundBodyLo: '#0a0204',
   brick: '#3a1c1c', brickShade: '#1a0a0a', brickHi: '#7a2818', brickMortar: '#0a0202',
   hard: '#3c2828', hardHi: '#806050', hardLo: '#180a0a',
-  qBlockBg: '#f0a040', qBlockShade: '#b04818', qBlockDark: '#5a1808',
   pipe: '#3a1010', pipeHi: '#a04018', pipeLo: '#100404',
   hillCol1: '#7a2818', hillCol2: '#3a1010', hillCol3: '#1a0606',
   cloudCol: '#3a1818', cloudShade: '#1a0808',
@@ -280,7 +275,6 @@ const BIOME_COSMIC = {
   groundBody: '#150f30', groundBodyHi: '#3a2c70', groundBodyLo: '#06040f',
   brick: '#2a2050', brickShade: '#150f30', brickHi: '#5a4898', brickMortar: '#08051a',
   hard: '#3c3068', hardHi: '#807098', hardLo: '#150f30',
-  qBlockBg: '#e8a0f0', qBlockShade: '#a048c0', qBlockDark: '#5a1880',
   pipe: '#2a1860', pipeHi: '#7048c8', pipeLo: '#100828',
   hillCol1: '#3a2870', hillCol2: '#1a1040', hillCol3: '#06040f',
   cloudCol: '#1a1438', cloudShade: '#0a0820',
@@ -289,6 +283,12 @@ const BIOME_COSMIC = {
   accent: '#d8c0ff', accentSoft: 'rgba(216,192,255,0.55)',
   particle: { count: 24, color: '#d8c0ff', sizeMin: 0.5, sizeMax: 1.4, kind: 'spark' },
 };
+
+// Mystery blocks (?-blocks, coin/powerup blocks) intentionally use one
+// universal palette across every biome. The classic warm-yellow look is
+// instantly recognisable as "interactable" — keeping it stage-agnostic
+// makes the iconography read at a glance no matter the theme.
+const DEFAULT_QBLOCK = { bg: '#f0c860', shade: '#b88828', dark: '#7c5a14' };
 
 const BIOMES = [BIOME_FOREST, BIOME_SNOW, BIOME_DESERT, BIOME_LAVA, BIOME_COSMIC];
 const BIOME_BOUNDS = [120, 240, 360, 480, 540];
@@ -658,8 +658,8 @@ function _renderHard(g, B) {
 }
 function _renderQEmpty(g, B) {
   const eGrad = g.createLinearGradient(0, 0, 0, TILE);
-  eGrad.addColorStop(0, B.qBlockShade);
-  eGrad.addColorStop(1, B.qBlockDark);
+  eGrad.addColorStop(0, DEFAULT_QBLOCK.shade);
+  eGrad.addColorStop(1, DEFAULT_QBLOCK.dark);
   g.fillStyle = eGrad;
   g.fillRect(0, 0, TILE, TILE);
   g.fillStyle = 'rgba(0,0,0,0.18)';
@@ -671,9 +671,9 @@ function _renderQEmpty(g, B) {
 }
 function _renderQActive(g, B, kind) {
   // kind: 'q' (?-block, biome-tinted), '1up' (blue), 'star' (purple)
-  const blockBg  = kind === '1up' ? '#80c0e0' : kind === 'star' ? '#a890d0' : B.qBlockBg;
-  const blockShd = kind === '1up' ? '#5090b0' : kind === 'star' ? '#7868a8' : B.qBlockShade;
-  const blockDk  = kind === '1up' ? '#306080' : kind === 'star' ? '#584888' : B.qBlockDark;
+  const blockBg  = kind === '1up' ? '#80c0e0' : kind === 'star' ? '#a890d0' : DEFAULT_QBLOCK.bg;
+  const blockShd = kind === '1up' ? '#5090b0' : kind === 'star' ? '#7868a8' : DEFAULT_QBLOCK.shade;
+  const blockDk  = kind === '1up' ? '#306080' : kind === 'star' ? '#584888' : DEFAULT_QBLOCK.dark;
   const qGrad = g.createLinearGradient(0, 0, 0, TILE);
   qGrad.addColorStop(0, blockBg);
   qGrad.addColorStop(1, blockShd);
