@@ -2199,11 +2199,11 @@ function spawnMapCoins() {
     [113, 9], [114, 8], [115, 7],                   // staircase climb
     // ----- SNOW -----
     [122, 11], [123, 11], [124, 11],
-    [131, 11], [132, 11],                           // ice path (extra)
+    [129, 11], [132, 11],                           // ice path (extra; col 131 has frozen pillar)
     [139, 9], [140, 8], [141, 9],                   // floe gap arc
     [150, 6], [151, 6], [153, 6],                   // ice platform top (skip col 152 — has ?-block)
     [169, 8], [170, 7], [171, 8],                   // big crevasse arc
-    [180, 11], [181, 11],                           // mid stretch (extra)
+    [180, 9], [181, 8],                             // arc up the glacier staircase (cols 178-181)
     [197, 9], [198, 8], [199, 8], [200, 9],         // long crevasse arc
     [212, 6], [213, 6], [215, 6],                   // platform top (skip col 214 — has ?-block)
     [220, 5], [221, 5], [223, 5], [224, 5],         // tower bridge (skip col 222 — has STAR block)
@@ -2241,7 +2241,12 @@ function spawnMapCoins() {
     // galactic atmosphere.
   ];
   coinPositions.forEach(([tx, ty]) => {
-    if (levelMap[ty] && levelMap[ty][tx]) ty--;
+    // Safety net: if a coin lands inside a solid tile (e.g. a multi-tile
+    // pillar or staircase), keep walking up until we find clear air.
+    // Caps at 4 rows to avoid spawning a coin floating absurdly high
+    // if the source data is badly broken.
+    let bumps = 0;
+    while (bumps < 4 && levelMap[ty] && levelMap[ty][tx]) { ty--; bumps++; }
     mapCoins.push({ x: tx * TILE + 4, y: ty * TILE, collected: false });
   });
 }
@@ -6876,6 +6881,45 @@ function getHudCoinSprite() {
   _hudCoinSprite = c;
   return c;
 }
+
+// ----------------------------------------------------------------
+// EAGER CACHE PREWARM
+// Hills are already pre-built above (prebuildHills IIFE). The other
+// caches (TILE_CACHE, _staticSkyGrads, _cosmicSprites, HUD sprites)
+// were lazy and built on first use — which caused a noticeable hitch
+// the first time the player crossed a biome boundary OR entered the
+// boss arena. Pre-build everything at module load so the in-game
+// renderer NEVER has to allocate a fresh canvas/gradient on a hot
+// frame.
+// ----------------------------------------------------------------
+(function prewarmAllCaches() {
+  // 1. Tile sprites for every (tile, biome, variant) the renderer can ask for.
+  const tileTypes = [1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 13];
+  const variants = ['', 'surface', 'empty'];
+  for (let bi = 0; bi < BIOMES.length; bi++) {
+    for (const t of tileTypes) {
+      for (const v of variants) getTileSprite(t, BIOMES[bi], v);
+    }
+  }
+  // 2. Block-glow halos used by ?/1up/star pulses.
+  const glowColors = ['#ffd86a', '#ff8a3a', '#9aff9a', '#ffd86a', '#80c8ff', '#ffe080'];
+  for (const col of glowColors) getBlockGlowSprite(col);
+  // 3. Static sky gradients for every biome (built off the main bx context).
+  for (let bi = 0; bi < BIOMES.length; bi++) {
+    if (_staticSkyGrads[BIOMES[bi].id]) continue;
+    const sg = bx.createLinearGradient(0, 0, 0, VIEW_H);
+    for (let i = 0; i < 6; i++) sg.addColorStop(i / 5, BIOMES[bi].sky[i]);
+    _staticSkyGrads[BIOMES[bi].id] = sg;
+  }
+  // 4. Cosmic sprites (the heaviest single allocation — ~768px starfield,
+  //    3 nebulas, 4 planets, 3 asteroids). Building this at module load
+  //    eliminates the ~250ms hitch that used to happen when the camera
+  //    first saw the cosmic biome.
+  if (typeof getCosmicSprites === 'function') getCosmicSprites();
+  // 5. HUD sprites.
+  if (typeof getHudStripSprite === 'function') getHudStripSprite();
+  if (typeof getHudCoinSprite === 'function') getHudCoinSprite();
+})();
 
 function drawHUD() {
   bx.drawImage(getHudStripSprite(), 0, 0);
