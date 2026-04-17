@@ -8388,9 +8388,9 @@ function render() {
     var goAlpha = 0.55 + 0.45 * Math.sin(globalTick * 0.06);
     bx.save();
     bx.globalAlpha = goAlpha;
-    var goPrompt = '> PRESS ENTER TO RETRY';
+    var goPrompt = 'PRESS ENTER TO RETRY';
     var goPW = goPrompt.length * 6;
-    drawPixelText(bx, goPrompt, ((VIEW_W - goPW) / 2) | 0, go_fsY + 4, '#b890ff', null);
+    drawPixelText(bx, goPrompt, ((VIEW_W - goPW) / 2) | 0, go_fsY + 3, '#b890ff', null);
     bx.restore();
 
     ctx.drawImage(buf, 0, 0, buf.width, buf.height, 0, 0, canvas.width, canvas.height);
@@ -8398,6 +8398,13 @@ function render() {
     return;
   }
   if (gameState === 'lifeLost') {
+    // `globalTick` only advances while gameState === 'playing', so during
+    // this screen it's frozen on whatever value it had at the moment of
+    // death. That makes every animation here static and, worse, can land
+    // the GET READY blink on its "off" phase for the whole screen so the
+    // prompt never appears. Use `gameOverTimer` (which IS incremented
+    // every frame in this state) as the local animation clock.
+    var llTick = gameOverTimer;
     // ---- Backdrop: solid arcade black with a soft purple glow + a
     // sparse field of pixel stars twinkling like an attract screen.
     bx.fillStyle = '#000';
@@ -8410,7 +8417,7 @@ function render() {
     for (var ls = 0; ls < 28; ls++) {
       var lsx = (ls * 73 + 17) % VIEW_W;
       var lsy = (ls * 41 + 23) % VIEW_H;
-      var lsTwinkle = (Math.floor(globalTick / 12) + ls) % 5;
+      var lsTwinkle = (Math.floor(llTick / 12) + ls) % 5;
       bx.fillStyle = lsTwinkle === 0 ? '#fff5b0'
                    : lsTwinkle === 1 ? '#b890ff'
                    : '#3a2870';
@@ -8449,6 +8456,27 @@ function render() {
     bx.fillRect(llX,            llY + llH - 1,  1, 1);
     bx.fillRect(llX + llW - 1,  llY + llH - 1,  1, 1);
 
+    // ---- Decorative starfield inside the dark cavity ----
+    // Gives the black area a sense of depth and, importantly, makes the
+    // sparkle pixels next to the lives number read as part of an ambient
+    // field instead of looking like stray background bleed. Positions
+    // are deterministic; brightness twinkles on the local lifeLost clock.
+    var cavityPadX = 6;
+    var cavityW = llW - 2 * cavityPadX;
+    var cavityTop = llY + 18;          // below title strip
+    var cavityH = (llY + llH - 18) - cavityTop - 2; // above footer strip
+    for (var cs = 0; cs < 16; cs++) {
+      var csx = llX + cavityPadX + ((cs * 47 + 13) % cavityW);
+      var csy = cavityTop + ((cs * 29 + 7) % cavityH);
+      var csTw = (Math.floor(llTick / 14) + cs * 3) % 6;
+      if (csTw === 5) continue; // blink off occasionally
+      bx.fillStyle = csTw === 0 ? '#fff5b0'
+                   : csTw === 1 ? '#b890ff'
+                   : csTw === 2 ? '#6a4dc6'
+                   : '#3a2870';
+      bx.fillRect(csx, csy, 1, 1);
+    }
+
     // ---- Title strip: solid purple band, biome zone label ----
     var ll_tsY = llY + 2;
     var ll_tsH = 14;
@@ -8469,12 +8497,27 @@ function render() {
 
     // ---- Blob + lives counter (Mario-style "MARIO x N") ----
     // Soft idle bob on the blob portrait so the screen feels alive.
-    var bobY = Math.round(Math.sin(globalTick * 0.08) * 1.2);
+    var bobY = Math.round(Math.sin(llTick * 0.08) * 1.2);
     var blobR = 13;
-    var groupY = llY + 50;
-    var blobX  = llX + 40;
-    var xMarkX = llX + 68;
-    var bigNumX = llX + 92;
+    // groupY is chosen so the blob + LIVES LEFT caption are centred
+    // vertically inside the dark cavity (roughly equal padding above
+    // the blob and below the caption, within ±1 px from the odd
+    // remainder).
+    var groupY = llY + 41;
+    // Lay out blob + "x" + big number as a single centred group so the
+    // whole row reads as a balanced unit regardless of card width or
+    // lives-count digit width. Pixel-font chars advance 6 px per cell;
+    // the big number is drawn via a 2x context scale so its cells are
+    // 12 px wide.
+    var livesCount = Math.max(0, lives - 1);
+    var bigLivesStr = String(livesCount);
+    var bigNumW = bigLivesStr.length * 12;
+    var groupGap = 6;
+    var groupW = (2 * blobR) + groupGap + 6 + groupGap + bigNumW;
+    var groupX = llX + Math.floor((llW - groupW) / 2);
+    var blobX  = groupX + blobR;
+    var xMarkX = groupX + (2 * blobR) + groupGap;
+    var bigNumX = xMarkX + 6 + groupGap;
 
     drawBlobIcon(blobX, groupY + bobY, blobR, mySelectedColor, false);
     // Tiny ground shadow ellipse under the blob
@@ -8492,8 +8535,6 @@ function render() {
     // Big chunky 2x-scaled lives number — reads like the SMW life
     // counter. We just draw the same pixel font scaled up via context
     // transform so it stays perfectly crisp.
-    var livesCount = Math.max(0, lives - 1);
-    var bigLivesStr = String(livesCount);
     bx.save();
     bx.translate(bigNumX, groupY - 8);
     bx.scale(2, 2);
@@ -8501,7 +8542,7 @@ function render() {
     bx.restore();
 
     // Sparkles next to the big number for that arcade pop
-    var sparkPhase = Math.floor(globalTick / 6) % 3;
+    var sparkPhase = Math.floor(llTick / 6) % 3;
     if (sparkPhase === 0) {
       bx.fillStyle = '#fff5b0';
       bx.fillRect(bigNumX + 26, groupY - 6, 2, 2);
@@ -8512,27 +8553,33 @@ function render() {
       bx.fillRect(bigNumX + 28, groupY + 4, 2, 2);
     }
 
-    // ---- "LIVES LEFT" caption (centred) ----
-    var llCap = 'LIVES LEFT';
-    var llCapW = llCap.length * 6;
-    drawPixelText(bx, llCap, llX + Math.floor((llW - llCapW) / 2), llY + llH - 24, '#b890ff', null);
-
-    // Footer divider strip (mirrors title strip)
-    var ll_fsY = llY + llH - 14;
+    // Footer divider strip (mirrors title strip). Height 16 gives 4 px of
+    // dark padding above + below the 7-row pixel text (plus the 1 px top
+    // accent line acting as a frame).
+    var ll_fsY = llY + llH - 18;
     bx.fillStyle = '#22183a';
-    bx.fillRect(llX + 2, ll_fsY, llW - 4, 12);
+    bx.fillRect(llX + 2, ll_fsY, llW - 4, 16);
     bx.fillStyle = '#3a2870';
     bx.fillRect(llX + 2, ll_fsY, llW - 4, 1);
 
+    // ---- "LIVES LEFT" caption (centred). Anchored to the blob group
+    // (fixed 8-px gap under the blob's bottom edge) so the whole
+    // content block stays together and remains vertically centred
+    // inside the dark cavity — equal padding above the blob and below
+    // this caption.
+    var llCap = 'LIVES LEFT';
+    var llCapW = llCap.length * 6;
+    drawPixelText(bx, llCap, llX + Math.floor((llW - llCapW) / 2), groupY + blobR + 8, '#b890ff', null);
+
     // Animated "GET READY!" prompt blinking in green like a SMB1 ready prompt
-    var grPhase = Math.floor(globalTick / 18) % 4;
+    var grPhase = Math.floor(llTick / 18) % 4;
     if (grPhase < 3) {
-      var grAlpha = 0.6 + 0.4 * Math.sin(globalTick * 0.18);
+      var grAlpha = 0.6 + 0.4 * Math.sin(llTick * 0.18);
       bx.save();
       bx.globalAlpha = grAlpha;
-      var grStr = '> GET READY!';
+      var grStr = 'GET READY!';
       var grW = grStr.length * 6;
-      drawPixelText(bx, grStr, llX + Math.floor((llW - grW) / 2), ll_fsY + 4, '#80e8a0', null);
+      drawPixelText(bx, grStr, llX + Math.floor((llW - grW) / 2), ll_fsY + 5, '#80e8a0', null);
       bx.restore();
     }
 
@@ -8578,12 +8625,12 @@ function render() {
     bx.save();
     bx.globalAlpha = hmAlpha * 0.85;
     bx.fillStyle = '#0d0b16';
-    bx.fillRect(hmX, hmY - 2, hmW, 14);
+    bx.fillRect(hmX, hmY - 4, hmW, 17);
     bx.fillStyle = 'rgba(255,255,255,0.20)';
-    bx.fillRect(hmX, hmY - 2, hmW, 1);
-    bx.fillRect(hmX, hmY + 11, hmW, 1);
+    bx.fillRect(hmX, hmY - 4, hmW, 1);
+    bx.fillRect(hmX, hmY + 12, hmW, 1);
     bx.fillStyle = '#b890ff';
-    bx.fillRect(hmX, hmY - 2, 2, 14);
+    bx.fillRect(hmX, hmY - 4, 2, 17);
     bx.globalAlpha = hmAlpha;
     var textX = Math.round((VIEW_W - hm.text.length * 6) / 2);
     drawPixelText(bx, hm.text, textX, hmY + 1, '#f3eefe', null);
@@ -8670,12 +8717,12 @@ function render() {
       bx.save();
       bx.globalAlpha = a2 * 0.85;
       bx.fillStyle = '#0d0b16';
-      bx.fillRect(x2, y2 - 2, w2, 14);
+      bx.fillRect(x2, y2 - 4, w2, 17);
       bx.fillStyle = 'rgba(255,255,255,0.20)';
-      bx.fillRect(x2, y2 - 2, w2, 1);
-      bx.fillRect(x2, y2 + 11, w2, 1);
+      bx.fillRect(x2, y2 - 4, w2, 1);
+      bx.fillRect(x2, y2 + 12, w2, 1);
       bx.fillStyle = '#b890ff';
-      bx.fillRect(x2, y2 - 2, 2, 14);
+      bx.fillRect(x2, y2 - 4, 2, 17);
       bx.globalAlpha = a2;
       drawPixelText(bx, hm2.text, Math.round((VIEW_W - hm2.text.length * 6) / 2), y2 + 1, '#f3eefe', null);
       bx.restore();
