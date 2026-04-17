@@ -2042,6 +2042,25 @@ window.addEventListener('keyup', e => {
   }
 });
 
+// Robust "stuck input" guard. When the window loses focus (Alt-Tab,
+// OS-level shortcut, tab switch, dev-tools open, mobile app switcher,
+// etc.) the browser fires `keydown` but often swallows the matching
+// `keyup`, leaving the gameplay loop polling a phantom held direction.
+// Clearing every input channel the loop reads on any focus-loss event
+// stops the blob dead on return. Idempotent — safe to fire multiple
+// times per focus transition (blur + visibilitychange often both fire).
+function clearAllHeldInputs() {
+  for (var k in keys) keys[k] = false;
+  jumpHeld = false;
+  jumpPressed = false;
+  jumpBufferTimer = 0;
+  showScoreboard = false;
+}
+window.addEventListener('blur', clearAllHeldInputs);
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden) clearAllHeldInputs();
+});
+
 function setupMobileControls() {
   const mapping = { mLeft: 'ArrowLeft', mRight: 'ArrowRight', mA: 'Space', mB: 'KeyX' };
   Object.entries(mapping).forEach(([id, key]) => {
@@ -2053,6 +2072,15 @@ function setupMobileControls() {
       if (key === 'Space') { jumpPressed = true; jumpHeld = true; jumpBufferTimer = JUMP_BUFFER_FRAMES; }
     });
     el.addEventListener('touchend', e => {
+      e.preventDefault();
+      keys[key] = false;
+      if (key === 'Space') jumpHeld = false;
+    });
+    // touchcancel fires when the OS/browser interrupts a touch
+    // (incoming call, notification, gesture handoff). Without this the
+    // button stays "held" after the interruption — same bug class as
+    // the desktop stuck-key issue fixed above.
+    el.addEventListener('touchcancel', e => {
       e.preventDefault();
       keys[key] = false;
       if (key === 'Space') jumpHeld = false;
@@ -8537,6 +8565,21 @@ function connectSocket() {
           document.getElementById('raceTimeline').classList.remove('visible');
           showLobby(currentRoomCode, playersList);
           remoteStates.clear();
+          // Hard-reset per-match state on the lobby transition. Without
+          // this, a player who was eliminated (or whose lives hit 0)
+          // last round carries `eliminated=true` / `lives=0` into the
+          // next match — `updateMario()` early-returns on `eliminated`
+          // and the blob is frozen in place. `resetLevel()` deliberately
+          // skips these flags in MP (so mid-match respawns don't clear
+          // them), so the lobby boundary is the right place to clean up.
+          eliminated = false;
+          lives = 3;
+          deathTimer = 0;
+          winTimer = 0;
+          flagDescending = false;
+          matchEnding = false;
+          if (typeof mario === 'object' && mario) mario.dead = false;
+          hudMessage = null;
         }
         document.getElementById('startBtn').style.display = isHost ? '' : 'none';
         document.getElementById('waitMsg').style.display = isHost ? 'none' : '';

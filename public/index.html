@@ -429,7 +429,7 @@
     box-shadow:
       4px 4px 0 #6a4dc6,
       8px 8px 0 #1a0a3e;
-    padding: 32px 28px 28px 28px;
+    padding: 36px 30px 32px 30px;
   }
   /* Main attract-screen card — perfectly CENTRED on the overlay (the
      blob mascot peeks above it via .menu-blob-wrap). Solid pixel
@@ -473,7 +473,7 @@
     color: #fff5b0;
     letter-spacing: 2px;
     text-transform: uppercase;
-    margin-bottom: 16px;
+    margin-bottom: 19px;
     -webkit-font-smoothing: none;
     -moz-osx-font-smoothing: none;
     text-shadow: 1px 1px 0 #0a0420;
@@ -587,7 +587,7 @@
     font-size: clamp(14px, 3.2vw, 22px);
     font-weight: 400;
     color: #fff5b0;
-    margin: 0 0 12px 0;
+    margin: 0 0 14px 0;
     letter-spacing: 0;
     line-height: 1.25;
     text-transform: uppercase;
@@ -604,7 +604,7 @@
     font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
     font-size: clamp(7px, 1.4vw, 9px);
     color: #d8a0ff;
-    margin-bottom: 22px;
+    margin-bottom: 24px;
     font-weight: 400;
     letter-spacing: 2px;
     text-transform: uppercase;
@@ -617,16 +617,16 @@
   .btn-row {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
     width: 100%;
-    margin-bottom: 8px;
+    margin-bottom: 12px;
   }
   /* Inline mode kept for back-compat, but the labels never wrap now —
      the buttons stay full-width inside the centred main menu. */
   .btn-row.inline {
     flex-direction: row;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 10px;
   }
   .btn-row.inline .menu-btn { flex: 1; min-width: 140px; }
 
@@ -636,7 +636,7 @@
     background: #15102a;
     border: 2px solid #6a4dc6;
     color: #fff5b0;
-    padding: 12px 16px;
+    padding: 13px 17px;
     font-size: clamp(9px, 1.4vw, 11px);
     font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
     font-weight: 400;
@@ -879,7 +879,7 @@
     font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
     font-size: clamp(8px, 1.2vw, 10px);
     cursor: pointer;
-    margin-top: 18px;
+    margin-top: 21px;
     transition: color 0.15s, transform 0.15s, text-shadow 0.15s;
     font-weight: 400;
     letter-spacing: 2px;
@@ -895,7 +895,7 @@
     font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
     font-size: clamp(8px, 1.2vw, 10px);
     margin-top: 14px;
-    margin-bottom: 10px;
+    margin-bottom: 18px;
     font-weight: 400;
     letter-spacing: 2px;
     text-transform: uppercase;
@@ -1049,11 +1049,11 @@
     font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
     font-size: clamp(7px, 1.1vw, 9px);
     font-weight: 400;
-    margin-top: 22px;
+    margin-top: 25px;
     letter-spacing: 1.2px;
     text-transform: uppercase;
     border-top: 2px dotted rgba(216,160,255,0.35);
-    padding-top: 14px;
+    padding-top: 16px;
     width: 100%;
     -webkit-font-smoothing: none;
     text-shadow: 1px 1px 0 #1a0a3e;
@@ -1364,7 +1364,8 @@
   }
 
   @media (max-width: 600px) {
-    .menu-btn { min-width: 140px; padding: 14px 16px; }
+    .menu-btn { min-width: 140px; padding: 15px 17px; }
+    .btn-row { gap: 10px; margin-bottom: 10px; }
     .menu-container { padding: 56px 18px 44px 18px; }
     .color-swatch { width: 28px; height: 28px; }
     .color-picker { grid-template-columns: repeat(6, 28px); gap: 8px; }
@@ -1372,7 +1373,8 @@
     .menu-topbar .left-pad { padding-left: 80px; }
   }
   @media (max-width: 400px) {
-    .menu-btn { padding: 10px 12px; font-size: 9px; letter-spacing: 1px; }
+    .menu-btn { padding: 11px 13px; font-size: 9px; letter-spacing: 1px; }
+    .btn-row { gap: 9px; margin-bottom: 9px; }
     .menu-btn .num { font-size: 8px; margin-right: 8px; }
     .menu-logo { font-size: clamp(15px, 6.2vw, 22px); }
     .menu-subtitle { font-size: 7px; letter-spacing: 3px; }
