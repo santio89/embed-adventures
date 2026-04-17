@@ -16,6 +16,22 @@ const ROOM_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MAX_PLAYERS = 50;
 const ROOM_TTL = 30 * 60 * 1000;
 
+// Real-time co-presence: each client streams its own position/animation
+// at WORLD_TICK_HZ. The server stores only the most recent state per
+// player and rebroadcasts a single combined snapshot to the room at the
+// same rate. This keeps outbound traffic at one message-per-tick-per-room
+// instead of N×N relays, which scales comfortably to 50-player rooms.
+//
+// 30 Hz is the action-game sweet spot: combined with cubic-Hermite
+// interpolation on the client, remote players move indistinguishably
+// from local — but bandwidth stays modest (one merged snapshot/tick
+// instead of N relays). Tunable; see REMOTE_SEND_HZ on the client.
+const WORLD_TICK_HZ = 30;
+const WORLD_TICK_MS = Math.round(1000 / WORLD_TICK_HZ);
+// Drop a player from the broadcast snapshot if we haven't heard from
+// them in this window (covers idle/disconnected/eliminated players).
+const STATE_STALE_MS = 4000;
+
 function genCode() {
   let code = '';
   for (let i = 0; i < 5; i++) code += ROOM_CHARS[Math.floor(Math.random() * ROOM_CHARS.length)];
@@ -36,8 +52,10 @@ function roomSnapshot(room) {
 
 function removePlayer(io, room, playerId) {
   room.players.delete(playerId);
+  if (room.live) room.live.delete(playerId);
 
   if (room.players.size === 0) {
+    stopWorldTick(room);
     rooms.delete(room.code);
     return;
   }
@@ -47,6 +65,56 @@ function removePlayer(io, room, playerId) {
   }
 
   io.to(room.code).emit('room_state', roomSnapshot(room));
+}
+
+// ---- Realtime world-tick broadcast --------------------------------
+// Quantize a number to a 16-bit signed range. Player coords are in
+// pixels and the playable level is well under 32k px wide, so int16
+// is plenty of precision for rendering.
+function clampInt16(n) {
+  n = n | 0;
+  if (n > 32767) return 32767;
+  if (n < -32768) return -32768;
+  return n;
+}
+
+function startWorldTick(io, room) {
+  if (room.tickInterval) return;
+  room.live = room.live || new Map();
+  room.tickInterval = setInterval(() => {
+    if (room.state !== 'playing') return;
+    const cutoff = Date.now() - STATE_STALE_MS;
+    const arr = [];
+    for (const [id, s] of room.live) {
+      if (!s || s.seenAt < cutoff) continue;
+      arr.push({
+        i: id,
+        x: clampInt16(s.x),
+        y: clampInt16(s.y),
+        // vx/vy fit comfortably in a small int. Quantized to quarter-px
+        // resolution which is invisible at 60fps but cuts payload size.
+        // vx range ~±6 px/frame (run); vy range ~±12 (jump apex / fall).
+        v: Math.max(-40, Math.min(40, Math.round(s.vx * 4))) / 4,
+        w: Math.max(-64, Math.min(64, Math.round(s.vy * 4))) / 4,
+        f: s.facing < 0 ? -1 : 1,
+        a: s.anim & 0x0f,
+        n: s.frame & 0xff,
+        s: s.size & 0x03,
+        st: s.star ? 1 : 0,
+        d: s.dead ? 1 : 0,
+      });
+    }
+    if (arr.length === 0) return;
+    io.to(room.code).emit('world_tick', { t: Date.now(), p: arr });
+  }, WORLD_TICK_MS);
+}
+
+function stopWorldTick(room) {
+  if (room.tickInterval) {
+    clearInterval(room.tickInterval);
+    room.tickInterval = null;
+  }
+  if (room.live) room.live.clear();
 }
 
 const server = http.createServer((req, res) => {
@@ -96,6 +164,8 @@ io.on('connection', (socket) => {
       matchDuration: msg.matchDuration || 300,
       rankings: null,
       players: new Map([[msg.playerId, playerData]]),
+      live: new Map(),
+      tickInterval: null,
       createdAt: Date.now(),
     };
 
@@ -160,8 +230,34 @@ io.on('connection', (socket) => {
         p.progress = 0; p.finished = false; p.finishTime = null;
         p.alive = true; p.coins = 0; p.gameScore = 0;
       }
+      if (room.live) room.live.clear();
+      startWorldTick(io, room);
       io.to(roomCode).emit('room_state', roomSnapshot(room));
     }, 3000);
+  });
+
+  // Realtime per-player position / animation update. Cheap: we just
+  // overwrite the latest entry for this player. Broadcast happens on the
+  // shared room tick, not here.
+  socket.on('player_state', (msg) => {
+    const room = rooms.get(roomCode);
+    if (!room || !playerId || room.state !== 'playing') return;
+    if (!room.players.has(playerId)) return;
+    if (!msg || typeof msg !== 'object') return;
+    if (!room.live) room.live = new Map();
+    room.live.set(playerId, {
+      x: +msg.x || 0,
+      y: +msg.y || 0,
+      vx: +msg.vx || 0,
+      vy: +msg.vy || 0,
+      facing: msg.facing < 0 ? -1 : 1,
+      anim: (msg.anim | 0) & 0x0f,
+      frame: (msg.frame | 0) & 0xff,
+      size: (msg.size | 0) & 0x03,
+      star: msg.star ? 1 : 0,
+      dead: msg.dead ? 1 : 0,
+      seenAt: Date.now(),
+    });
   });
 
   socket.on('progress', (msg) => {
@@ -213,6 +309,7 @@ io.on('connection', (socket) => {
       p.progress = 0; p.finished = false; p.finishTime = null;
       p.alive = true; p.coins = 0; p.gameScore = 0;
     }
+    stopWorldTick(room);
     io.to(roomCode).emit('room_state', roomSnapshot(room));
   });
 
@@ -266,6 +363,7 @@ function endMatch(room) {
 
   room.state = 'finished';
   room.rankings = rankings;
+  stopWorldTick(room);
   io.to(room.code).emit('room_state', roomSnapshot(room));
 }
 
@@ -274,6 +372,7 @@ setInterval(() => {
   for (const [code, room] of rooms) {
     if (now - room.createdAt > ROOM_TTL && room.state !== 'playing') {
       io.to(code).emit('room_closed');
+      stopWorldTick(room);
       rooms.delete(code);
     }
     if (room.state === 'playing' && room.startTime) {

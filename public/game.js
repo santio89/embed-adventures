@@ -1258,6 +1258,51 @@ const PIXEL_FONT = {
   '=':[0x00,0x00,0x1F,0x00,0x1F,0x00,0x00],'+':[0x00,0x04,0x04,0x1F,0x04,0x04,0x00],
 };
 
+// Compact 3x5 bitmap font for floating nameplates / micro-labels.
+// Each glyph is 5 rows x 3 cols, encoded one row per byte with the
+// leftmost pixel as bit 0x4. Advance is 4px (3 glyph + 1 gap), so a
+// 12-char name fits in ~47 px — about 35% the width of drawPixelText.
+const TINY_FONT = {
+  'A':[0x2,0x5,0x7,0x5,0x5], 'B':[0x6,0x5,0x6,0x5,0x6], 'C':[0x3,0x4,0x4,0x4,0x3],
+  'D':[0x6,0x5,0x5,0x5,0x6], 'E':[0x7,0x4,0x6,0x4,0x7], 'F':[0x7,0x4,0x6,0x4,0x4],
+  'G':[0x3,0x4,0x5,0x5,0x3], 'H':[0x5,0x5,0x7,0x5,0x5], 'I':[0x7,0x2,0x2,0x2,0x7],
+  'J':[0x1,0x1,0x1,0x5,0x2], 'K':[0x5,0x6,0x4,0x6,0x5], 'L':[0x4,0x4,0x4,0x4,0x7],
+  'M':[0x5,0x7,0x7,0x5,0x5], 'N':[0x5,0x7,0x7,0x7,0x5], 'O':[0x2,0x5,0x5,0x5,0x2],
+  'P':[0x6,0x5,0x6,0x4,0x4], 'Q':[0x2,0x5,0x5,0x6,0x3], 'R':[0x6,0x5,0x6,0x5,0x5],
+  'S':[0x3,0x4,0x2,0x1,0x6], 'T':[0x7,0x2,0x2,0x2,0x2], 'U':[0x5,0x5,0x5,0x5,0x2],
+  'V':[0x5,0x5,0x5,0x2,0x2], 'W':[0x5,0x5,0x7,0x7,0x5], 'X':[0x5,0x5,0x2,0x5,0x5],
+  'Y':[0x5,0x5,0x2,0x2,0x2], 'Z':[0x7,0x1,0x2,0x4,0x7],
+  '0':[0x2,0x5,0x5,0x5,0x2], '1':[0x2,0x6,0x2,0x2,0x7], '2':[0x6,0x1,0x2,0x4,0x7],
+  '3':[0x6,0x1,0x2,0x1,0x6], '4':[0x5,0x5,0x7,0x1,0x1], '5':[0x7,0x4,0x6,0x1,0x6],
+  '6':[0x3,0x4,0x6,0x5,0x2], '7':[0x7,0x1,0x2,0x2,0x2], '8':[0x2,0x5,0x2,0x5,0x2],
+  '9':[0x2,0x5,0x3,0x1,0x6],
+  ' ':[0x0,0x0,0x0,0x0,0x0], '.':[0x0,0x0,0x0,0x0,0x2], '!':[0x2,0x2,0x2,0x0,0x2],
+  '?':[0x6,0x1,0x2,0x0,0x2], '*':[0x0,0x5,0x2,0x5,0x0], '-':[0x0,0x0,0x7,0x0,0x0],
+};
+
+function drawTinyText(ctx, text, x, y, color, shadowColor) {
+  const str = String(text).toUpperCase();
+  for (let i = 0; i < str.length; i++) {
+    const glyph = TINY_FONT[str[i]];
+    const cx = x + i * 4;
+    if (!glyph) continue;
+    for (let row = 0; row < 5; row++) {
+      const bits = glyph[row];
+      if (!bits) continue;
+      for (let col = 0; col < 3; col++) {
+        if (bits & (0x4 >> col)) {
+          if (shadowColor) {
+            ctx.fillStyle = shadowColor;
+            ctx.fillRect(cx + col, y + row + 1, 1, 1);
+          }
+          ctx.fillStyle = color;
+          ctx.fillRect(cx + col, y + row, 1, 1);
+        }
+      }
+    }
+  }
+}
+
 function drawPixelText(ctx, text, x, y, color, shadowColor) {
   const str = String(text).toUpperCase();
   for (let i = 0; i < str.length; i++) {
@@ -3828,6 +3873,11 @@ function update() {
   updateItems();
   updateMarioFireballs();
   updateParticles();
+  // Stream local position/animation to the room. The function is
+  // self-throttled and self-gated (no-op in single player or when
+  // eliminated), so calling it unconditionally here is safe and
+  // ensures opponents see death animations and flag descents too.
+  sendPlayerState();
 }
 
 // ================================================================
@@ -4710,11 +4760,10 @@ function drawMario() {
     sqX = 1.0 + Math.cos(t) * sqAmp;
     sqY = 1.0 - Math.cos(t) * sqAmp;
   } else {
-    // Idle breathing — barely-there jiggle so the blob feels alive.
-    var breathe = Math.sin(globalTick * 0.05) * 0.025;
-    sqX = 1.0 - breathe;
-    sqY = 1.0 + breathe;
-    bounceY = Math.sin(globalTick * 0.05) * 0.25;
+    // Idle: completely static pose, like classic 2D Mario standing
+    // still. The blink animation (further down) handles the "alive"
+    // feel without making the body float / wobble.
+    sqX = 1.0; sqY = 1.0; bounceY = 0;
   }
 
   let bodyCol, shadCol, feetCol, highCol;
@@ -4775,31 +4824,42 @@ function drawMario() {
   const pupilR = 1.3 * eyeScale;
 
   if (!mario.dead) {
-    bx.fillStyle = '#fcfcfc';
-    bx.beginPath();
-    bx.arc(eye1X, eyeY, eyeR, 0, Math.PI * 2);
-    bx.fill();
-    bx.beginPath();
-    bx.arc(eye2X, eyeY, eyeR, 0, Math.PI * 2);
-    bx.fill();
+    // Periodic blink: closes for 4 frames every ~6 seconds. Provides
+    // a small life signal without animating body position/scale.
+    var blinkPhase = globalTick % 360;
+    var blinking = blinkPhase < 4;
 
-    bx.fillStyle = '#101020';
-    const pupOff = dir * 0.7;
-    bx.beginPath();
-    bx.arc(eye1X + pupOff, eyeY + 0.3, pupilR, 0, Math.PI * 2);
-    bx.fill();
-    bx.beginPath();
-    bx.arc(eye2X + pupOff, eyeY + 0.3, pupilR, 0, Math.PI * 2);
-    bx.fill();
+    if (blinking) {
+      bx.fillStyle = '#202030';
+      bx.fillRect(eye1X - eyeR + 0.5, eyeY - 0.5, eyeR * 2 - 1, 1.2);
+      bx.fillRect(eye2X - eyeR + 0.5, eyeY - 0.5, eyeR * 2 - 1, 1.2);
+    } else {
+      bx.fillStyle = '#fcfcfc';
+      bx.beginPath();
+      bx.arc(eye1X, eyeY, eyeR, 0, Math.PI * 2);
+      bx.fill();
+      bx.beginPath();
+      bx.arc(eye2X, eyeY, eyeR, 0, Math.PI * 2);
+      bx.fill();
 
-    const shineR = 0.6 * eyeScale;
-    bx.fillStyle = '#fcfcfc';
-    bx.beginPath();
-    bx.arc(eye1X + pupOff - 0.4, eyeY - 0.5, shineR, 0, Math.PI * 2);
-    bx.fill();
-    bx.beginPath();
-    bx.arc(eye2X + pupOff - 0.4, eyeY - 0.5, shineR, 0, Math.PI * 2);
-    bx.fill();
+      bx.fillStyle = '#101020';
+      const pupOff = dir * 0.7;
+      bx.beginPath();
+      bx.arc(eye1X + pupOff, eyeY + 0.3, pupilR, 0, Math.PI * 2);
+      bx.fill();
+      bx.beginPath();
+      bx.arc(eye2X + pupOff, eyeY + 0.3, pupilR, 0, Math.PI * 2);
+      bx.fill();
+
+      const shineR = 0.6 * eyeScale;
+      bx.fillStyle = '#fcfcfc';
+      bx.beginPath();
+      bx.arc(eye1X + pupOff - 0.4, eyeY - 0.5, shineR, 0, Math.PI * 2);
+      bx.fill();
+      bx.beginPath();
+      bx.arc(eye2X + pupOff - 0.4, eyeY - 0.5, shineR, 0, Math.PI * 2);
+      bx.fill();
+    }
 
     const smileX = (eye1X + eye2X) / 2 + dir * 0.8;
     const smileY = eyeY + eyeR + 1.0 * eyeScale;
@@ -5266,6 +5326,299 @@ function drawItems() {
       bx.beginPath(); bx.arc(scx + 2, scy - 1, 1, 0, Math.PI * 2); bx.fill();
     }
   });
+}
+
+// =================================================================
+// REMOTE PLAYERS (multiplayer co-presence)
+// =================================================================
+// Pull a position/animation sample for `renderT` out of a player's
+// snapshot ring. Uses CUBIC HERMITE interpolation between the two
+// snapshots that bracket renderT, with each snapshot's velocity used
+// as the curve's tangent at that endpoint. This gives C1-continuous,
+// physically plausible motion (smooth acceleration/deceleration) which
+// looks dramatically better than linear lerp at low sample rates —
+// perfect for jumps, run starts, and skids.
+//
+// Falls back to short bounded extrapolation if renderT is past the
+// latest snapshot (covers small network hiccups). Returns null when
+// no usable data is available.
+function _sampleRemoteAt(snaps, renderT) {
+  var n = snaps.length;
+  if (n === 0) return null;
+  if (n === 1) return snaps[0];
+
+  var a = null, b = null;
+  for (var i = 0; i < n - 1; i++) {
+    if (snaps[i].t <= renderT && snaps[i + 1].t >= renderT) {
+      a = snaps[i]; b = snaps[i + 1]; break;
+    }
+  }
+  if (a) {
+    var spanMs = b.t - a.t;
+    var u = spanMs > 0 ? (renderT - a.t) / spanMs : 0;
+    if (u < 0) u = 0; else if (u > 1) u = 1;
+
+    // Hermite basis functions
+    var u2 = u * u, u3 = u2 * u;
+    var h00 = 2 * u3 - 3 * u2 + 1;
+    var h10 = u3 - 2 * u2 + u;
+    var h01 = -2 * u3 + 3 * u2;
+    var h11 = u3 - u2;
+
+    // Velocities are in pixels-per-frame at 60fps. Tangent magnitude
+    // for Hermite must be in pixels per UNIT (where the unit is the
+    // segment span). Convert: px/sec = vx * 60; tangent = px/sec * span
+    // in seconds = vx * 60 * spanMs / 1000 = vx * spanMs * 0.06.
+    var k = spanMs * 0.06;
+    var m0x = a.vx * k, m1x = b.vx * k;
+    var m0y = a.vy * k, m1y = b.vy * k;
+
+    return {
+      x: h00 * a.x + h10 * m0x + h01 * b.x + h11 * m1x,
+      y: h00 * a.y + h10 * m0y + h01 * b.y + h11 * m1y,
+      vx: a.vx + (b.vx - a.vx) * u,
+      vy: a.vy + (b.vy - a.vy) * u,
+      facing: b.facing, anim: b.anim, frame: b.frame,
+      size: b.size, star: b.star, dead: b.dead,
+    };
+  }
+  if (renderT < snaps[0].t) return snaps[0];
+  // Past latest snapshot — extrapolate using last known velocity, but
+  // only briefly. After ~250ms we just freeze on the last sample so a
+  // dropped player doesn't visibly slide off into nothing.
+  var last = snaps[n - 1];
+  var dt = (renderT - last.t) / 1000;
+  if (dt > 0.25) return last;
+  return {
+    x: last.x + last.vx * 60 * dt,
+    y: last.y + last.vy * 60 * dt,
+    vx: last.vx, vy: last.vy, facing: last.facing, anim: last.anim, frame: last.frame,
+    size: last.size, star: last.star, dead: last.dead,
+  };
+}
+
+// Stable per-id phase so two ghosts standing side-by-side don't breathe
+// in lockstep. Cheap string hash, no allocations on hot path.
+function _idHash(id) {
+  var h = 0;
+  for (var i = 0; i < id.length; i++) h = ((h << 5) - h + id.charCodeAt(i)) | 0;
+  return (h & 0x7fffffff);
+}
+
+function drawRemoteBlobs() {
+  if (!multiplayerMode || remoteStates.size === 0) return;
+
+  // Resolve each remote id -> { name, color } from the lobby roster
+  // (kept fresh by `room_state`). Players that vanished from the
+  // roster (left/disconnected) are skipped and their state purged.
+  var info = {};
+  for (var i = 0; i < racePlayers.length; i++) {
+    var rp = racePlayers[i];
+    if (rp && rp.id) info[rp.id] = rp;
+  }
+
+  var nowMs = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  var renderT = nowMs - REMOTE_INTERP_MS;
+
+  var stale = null;
+  remoteStates.forEach(function(rs, id) {
+    if (nowMs - (rs.lastUpdate || 0) > REMOTE_AGE_OUT_MS) {
+      (stale = stale || []).push(id);
+      return;
+    }
+    var meta = info[id];
+    if (!meta) return;
+    var s = _sampleRemoteAt(rs.snaps, renderT);
+    if (!s) return;
+    var screenX = s.x - camera.rx;
+    // Cull to the visible viewport plus a small padding so blobs near
+    // the edges still pop in/out smoothly.
+    if (screenX < -24 || screenX > VIEW_W + 24) return;
+    drawGhostBlob(s, meta.color || 'lavender', meta.name || '', _idHash(id));
+  });
+  if (stale) for (var k = 0; k < stale.length; k++) remoteStates.delete(stale[k]);
+}
+
+// Render one remote player. Visually distinct from the local Mario:
+// translucent body, a soft dark outline, and a name tag floating
+// overhead. The local player keeps its full-fidelity drawMario() pass
+// rendered AFTER this, so it always reads as the camera focus.
+function drawGhostBlob(s, colorId, name, phaseSeed) {
+  var c = getColorOption(colorId);
+  var isBig = s.size >= 1;
+  var px = Math.floor(s.x - camera.rx);
+  var py = Math.floor(s.y);
+  var dir = s.facing < 0 ? -1 : 1;
+
+  var bodyR = isBig ? 9.5 : 6.85;
+  var cx = px + 7;
+  var cy = isBig ? py + 11 : py + 7;
+
+  // Animation: mirror the local player's pose vocabulary at a lighter
+  // touch — same silhouette language, no fancy easing.
+  var sqX = 1.0, sqY = 1.0, bounceY = 0, tilt = 0;
+
+  switch (s.anim) {
+    case ANIM_RUN: {
+      var sp = 0.20 + Math.min(2.5, Math.abs(s.vx)) * 0.085;
+      var t = (globalTick + phaseSeed) * sp;
+      var intensity = Math.min(1, Math.abs(s.vx) / 2.5);
+      bounceY = Math.sin(t) * (0.85 + intensity * 0.6);
+      var sqAmp = 0.05 * intensity;
+      sqX = 1.0 + Math.cos(t) * sqAmp;
+      sqY = 1.0 - Math.cos(t) * sqAmp;
+      break;
+    }
+    case ANIM_JUMP: { sqX = 0.90; sqY = 1.10; break; }
+    case ANIM_FALL: { sqX = 0.93; sqY = 1.07; break; }
+    case ANIM_DJUMP: {
+      var dt2 = (globalTick + phaseSeed) * 0.4;
+      tilt = Math.sin(dt2) * 0.35 * dir;
+      sqX = 0.90; sqY = 1.10;
+      break;
+    }
+    case ANIM_DEAD: { sqX = 1.25; sqY = 0.7; break; }
+    case ANIM_SKID: { sqX = 1.12; sqY = 0.9; break; }
+    case ANIM_CROUCH: {
+      sqX = 1.30; sqY = 0.65;
+      bounceY = bodyR * (1 - sqY);
+      break;
+    }
+    default: { // IDLE — completely static, mirrors local Mario's
+               // standing pose. No breathing, no bounce, no flicker.
+      break;
+    }
+  }
+
+  var bcy = cy + bounceY;
+  var rX = bodyR * sqX;
+  var rY = bodyR * sqY;
+
+  // Slightly muted version of the player's hat color so ghosts read as
+  // "background" while still being identifiable. We DON'T grayscale —
+  // friends still need to recognise their own colour at a glance.
+  var bodyCol = c.hat;
+  var shadCol = c.overalls;
+  var feetCol = c.brown;
+  var highCol = c.skin;
+
+  bx.save();
+  // Whole-blob translucency. Dead players are even more washed out.
+  bx.globalAlpha = s.dead ? 0.32 : 0.58;
+
+  if (tilt !== 0) {
+    bx.translate(cx, bcy);
+    bx.rotate(tilt);
+    bx.translate(-cx, -bcy);
+  }
+
+  // Soft dark outline (one slightly larger backplate). Keeps the
+  // silhouette readable against bright biome skies + busy backgrounds.
+  bx.fillStyle = 'rgba(15,10,28,0.55)';
+  bx.beginPath();
+  bx.ellipse(cx, bcy + 0.5, rX + 1.4, rY + 1.4, 0, 0, Math.PI * 2);
+  bx.fill();
+
+  // Body shade pass (drop)
+  bx.fillStyle = shadCol;
+  bx.beginPath();
+  bx.ellipse(cx - 1, bcy + 0.5, rX + 0.6, rY + 0.6, 0, 0, Math.PI * 2);
+  bx.fill();
+
+  // Body main fill — radial gradient mirroring the local Mario look.
+  var bodyGrad = bx.createRadialGradient(
+    cx + rX * 0.22, bcy - rY * 0.2, rX * 0.08,
+    cx - rX * 0.08, bcy + rY * 0.08, rX * 1.05
+  );
+  bodyGrad.addColorStop(0, highCol);
+  bodyGrad.addColorStop(0.45, bodyCol);
+  bodyGrad.addColorStop(1, shadCol);
+  bx.fillStyle = bodyGrad;
+  bx.beginPath();
+  bx.ellipse(cx + 0.3, bcy, rX, rY, 0, 0, Math.PI * 2);
+  bx.fill();
+
+  // Specular highlight
+  bx.globalAlpha *= 0.6;
+  bx.fillStyle = '#fcfcfc';
+  bx.beginPath();
+  bx.ellipse(cx + rX * 0.22, bcy - rY * 0.32, rX * 0.32, rY * 0.2, -0.4, 0, Math.PI * 2);
+  bx.fill();
+  bx.globalAlpha = s.dead ? 0.32 : 0.58;
+
+  // Eyes / face
+  var eyeScale = isBig ? 1.4 : 1.0;
+  var eyeOff = dir * 1.1;
+  var eyeY = bcy - rY * 0.18;
+  var e1x = cx + eyeOff - 0.5;
+  var e2x = cx + eyeOff + 3.0 * eyeScale;
+  var eyeR = 2.6 * eyeScale;
+
+  if (s.anim === ANIM_DEAD) {
+    bx.strokeStyle = '#202030';
+    bx.lineWidth = 1.0;
+    bx.lineCap = 'round';
+    var xr = 1.8;
+    [e1x, e2x].forEach(function(ex) {
+      bx.beginPath();
+      bx.moveTo(ex - xr, eyeY - xr); bx.lineTo(ex + xr, eyeY + xr);
+      bx.moveTo(ex + xr, eyeY - xr); bx.lineTo(ex - xr, eyeY + xr);
+      bx.stroke();
+    });
+    bx.lineCap = 'butt';
+  } else {
+    bx.fillStyle = '#fcfcfc';
+    bx.beginPath(); bx.arc(e1x, eyeY, eyeR, 0, Math.PI * 2); bx.fill();
+    bx.beginPath(); bx.arc(e2x, eyeY, eyeR, 0, Math.PI * 2); bx.fill();
+    bx.fillStyle = '#101020';
+    var pupOff = dir * 0.6;
+    var pupR = 1.2 * eyeScale;
+    bx.beginPath(); bx.arc(e1x + pupOff, eyeY + 0.3, pupR, 0, Math.PI * 2); bx.fill();
+    bx.beginPath(); bx.arc(e2x + pupOff, eyeY + 0.3, pupR, 0, Math.PI * 2); bx.fill();
+  }
+
+  // Feet
+  var footW = isBig ? 3.6 : 2.7;
+  var footH = isBig ? 2.4 : 1.7;
+  var feetY = bcy + rY;
+
+  var inAir = (s.anim === ANIM_JUMP || s.anim === ANIM_FALL || s.anim === ANIM_DJUMP);
+  var f1x = cx - rX * (inAir ? 0.30 : 0.5);
+  var f2x = cx + rX * (inAir ? 0.30 : 0.5);
+  if (s.anim === ANIM_RUN) {
+    // Alternate stepping using the same phase as the body bob.
+    var rt = (globalTick + phaseSeed) * (0.20 + Math.min(2.5, Math.abs(s.vx)) * 0.085);
+    var step = Math.sin(rt);
+    f1x -= step * 1.3;
+    f2x += step * 1.3;
+  } else if (s.anim === ANIM_SKID) {
+    var d2 = -dir;
+    f1x += d2 * 1.5; f2x += d2 * 1.5;
+  }
+
+  bx.fillStyle = feetCol;
+  bx.beginPath(); bx.ellipse(f1x, feetY, footW, footH, -0.2, 0, Math.PI * 2); bx.fill();
+  bx.beginPath(); bx.ellipse(f2x, feetY, footW, footH,  0.2, 0, Math.PI * 2); bx.fill();
+
+  bx.restore();
+
+  // Name tag in micro 3x5 font, floating above the head. Compact so
+  // the label never overpowers the blob silhouette. Drawn at full
+  // opacity so labels stay legible even when the body is faded.
+  if (name) {
+    var label = truncateName(name, 12).toUpperCase();
+    if (s.star) label += '*';
+    var labelW = label.length * 4 - 1; // 4px advance, no trailing gap
+    var labelX = Math.round(cx - labelW / 2);
+    var labelY = Math.round(bcy - rY - (isBig ? 11 : 9));
+    bx.save();
+    // Slim 1px-padded chip — just a hairline behind the text so it
+    // stays readable without dominating the blob.
+    bx.fillStyle = 'rgba(7,6,12,0.72)';
+    bx.fillRect(labelX - 1, labelY - 1, labelW + 2, 7);
+    drawTinyText(bx, label, labelX, labelY, getPlayerDisplayColor(colorId), null);
+    bx.restore();
+  }
 }
 
 function drawParticles() {
@@ -7273,8 +7626,7 @@ function drawScoreboard() {
     bx.fillRect(colChip, rowY + 4, 1, 1);
     bx.globalAlpha = 1;
 
-    var nameStr = p.name || 'Blobby';
-    if (nameStr.length > 13) nameStr = nameStr.substring(0, 13);
+    var nameStr = truncateName(p.name || 'Blobby', 12);
     var nameCol = isMe ? '#fff5b0' : col;
     drawPixelText(bx, nameStr, colName, textY, nameCol, null);
 
@@ -7841,6 +8193,7 @@ function render() {
   drawBossShockwaves();
   drawMarioFireballs();
   drawParticles();
+  drawRemoteBlobs();
   drawMario();
   drawHUD();
   // NOTE: drawScoreboard() is intentionally called LATER (after the
@@ -8057,6 +8410,36 @@ function quitToMenu() {
 const MATCH_DURATION = 300;
 const myPlayerId = 'p_' + Math.random().toString(36).substring(2, 10);
 var ws = null;
+
+// ---- Realtime co-presence -----------------------------------------
+// Local player streams its position/animation to the server at this
+// rate. Receivers buffer snapshots and render REMOTE_INTERP_MS behind
+// real time so playback stays smooth even with mild jitter (standard
+// snapshot-interpolation netcode pattern).
+//
+// 30 Hz + 80 ms render delay + cubic-Hermite interpolation gives
+// remote players motion that's visually indistinguishable from local
+// at 60 fps, while keeping bandwidth at ~120 KB/s downstream per
+// client in a fully packed 50-player room. Both knobs are safe to
+// dial down (e.g. 20 Hz / 100 ms) for tighter bandwidth budgets.
+const REMOTE_SEND_HZ = 30;
+const REMOTE_SEND_MS = Math.round(1000 / REMOTE_SEND_HZ);
+const REMOTE_INTERP_MS = 80;
+const REMOTE_AGE_OUT_MS = 3000;
+var lastStateSend = 0;
+// id -> { snaps: [{t,x,y,vx,facing,anim,frame,size,star,dead}], lastUpdate }
+var remoteStates = new Map();
+
+// Animation enum shared between sender and renderer. Numbers are sent
+// over the wire so do NOT renumber without bumping both sides.
+const ANIM_IDLE = 0;
+const ANIM_RUN = 1;
+const ANIM_JUMP = 2;
+const ANIM_FALL = 3;
+const ANIM_DJUMP = 4;
+const ANIM_DEAD = 5;
+const ANIM_SKID = 6;
+const ANIM_CROUCH = 7;
 let multiplayerMode = false;
 let isHost = false;
 let currentRoomCode = '';
@@ -8093,6 +8476,19 @@ function buildPaletteFromColor(colorId) {
 function buildFirePaletteFromColor(colorId) {
   const c = getColorOption(colorId);
   return { 1: '#fcfcfc', 2: '#d0c8e0', 3: '#fcfcfc', 4: '#1a1a2e', 5: '#ff6848' };
+}
+
+// Name display helper. Input forms and the server already cap names
+// to 12 chars, but this is the single source of truth for every spot
+// that renders a player name (blob nameplate, scoreboard, lobby,
+// results) so an overlong name is guaranteed to never overflow its
+// container anywhere.
+function truncateName(name, maxLen) {
+  if (!name) return '';
+  maxLen = maxLen || 12;
+  if (name.length <= maxLen) return name;
+  if (maxLen <= 3) return name.substring(0, maxLen);
+  return name.substring(0, maxLen - 3) + '...';
 }
 
 function getPlayerDisplayColor(colorId) {
@@ -8140,6 +8536,7 @@ function connectSocket() {
           gameState = 'menu';
           document.getElementById('raceTimeline').classList.remove('visible');
           showLobby(currentRoomCode, playersList);
+          remoteStates.clear();
         }
         document.getElementById('startBtn').style.display = isHost ? '' : 'none';
         document.getElementById('waitMsg').style.display = isHost ? 'none' : '';
@@ -8163,6 +8560,8 @@ function connectSocket() {
           roomMatchDuration = data.matchDuration || MATCH_DURATION;
           matchTimeRemaining = roomMatchDuration;
           matchEnding = false;
+          remoteStates.clear();
+          lastStateSend = 0;
         }
         if (!eliminated) {
           var localProgress = Math.min(1, mario.x / ((LEVEL_WIDTH - 15) * TILE));
@@ -8199,7 +8598,39 @@ function connectSocket() {
 
   ws.on('player_eliminated', function(data) {
     if (gameState === 'playing') {
-      hudMessage = { text: data.name + ' ELIMINATED', life: 150, maxLife: 150 };
+      hudMessage = { text: truncateName(data.name, 12) + ' ELIMINATED', life: 150, maxLife: 150 };
+    }
+  });
+
+  // Realtime world snapshot: positions/animations of every active
+  // player in the room. Stamp each snapshot with our local receipt
+  // time so interpolation works regardless of client/server clock skew.
+  ws.on('world_tick', function(msg) {
+    if (!multiplayerMode || !msg || !msg.p) return;
+    var now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    var arr = msg.p;
+    for (var i = 0; i < arr.length; i++) {
+      var e = arr[i];
+      if (!e || !e.i || e.i === myPlayerId) continue;
+      var rs = remoteStates.get(e.i);
+      if (!rs) { rs = { snaps: [] }; remoteStates.set(e.i, rs); }
+      rs.snaps.push({
+        t: now,
+        x: e.x | 0,
+        y: e.y | 0,
+        vx: +e.v || 0,
+        vy: +e.w || 0,
+        facing: e.f < 0 ? -1 : 1,
+        anim: e.a | 0,
+        frame: e.n | 0,
+        size: e.s | 0,
+        star: e.st ? 1 : 0,
+        dead: e.d ? 1 : 0,
+      });
+      // Keep only the last few snapshots — interpolation never looks
+      // back further than INTERP_MS, so a small ring is enough.
+      if (rs.snaps.length > 6) rs.snaps.shift();
+      rs.lastUpdate = now;
     }
   });
 }
@@ -8213,6 +8644,54 @@ function writeProgress() {
     progress: Math.min(1, mario.x / ((LEVEL_WIDTH - 15) * TILE)),
     coins: coins,
     gameScore: score,
+  });
+}
+
+// Stream the local player's position + animation hint to the server.
+// Throttled to REMOTE_SEND_MS so the network stays light. Allowed in
+// 'playing' AND 'win' (so opponents see your flag descent + castle
+// walk), but suppressed once eliminated/finished tear-down has run.
+function sendPlayerState() {
+  if (!ws || !ws.connected || !multiplayerMode) return;
+  if (gameState !== 'playing' && gameState !== 'win') return;
+  if (eliminated) return;
+  if (!mario) return;
+  var now = Date.now();
+  if (now - lastStateSend < REMOTE_SEND_MS) return;
+  lastStateSend = now;
+
+  var anim;
+  if (mario.dead) anim = ANIM_DEAD;
+  else if (mario.doubleJumpAnim > 0) anim = ANIM_DJUMP;
+  else if (!mario.onGround) anim = (mario.vy < 0) ? ANIM_JUMP : ANIM_FALL;
+  else if (mario.skidding) anim = ANIM_SKID;
+  else if (mario.crouching && mario.big) anim = ANIM_CROUCH;
+  else if (Math.abs(mario.vx) > 0.15) anim = ANIM_RUN;
+  else anim = ANIM_IDLE;
+
+  var size = mario.fire ? 2 : (mario.big ? 1 : 0);
+
+  // Snap sub-pixel-per-frame residuals to exactly zero. Physics can
+  // leave a tiny ±0.0x value in vx/vy after friction or after landing,
+  // which the receiver's Hermite interpolation would otherwise read as
+  // a real tangent — producing visible micro-drift / flicker on
+  // remotes that are actually standing still. Quantizing here means
+  // two consecutive idle snapshots are bit-identical and the curve
+  // collapses to a flat constant.
+  var sendVx = Math.abs(mario.vx) < 0.1 ? 0 : mario.vx;
+  var sendVy = Math.abs(mario.vy) < 0.1 ? 0 : mario.vy;
+
+  ws.emit('player_state', {
+    x: Math.round(mario.x),
+    y: Math.round(mario.y),
+    vx: sendVx,
+    vy: sendVy,
+    facing: mario.facing,
+    anim: anim,
+    frame: globalTick & 0xff,
+    size: size,
+    star: mario.starPower > 0 ? 1 : 0,
+    dead: mario.dead ? 1 : 0,
   });
 }
 
@@ -8240,6 +8719,8 @@ function cleanupRoom() {
   roomStartTime = 0;
   matchEnding = false;
   lastProgressWrite = 0;
+  lastStateSend = 0;
+  remoteStates.clear();
 }
 
 window.addEventListener('beforeunload', function() {
@@ -8252,7 +8733,8 @@ function updateLobbyPlayers(players) {
   const div = document.getElementById('lobbyPlayers');
   div.innerHTML = players.map((p, i) => {
     const col = getPlayerDisplayColor(p.color || 'lavender');
-    return `<div style="color:${col}">${i === 0 ? '&#9733; ' : '  '}${p.name}${p.id === myPlayerId ? ' (You)' : ''}</div>`;
+    const nm = truncateName(p.name, 12);
+    return `<div style="color:${col}">${i === 0 ? '&#9733; ' : '  '}${nm}${p.id === myPlayerId ? ' (You)' : ''}</div>`;
   }).join('');
 
   renderColorPicker('lobbyColorPicker', []);
@@ -8261,7 +8743,7 @@ function updateLobbyPlayers(players) {
 function updateTimeline(players) {
   const div = document.getElementById('timelinePlayers');
   const sorted = players.slice().sort((a, b) => (b.progress || 0) - (a.progress || 0));
-  div.innerHTML = sorted.map((p, i) => {
+  div.innerHTML = sorted.map((p) => {
     const pct = Math.round((p.progress || 0) * 100);
     const col = getPlayerDisplayColor(p.color || 'lavender');
     const initial = (p.name || '?')[0].toUpperCase();
@@ -8269,7 +8751,7 @@ function updateTimeline(players) {
     if (p.finished) status = ` ${(p.finishTime / 1000).toFixed(1)}s`;
     else if (!p.alive) status = ' ELIMINATED';
     return `<div class="timeline-player">
-      <div class="timeline-name" style="color:${col}"><span class="timeline-initial" style="background:${col};">${initial}</span>${p.name}${status}</div>
+      <div class="timeline-name" style="color:${col}"><span class="timeline-initial" style="background:${col};">${initial}</span>${status}</div>
       <div class="timeline-bar-bg">
         <div class="timeline-bar-fill" style="width:${pct}%;background:${col};"></div>
       </div>
@@ -8291,7 +8773,7 @@ function showResults(rankings) {
 
   // Title strip text: classic arcade "MATCH OVER" or winner shoutout.
   const titleStr = (winner && winner.finished)
-    ? winner.name.toUpperCase() + ' WINS'
+    ? truncateName(winner.name, 12).toUpperCase() + ' WINS'
     : 'MATCH OVER';
 
   // Build the rows. Each row is a flat coloured tile with a chip,
@@ -8321,7 +8803,7 @@ function showResults(rankings) {
       ? '<span class="r-tag">1ST</span>'
       : (isMe ? '<span class="r-tag" style="background:#b890ff; color:#1a0a3e;">YOU</span>' : '');
 
-    const safeName = String(p.name || 'BLOBBY').toUpperCase().replace(/[<>&]/g, '');
+    const safeName = truncateName(String(p.name || 'BLOBBY'), 12).toUpperCase().replace(/[<>&]/g, '');
 
     return `<div class="${cls.join(' ')}" style="--row-col:${col}; --chip-col:${col}; --name-col:${col};">
       ${tag}
@@ -8338,7 +8820,7 @@ function showResults(rankings) {
   // Footer: winner shoutout if someone finished, otherwise total players.
   let footerHtml;
   if (winner && winner.finished) {
-    footerHtml = `WINNER<span class="winner-name" style="color:${getPlayerDisplayColor(winner.color || 'lavender')}">${String(winner.name || '').toUpperCase()}</span>`;
+    footerHtml = `WINNER<span class="winner-name" style="color:${getPlayerDisplayColor(winner.color || 'lavender')}">${truncateName(String(winner.name || ''), 12).toUpperCase()}</span>`;
   } else {
     footerHtml = rankings.length + ' BLOB' + (rankings.length === 1 ? '' : 'S') + ' RANKED';
   }
