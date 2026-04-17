@@ -8744,16 +8744,24 @@ function sendPlayerState() {
   var sx = Math.round(mario.x);
   var sy = Math.round(mario.y);
 
-  // Truly idle = grounded, not dead, IDLE anim, both velocities
-  // already clamped to zero. Any of those being false means the
-  // player is legitimately in motion and the latch must release
-  // immediately, otherwise we'd freeze a running blob in place.
-  var trulyIdle = (anim === ANIM_IDLE && sendVx === 0 && sendVy === 0 &&
-                   mario.onGround && !mario.dead && !mario.crouching);
-  if (trulyIdle) {
+  // If the animation classifier says IDLE, the player is *visually*
+  // standing still — so put that truth on the wire regardless of
+  // whatever microscopic residuals the physics is still chewing on.
+  // The anim threshold (|vx| <= 0.15) is wider than the velocity-clamp
+  // threshold (< 0.1), which left a 0.1–0.15 deceleration window where
+  // the blob was drawn as IDLE locally but still emitted non-zero vx
+  // and creeping positions, producing 1-px "ticks" on remotes.
+  // Latching at the anim boundary + forcing outgoing velocities to 0
+  // closes that window: two consecutive idle packets are bit-identical
+  // so the receiver's Hermite curve collapses to a flat constant and
+  // the blob renders perfectly still.
+  var stillIdle = (anim === ANIM_IDLE && mario.onGround && !mario.dead && !mario.crouching);
+  if (stillIdle) {
     if (!_idleLatch) _idleLatch = { x: sx, y: sy };
     sx = _idleLatch.x;
     sy = _idleLatch.y;
+    sendVx = 0;
+    sendVy = 0;
   } else {
     _idleLatch = null;
   }
