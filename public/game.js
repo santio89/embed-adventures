@@ -4411,23 +4411,33 @@ function drawBackground() {
     const r = tileRand(tx, Bm.id);
     if (Bm.id === 0) {
       // Forest bushes (every ~10 tiles), small rocks/mushrooms scattered
+      //
+      // Arc chord positioning note:
+      // A filled `arc(cx, cy, r, PI, 0)` fills pixels whose center sits
+      // ABOVE the chord. Placing the chord on the pixel grid line GY
+      // means the last bush pixel row is GY-1, and the ground tile
+      // takes over at GY — touching, no gap. Earlier code used GY-1 as
+      // the chord, which left pixel row GY-1 unfilled (the chord line
+      // itself isn't rasterised) and exposed a 1-px strip of hill/sky
+      // between every bush and the grass. Same logic for the mushroom
+      // cap chord (must match the top of the stem, not sit 1px above).
       if (tx % 11 === 3 && r > 0.2) {
         const bumps = 1 + Math.floor(r * 3);
         for (let i = 0; i < bumps; i++) {
           const bcx = sx + i * 14 + 8;
           if (bcx < -20 || bcx > VIEW_W + 20) continue;
-          const buGrad = bx.createRadialGradient(bcx - 2, GY - 1 - 4, 1, bcx, GY - 1, 9);
+          const buGrad = bx.createRadialGradient(bcx - 2, GY - 5, 1, bcx, GY, 9);
           buGrad.addColorStop(0, Bm.bushHi);
           buGrad.addColorStop(0.55, Bm.bushMid);
           buGrad.addColorStop(1, Bm.bushLo);
           bx.fillStyle = buGrad;
           bx.beginPath();
-          bx.arc(bcx, GY - 1, 9, Math.PI, 0, false);
+          bx.arc(bcx, GY, 9, Math.PI, 0, false);
           bx.fill();
           // Highlight
           bx.fillStyle = 'rgba(255,255,255,0.18)';
           bx.beginPath();
-          bx.arc(bcx - 2, GY - 6, 2.5, 0, Math.PI * 2);
+          bx.arc(bcx - 2, GY - 5, 2.5, 0, Math.PI * 2);
           bx.fill();
         }
       } else if (tx % 17 === 5) {
@@ -4438,7 +4448,7 @@ function drawBackground() {
           bx.fillRect(mcx - 1, GY - 4, 2, 4);
           bx.fillStyle = Bm.accent;
           bx.beginPath();
-          bx.arc(mcx, GY - 5, 4, Math.PI, 0, false);
+          bx.arc(mcx, GY - 4, 4, Math.PI, 0, false);
           bx.fill();
           bx.fillStyle = '#fcfcfc';
           bx.fillRect(mcx - 2, GY - 6, 1, 1);
