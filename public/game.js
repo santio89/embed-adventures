@@ -124,7 +124,11 @@ function drawScanlines() {}
 function toggleScanlines() {
   scanlinesOn = !scanlinesOn;
   localStorage.setItem('crtOn', scanlinesOn);
-  document.getElementById('scanlineToggle').textContent = scanlinesOn ? 'CRT: ON' : 'CRT: OFF';
+  const btn = document.getElementById('scanlineToggle');
+  btn.textContent = scanlinesOn ? 'CRT: ON' : 'CRT: OFF';
+  // Drop focus immediately so Space/Enter (jump/start) doesn't re-trigger
+  // the button while the player is back in gameplay.
+  btn.blur();
   applyCrt();
 }
 
@@ -173,6 +177,159 @@ const COL = {
   hardBlockDark: '#303870',
 };
 
+// ================================================================
+// BIOMES: Forest -> Snow -> Desert -> Lava (each 120 tiles wide)
+// ================================================================
+const BIOME_FOREST = {
+  id: 0, name: 'WHISPERING WOODS',
+  // Sky gradient stops (top -> bottom)
+  sky: ['#1c2842','#2d4a3e','#4a7050','#7ea868','#bfd890','#f0e8b8'],
+  fog: 'rgba(80,140,90,0.10)',
+  // Ground (top tile + below)
+  groundTop: '#3a8a3a', groundTopHi: '#5fc05a', groundTopLo: '#1f5a22',
+  groundBody: '#5a3920', groundBodyHi: '#8a5a32', groundBodyLo: '#2c1a0c',
+  // Bricks
+  brick: '#7a5840', brickShade: '#5a3e28', brickHi: '#a07858', brickMortar: '#3a2418',
+  // Hard block (mossy stone)
+  hard: '#6a7a5a', hardHi: '#9bab8a', hardLo: '#3a4632',
+  // Question/coin block accents
+  qBlockBg: '#f0c860', qBlockShade: '#b88828', qBlockDark: '#7c5a14',
+  // Pipes
+  pipe: '#3a9a58', pipeHi: '#7adc94', pipeLo: '#1c5230',
+  // Hill/decor colors
+  hillCol1: '#3a8050', hillCol2: '#1f5230', hillCol3: '#0a2818',
+  cloudCol: '#fcfcfc', cloudShade: '#cfe8d4',
+  bushHi: '#7ed080', bushMid: '#3a8a3a', bushLo: '#1a4a22',
+  trunk: '#4a2c14', trunkLight: '#7a4828', foliage: '#3a8a3a', foliageHi: '#7adc94',
+  // Player accent (consistent purple highlight)
+  accent: '#c0a8e8', accentSoft: 'rgba(192,168,232,0.35)',
+  particle: { count: 14, color: '#bff09a', sizeMin: 0.6, sizeMax: 1.2, kind: 'leaf' },
+};
+
+const BIOME_SNOW = {
+  id: 1, name: 'FROSTPEAK PASS',
+  sky: ['#0e1832','#1f2e58','#3a548c','#7aa6d4','#bcd6ec','#eaf2fa'],
+  fog: 'rgba(180,210,240,0.18)',
+  groundTop: '#f0f6fc', groundTopHi: '#ffffff', groundTopLo: '#a8c8e0',
+  groundBody: '#5a78a8', groundBodyHi: '#88a8d0', groundBodyLo: '#2a3a68',
+  brick: '#8aa6c8', brickShade: '#5a78a0', brickHi: '#c0d4e8', brickMortar: '#384a68',
+  hard: '#7a98c0', hardHi: '#bcd4ea', hardLo: '#3a567c',
+  qBlockBg: '#9fd8f0', qBlockShade: '#5fa0c8', qBlockDark: '#2a5878',
+  pipe: '#5fb8d8', pipeHi: '#a8e8f4', pipeLo: '#2a6890',
+  hillCol1: '#a8c0e0', hillCol2: '#5a78a8', hillCol3: '#1c2a48',
+  cloudCol: '#fcfcfc', cloudShade: '#d8e4f0',
+  bushHi: '#fcfcfc', bushMid: '#bccfe2', bushLo: '#7898b8',
+  trunk: '#3a2e2a', trunkLight: '#6a5a52', foliage: '#fcfcfc', foliageHi: '#e0eef8',
+  accent: '#c0a8e8', accentSoft: 'rgba(192,168,232,0.45)',
+  particle: { count: 28, color: '#ffffff', sizeMin: 0.5, sizeMax: 1.4, kind: 'snow' },
+};
+
+const BIOME_DESERT = {
+  id: 2, name: 'DUSKDUNE EXPANSE',
+  sky: ['#3a1830','#7a2a48','#d05a48','#ec9858','#f4c878','#fae8a8'],
+  fog: 'rgba(240,180,120,0.10)',
+  groundTop: '#f0c878', groundTopHi: '#fae0a0', groundTopLo: '#c08840',
+  groundBody: '#a06028', groundBodyHi: '#c88848', groundBodyLo: '#5a3010',
+  brick: '#c89058', brickShade: '#8a5828', brickHi: '#f0c08a', brickMortar: '#5a3010',
+  hard: '#b07840', hardHi: '#e0a868', hardLo: '#6a3a14',
+  qBlockBg: '#f0d068', qBlockShade: '#b88828', qBlockDark: '#7a5810',
+  pipe: '#d06840', pipeHi: '#f4a878', pipeLo: '#7a2818',
+  hillCol1: '#e8a868', hillCol2: '#a06030', hillCol3: '#4a200c',
+  cloudCol: '#fae0c0', cloudShade: '#e0a878',
+  bushHi: '#7ec078', bushMid: '#3a8048', bushLo: '#1a4828',
+  trunk: '#5a3a18', trunkLight: '#a06838', foliage: '#3a8048', foliageHi: '#7adc94',
+  accent: '#c0a8e8', accentSoft: 'rgba(192,168,232,0.40)',
+  particle: { count: 16, color: '#fae0a0', sizeMin: 0.4, sizeMax: 1.0, kind: 'sand' },
+};
+
+const BIOME_LAVA = {
+  id: 3, name: 'EMBERHEART CALDERA',
+  sky: ['#0c0210','#3c0a14','#7a1820','#c83a20','#f06830','#fcc068'],
+  fog: 'rgba(255,80,40,0.14)',
+  groundTop: '#3a1818', groundTopHi: '#7a3018', groundTopLo: '#150808',
+  groundBody: '#2a0c0c', groundBodyHi: '#5a1810', groundBodyLo: '#0a0204',
+  brick: '#3a1c1c', brickShade: '#1a0a0a', brickHi: '#7a2818', brickMortar: '#0a0202',
+  hard: '#3c2828', hardHi: '#806050', hardLo: '#180a0a',
+  qBlockBg: '#f0a040', qBlockShade: '#b04818', qBlockDark: '#5a1808',
+  pipe: '#3a1010', pipeHi: '#a04018', pipeLo: '#100404',
+  hillCol1: '#7a2818', hillCol2: '#3a1010', hillCol3: '#1a0606',
+  cloudCol: '#3a1818', cloudShade: '#1a0808',
+  bushHi: '#a02818', bushMid: '#5a1408', bushLo: '#1a0404',
+  trunk: '#1a0a0a', trunkLight: '#3a1818', foliage: '#3a1010', foliageHi: '#7a2818',
+  accent: '#e0c0ff', accentSoft: 'rgba(220,180,255,0.55)',
+  particle: { count: 24, color: '#fcc060', sizeMin: 0.5, sizeMax: 1.3, kind: 'ember' },
+};
+
+// ================================================================
+// FINAL ARENA: COSMIC NEXUS (the "5th section")
+// Pure deep-space stage. No lava tint anywhere — the player has
+// stepped THROUGH the volcano and out the other side into the
+// universe itself. Cool indigos and starlit violets so the sky
+// reads as the void between galaxies, with planets, nebulas and
+// the Milky Way drifting overhead.
+// ================================================================
+const BIOME_COSMIC = {
+  id: 4, name: 'COSMIC NEXUS',
+  // Pure cosmic gradient: starless black at top, deep indigo through
+  // the middle, soft nebula violet at the horizon. NO orange.
+  sky: ['#02010a','#070518','#0e0a28','#16103c','#1a1448','#0a0820'],
+  fog: 'rgba(180,160,255,0.10)',
+  // Ground/blocks: starlit obsidian — deep indigo with lavender highlights,
+  // so the floor reads as polished cosmic stone rather than magma.
+  groundTop: '#221a48', groundTopHi: '#5a4a98', groundTopLo: '#0a0628',
+  groundBody: '#150f30', groundBodyHi: '#3a2c70', groundBodyLo: '#06040f',
+  brick: '#2a2050', brickShade: '#150f30', brickHi: '#5a4898', brickMortar: '#08051a',
+  hard: '#3c3068', hardHi: '#807098', hardLo: '#150f30',
+  qBlockBg: '#e8a0f0', qBlockShade: '#a048c0', qBlockDark: '#5a1880',
+  pipe: '#2a1860', pipeHi: '#7048c8', pipeLo: '#100828',
+  hillCol1: '#3a2870', hillCol2: '#1a1040', hillCol3: '#06040f',
+  cloudCol: '#1a1438', cloudShade: '#0a0820',
+  bushHi: '#9070d8', bushMid: '#4a2890', bushLo: '#160828',
+  trunk: '#150f30', trunkLight: '#3a2870', foliage: '#2a1860', foliageHi: '#9070d8',
+  accent: '#d8c0ff', accentSoft: 'rgba(216,192,255,0.55)',
+  particle: { count: 24, color: '#d8c0ff', sizeMin: 0.5, sizeMax: 1.4, kind: 'spark' },
+};
+
+const BIOMES = [BIOME_FOREST, BIOME_SNOW, BIOME_DESERT, BIOME_LAVA, BIOME_COSMIC];
+const BIOME_BOUNDS = [120, 240, 360, 480, 540];
+function biomeAtTile(tx) {
+  for (let i = 0; i < BIOME_BOUNDS.length; i++) if (tx < BIOME_BOUNDS[i]) return BIOMES[i];
+  return BIOMES[BIOMES.length - 1];
+}
+function biomeAtX(x) { return biomeAtTile(Math.floor(x / TILE)); }
+// Returns blend factor (0-1) of current biome -> next biome based on camera position.
+// Useful for crossfading the sky between adjacent biomes near a checkpoint.
+function biomeBlendInfo(camPxX) {
+  const camTx = camPxX / TILE + (VIEW_W / TILE) * 0.5;
+  let idx = 0;
+  for (let i = 0; i < BIOME_BOUNDS.length; i++) {
+    if (camTx < BIOME_BOUNDS[i]) { idx = i; break; }
+    idx = i;
+  }
+  const a = BIOMES[idx];
+  // Short, snappy transition window (8 tiles ≈ 128px). With a smoothstep
+  // curve the crossfade is almost imperceptible at the endpoints, which
+  // means heavy work (drawing both biomes) only happens for a few frames.
+  const fadeWidth = 8;
+  const boundary = idx > 0 ? BIOME_BOUNDS[idx - 1] : -Infinity;
+  const distToPrev = camTx - boundary;
+  if (idx > 0 && distToPrev < fadeWidth) {
+    const prev = BIOMES[idx - 1];
+    const lin = Math.max(0, Math.min(1, distToPrev / fadeWidth));
+    const t = lin * lin * (3 - 2 * lin); // smoothstep — eases in/out
+    return { from: prev, to: a, t: t };
+  }
+  return { from: a, to: a, t: 1 };
+}
+function lerpColor(a, b, t) {
+  const ar = parseInt(a.slice(1, 3), 16), ag = parseInt(a.slice(3, 5), 16), ab = parseInt(a.slice(5, 7), 16);
+  const br = parseInt(b.slice(1, 3), 16), bg = parseInt(b.slice(3, 5), 16), bb = parseInt(b.slice(5, 7), 16);
+  const r = Math.round(ar + (br - ar) * t);
+  const g = Math.round(ag + (bg - ag) * t);
+  const bl = Math.round(ab + (bb - ab) * t);
+  return '#' + r.toString(16).padStart(2,'0') + g.toString(16).padStart(2,'0') + bl.toString(16).padStart(2,'0');
+}
+
 const BG_STARS = [];
 for (let i = 0; i < 40; i++) {
   BG_STARS.push({
@@ -183,6 +340,509 @@ for (let i = 0; i < 40; i++) {
     phase: Math.random() * Math.PI * 2,
   });
 }
+
+// ----------------------------------------------------------------
+// HILL SPRITE CACHE
+// Hills are STATIC (no animation), so pre-render each (biome, size)
+// combo into an offscreen canvas once and just drawImage() it during
+// rendering. This is critical for performance during biome transitions
+// where we draw two biome's worth of hills per frame: avoids hundreds
+// of gradient/clip/path allocations per frame and the GC pauses they
+// cause (the "half second freeze" the player saw at section borders).
+// ----------------------------------------------------------------
+const HILL_CACHE = {}; // key: `${biomeId}:${rTiles}`
+function getHillSprite(Bm, rTiles) {
+  const key = Bm.id + ':' + rTiles;
+  if (HILL_CACHE[key]) return HILL_CACHE[key];
+  const T = TILE;
+  const r = rTiles * T;
+  const PAD = 32; // halo + drip + soft edge
+  const canvasW = Math.ceil(r * 2) + PAD * 2;
+  const canvasH = Math.ceil(r * 1.4) + PAD * 2;
+  const c = document.createElement('canvas');
+  c.width = canvasW;
+  c.height = canvasH;
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = true;
+  // Origin where the hill would be drawn:
+  // hcx = canvas center X, hillBase = canvas height - PAD
+  const hcx = canvasW / 2;
+  const hillBase = canvasH - PAD;
+  const GY_local = hillBase - r * 0.4; // mimic the "ground line" used originally
+  const peakY = GY_local - r;
+  if (Bm.id === 2) {
+    // Desert dunes
+    const grad = g.createLinearGradient(hcx, hillBase - r, hcx, hillBase);
+    grad.addColorStop(0, Bm.hillCol1);
+    grad.addColorStop(0.6, Bm.hillCol2);
+    grad.addColorStop(1, Bm.hillCol3);
+    g.fillStyle = grad;
+    g.beginPath();
+    g.arc(hcx, hillBase, r, Math.PI, 0, false);
+    g.lineTo(hcx + r, canvasH);
+    g.lineTo(hcx - r, canvasH);
+    g.closePath();
+    g.fill();
+  } else if (Bm.id === 1) {
+    // Snow peaks
+    const grad = g.createLinearGradient(hcx - r, 0, hcx + r, 0);
+    grad.addColorStop(0, Bm.hillCol3);
+    grad.addColorStop(0.5, Bm.hillCol2);
+    grad.addColorStop(1, Bm.hillCol1);
+    g.fillStyle = grad;
+    g.beginPath();
+    g.moveTo(hcx - r, GY_local);
+    g.lineTo(hcx - r * 0.4, GY_local - r * 0.6);
+    g.lineTo(hcx, GY_local - r);
+    g.lineTo(hcx + r * 0.45, GY_local - r * 0.55);
+    g.lineTo(hcx + r, GY_local);
+    g.closePath();
+    g.fill();
+    // Snow cap
+    g.fillStyle = '#fcfcfc';
+    g.beginPath();
+    g.moveTo(hcx - r * 0.18, GY_local - r * 0.78);
+    g.lineTo(hcx, GY_local - r);
+    g.lineTo(hcx + r * 0.22, GY_local - r * 0.74);
+    g.lineTo(hcx + r * 0.10, GY_local - r * 0.65);
+    g.lineTo(hcx - r * 0.05, GY_local - r * 0.7);
+    g.closePath();
+    g.fill();
+  } else if (Bm.id === 3) {
+    // Lava: jagged volcano with magma effects (cached!)
+    g.beginPath();
+    g.moveTo(hcx - r, GY_local);
+    g.lineTo(hcx - r * 0.45, GY_local - r * 0.55);
+    g.lineTo(hcx - r * 0.2, GY_local - r * 0.85);
+    g.lineTo(hcx, peakY);
+    g.lineTo(hcx + r * 0.18, GY_local - r * 0.85);
+    g.lineTo(hcx + r * 0.5, GY_local - r * 0.5);
+    g.lineTo(hcx + r, GY_local);
+    g.closePath();
+    const bodyG = g.createLinearGradient(hcx, peakY, hcx, GY_local);
+    bodyG.addColorStop(0, Bm.hillCol1);
+    bodyG.addColorStop(0.45, Bm.hillCol2);
+    bodyG.addColorStop(1, Bm.hillCol3);
+    g.fillStyle = bodyG;
+    g.fill();
+    g.save();
+    g.clip();
+    const rimG = g.createLinearGradient(hcx, peakY, hcx + r * 0.6, GY_local - r * 0.2);
+    rimG.addColorStop(0, 'rgba(255,140,60,0.45)');
+    rimG.addColorStop(1, 'rgba(255,120,40,0)');
+    g.fillStyle = rimG;
+    g.fillRect(hcx - r, peakY - 2, r * 2, r * 0.85);
+    g.strokeStyle = 'rgba(255,170,60,0.55)';
+    g.lineWidth = 1.2;
+    g.beginPath();
+    g.moveTo(hcx - r * 0.04, peakY + 1);
+    g.lineTo(hcx - r * 0.10, peakY + r * 0.18);
+    g.lineTo(hcx - r * 0.04, peakY + r * 0.32);
+    g.lineTo(hcx - r * 0.14, peakY + r * 0.50);
+    g.stroke();
+    g.beginPath();
+    g.moveTo(hcx + r * 0.06, peakY + 2);
+    g.lineTo(hcx + r * 0.16, peakY + r * 0.22);
+    g.lineTo(hcx + r * 0.10, peakY + r * 0.42);
+    g.stroke();
+    g.fillStyle = 'rgba(255,220,140,0.85)';
+    g.fillRect(hcx - r * 0.10, peakY + r * 0.18, 1, 2);
+    g.fillRect(hcx - r * 0.04, peakY + r * 0.32, 1, 2);
+    g.fillRect(hcx + r * 0.16, peakY + r * 0.22, 1, 2);
+    g.restore();
+    // Crater rim
+    g.fillStyle = 'rgba(40,8,4,0.95)';
+    g.beginPath();
+    g.ellipse(hcx, peakY + 2, r * 0.22, 2, 0, 0, Math.PI * 2);
+    g.fill();
+    // Inner glowing magma
+    const crG = g.createRadialGradient(hcx, peakY + 1, 0.5, hcx, peakY + 1, r * 0.22);
+    crG.addColorStop(0, '#fff0a0');
+    crG.addColorStop(0.4, '#ffb050');
+    crG.addColorStop(1, 'rgba(220,60,20,0.8)');
+    g.fillStyle = crG;
+    g.beginPath();
+    g.ellipse(hcx, peakY + 1, r * 0.16, 1.6, 0, 0, Math.PI * 2);
+    g.fill();
+    // Outer ember halo
+    const haloG = g.createRadialGradient(hcx, peakY, 0, hcx, peakY, r * 0.45);
+    haloG.addColorStop(0, 'rgba(255,160,60,0.55)');
+    haloG.addColorStop(1, 'rgba(255,80,20,0)');
+    g.fillStyle = haloG;
+    g.beginPath();
+    g.arc(hcx, peakY, r * 0.45, 0, Math.PI * 2);
+    g.fill();
+    // Lava overflow drip
+    g.fillStyle = 'rgba(255,140,40,0.55)';
+    g.fillRect(hcx + 1, peakY + 1, 1.5, r * 0.55);
+    g.fillStyle = 'rgba(255,220,140,0.85)';
+    g.fillRect(hcx + 1, peakY + 1, 0.6, r * 0.20);
+  } else {
+    // Forest: classic rounded hill
+    const grad = g.createRadialGradient(hcx - r * 0.2, hillBase - r * 0.7, r * 0.1, hcx, hillBase, r);
+    grad.addColorStop(0, Bm.hillCol1);
+    grad.addColorStop(0.5, Bm.hillCol2);
+    grad.addColorStop(1, Bm.hillCol3);
+    g.fillStyle = grad;
+    g.beginPath();
+    g.arc(hcx, hillBase, r, Math.PI, 0, false);
+    g.lineTo(hcx + r, canvasH);
+    g.lineTo(hcx - r, canvasH);
+    g.closePath();
+    g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.22)';
+    g.beginPath();
+    g.arc(hcx - r * 0.2, hillBase - r * 0.5, r * 0.4, 0, Math.PI * 2);
+    g.fill();
+  }
+  // Pre-rendered desert pyramid silhouette (every 4th hill in the original).
+  // We render it as a separate sprite below to keep the cached hill clean.
+  const sprite = { canvas: c, hcxOffset: hcx, hillBaseOffset: hillBase, GY_localOffset: GY_local };
+  HILL_CACHE[key] = sprite;
+  return sprite;
+}
+// Eager-build all (biome, size) combos at startup so first transition has zero
+// pre-render hitch.
+(function prebuildHills() {
+  for (let bi = 0; bi < BIOMES.length; bi++) {
+    for (let rt = 4; rt <= 8; rt++) {
+      getHillSprite(BIOMES[bi], rt);
+    }
+  }
+})();
+
+// ----------------------------------------------------------------
+// TILE SPRITE CACHE
+// ----------------------------------------------------------------
+// Tiles were re-allocating 1-3 CanvasGradient objects per tile per frame
+// (~hundreds of allocations every render), causing intermittent GC pauses
+// and visible stutters during scrolling. We pre-render every static tile
+// variant once and blit it as a cached sprite from then on. ?-blocks keep
+// a tiny per-frame additive overlay for the pulsing shimmer / halo, but
+// the expensive radial / linear gradients are baked in.
+// ----------------------------------------------------------------
+const TILE_CACHE = {}; // key: `${tile}:${biomeId}:${variant}`
+
+function _newTileCanvas(w, h) {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  return c;
+}
+
+function _renderGroundSurface(g, B) {
+  const topGrad = g.createLinearGradient(0, 0, 0, 5);
+  topGrad.addColorStop(0, B.groundTopHi);
+  topGrad.addColorStop(1, B.groundTop);
+  g.fillStyle = topGrad;
+  g.fillRect(0, 0, TILE, 5);
+  const bodyGrad = g.createLinearGradient(0, 5, 0, TILE);
+  bodyGrad.addColorStop(0, B.groundBodyHi);
+  bodyGrad.addColorStop(0.5, B.groundBody);
+  bodyGrad.addColorStop(1, B.groundBodyLo);
+  g.fillStyle = bodyGrad;
+  g.fillRect(0, 5, TILE, TILE - 5);
+  g.fillStyle = 'rgba(255,255,255,0.55)';
+  g.fillRect(0, 0, TILE, 1);
+  g.fillStyle = 'rgba(0,0,0,0.18)';
+  g.fillRect(0, 5, TILE, 0.6);
+  _renderGroundBiomeSpeckle(g, B);
+}
+function _renderGroundBody(g, B) {
+  const bodyGrad = g.createLinearGradient(0, 0, 0, TILE);
+  bodyGrad.addColorStop(0, B.groundBodyHi);
+  bodyGrad.addColorStop(0.5, B.groundBody);
+  bodyGrad.addColorStop(1, B.groundBodyLo);
+  g.fillStyle = bodyGrad;
+  g.fillRect(0, 0, TILE, TILE);
+  g.fillStyle = 'rgba(255,255,255,0.10)';
+  g.fillRect(0, 0, TILE, 1);
+  _renderGroundBiomeSpeckle(g, B);
+}
+function _renderGroundBiomeSpeckle(g, B) {
+  if (B.id === 0) {
+    g.fillStyle = 'rgba(0,0,0,0.18)';
+    g.fillRect(4, 8, 1, 1);
+    g.fillRect(11, 11, 1, 1);
+    g.fillStyle = 'rgba(255,255,255,0.08)';
+    g.fillRect(8, 9, 1, 1);
+  } else if (B.id === 1) {
+    g.fillStyle = 'rgba(255,255,255,0.18)';
+    g.fillRect(3, 9, 1, 1);
+    g.fillRect(12, 11, 1, 1);
+    g.fillStyle = 'rgba(120,160,200,0.18)';
+    g.fillRect(7, 13, 1, 1);
+  } else if (B.id === 2) {
+    g.fillStyle = 'rgba(255,240,180,0.20)';
+    g.fillRect(2, 8, 1, 1);
+    g.fillRect(6, 10, 1, 1);
+    g.fillRect(11, 12, 1, 1);
+    g.fillStyle = 'rgba(120,80,30,0.20)';
+    g.fillRect(9, 9, 1, 1);
+    g.fillRect(4, 13, 1, 1);
+  } else {
+    g.fillStyle = 'rgba(255,80,20,0.45)';
+    g.fillRect(3, 9, 4, 1);
+    g.fillRect(9, 12, 3, 1);
+    g.fillStyle = 'rgba(255,160,40,0.55)';
+    g.fillRect(11, 8, 1, 1);
+    g.fillRect(5, 13, 1, 1);
+  }
+}
+function _renderBrick(g, B) {
+  const bGrad = g.createLinearGradient(0, 0, 0, TILE);
+  bGrad.addColorStop(0, B.brickHi);
+  bGrad.addColorStop(0.45, B.brick);
+  bGrad.addColorStop(1, B.brickShade);
+  g.fillStyle = bGrad;
+  g.fillRect(0, 0, TILE, TILE);
+  g.fillStyle = 'rgba(255,255,255,0.16)';
+  g.fillRect(0.5, 1, 6, 1);
+  g.fillRect(8, 1, 7, 1);
+  g.fillRect(0.5, 8, 2.5, 1);
+  g.fillRect(4, 8, 7, 1);
+  g.fillRect(12, 8, 3.5, 1);
+  g.fillStyle = B.brickMortar;
+  g.fillRect(0, 0, TILE, 0.8);
+  g.fillRect(0, 7, TILE, 0.8);
+  g.fillRect(7.2, 0, 0.6, 7);
+  g.fillRect(3.2, 7, 0.6, 9);
+  g.fillRect(11.2, 7, 0.6, 9);
+  g.fillRect(0, 15.2, TILE, 0.8);
+  if (B.id === 0) {
+    g.fillStyle = 'rgba(120,200,90,0.55)';
+    g.fillRect(2, 7.5, 2, 0.7);
+    g.fillRect(9, 7.5, 3, 0.7);
+  } else if (B.id === 1) {
+    g.fillStyle = 'rgba(255,255,255,0.55)';
+    g.fillRect(4, 1, 1, 1);
+    g.fillRect(11, 9, 1, 1);
+  } else if (B.id === 3) {
+    g.fillStyle = 'rgba(255,100,30,0.35)';
+    g.fillRect(5, 5, 4, 1);
+    g.fillRect(8, 12, 5, 1);
+  }
+}
+function _renderHard(g, B) {
+  const hGrad = g.createLinearGradient(0, 0, 0, TILE);
+  hGrad.addColorStop(0, B.hardHi);
+  hGrad.addColorStop(0.5, B.hard);
+  hGrad.addColorStop(1, B.hardLo);
+  g.fillStyle = hGrad;
+  g.fillRect(0, 0, TILE, TILE);
+  g.fillStyle = 'rgba(255,255,255,0.16)';
+  g.fillRect(0, 0, TILE, 1);
+  g.fillRect(0, 0, 1, TILE);
+  g.fillStyle = 'rgba(0,0,0,0.18)';
+  g.fillRect(TILE - 1, 0, 1, TILE);
+  g.fillRect(0, TILE - 1, TILE, 1);
+  g.fillStyle = 'rgba(0,0,0,0.08)';
+  g.fillRect(2, 2, TILE - 4, TILE - 4);
+  g.fillStyle = 'rgba(255,255,255,0.10)';
+  g.fillRect(3, 3, TILE - 6, 1);
+  g.fillRect(3, 3, 1, TILE - 6);
+  g.fillStyle = 'rgba(0,0,0,0.08)';
+  g.fillRect(TILE - 4, 3, 1, TILE - 6);
+  g.fillRect(3, TILE - 4, TILE - 6, 1);
+  g.fillStyle = 'rgba(0,0,0,0.10)';
+  g.fillRect(7, 2, 1, TILE - 4);
+  g.fillRect(2, 7, TILE - 4, 1);
+  if (B.id === 1) {
+    g.fillStyle = 'rgba(255,255,255,0.55)';
+    g.fillRect(11, 4, 2, 1);
+    g.fillRect(12, 4, 1, 2);
+  } else if (B.id === 3) {
+    g.fillStyle = 'rgba(255,100,30,0.55)';
+    g.fillRect(4, 11, 5, 1);
+  }
+}
+function _renderQEmpty(g, B) {
+  const eGrad = g.createLinearGradient(0, 0, 0, TILE);
+  eGrad.addColorStop(0, B.qBlockShade);
+  eGrad.addColorStop(1, B.qBlockDark);
+  g.fillStyle = eGrad;
+  g.fillRect(0, 0, TILE, TILE);
+  g.fillStyle = 'rgba(0,0,0,0.18)';
+  g.fillRect(TILE - 1.5, 0, 1.5, TILE);
+  g.fillRect(0, TILE - 1.5, TILE, 1.5);
+  g.fillStyle = 'rgba(255,255,255,0.06)';
+  g.fillRect(0, 0, TILE, 1);
+  g.fillRect(0, 0, 1, TILE);
+}
+function _renderQActive(g, B, kind) {
+  // kind: 'q' (?-block, biome-tinted), '1up' (blue), 'star' (purple)
+  const blockBg  = kind === '1up' ? '#80c0e0' : kind === 'star' ? '#a890d0' : B.qBlockBg;
+  const blockShd = kind === '1up' ? '#5090b0' : kind === 'star' ? '#7868a8' : B.qBlockShade;
+  const blockDk  = kind === '1up' ? '#306080' : kind === 'star' ? '#584888' : B.qBlockDark;
+  const qGrad = g.createLinearGradient(0, 0, 0, TILE);
+  qGrad.addColorStop(0, blockBg);
+  qGrad.addColorStop(1, blockShd);
+  g.fillStyle = qGrad;
+  g.fillRect(0, 0, TILE, TILE);
+  g.fillStyle = 'rgba(0,0,0,0.18)';
+  g.fillRect(TILE - 1.5, 0, 1.5, TILE);
+  g.fillRect(0, TILE - 1.5, TILE, 1.5);
+  g.fillStyle = 'rgba(255,255,255,0.16)';
+  g.fillRect(0, 0, TILE, 1);
+  g.fillRect(0, 0, 1, TILE);
+  if (kind === 'star') {
+    g.fillStyle = '#e8c850';
+    g.fillRect(7, 3, 2, 2);
+    g.fillRect(5, 5, 6, 2);
+    g.fillRect(3, 7, 10, 2);
+    g.fillRect(5, 9, 6, 2);
+    g.fillRect(4, 10, 3, 2);
+    g.fillRect(9, 10, 3, 2);
+  } else {
+    g.fillStyle = blockDk;
+    g.fillRect(5, 3, 6, 2);
+    g.fillRect(9, 5, 2, 3);
+    g.fillRect(7, 7, 2, 2);
+    g.fillRect(7, 11, 2, 2);
+  }
+}
+function _renderPipe10(g, B) {
+  const pG = g.createLinearGradient(0, 0, TILE, 0);
+  pG.addColorStop(0, B.pipeHi);
+  pG.addColorStop(0.3, B.pipe);
+  pG.addColorStop(0.85, B.pipe);
+  pG.addColorStop(1, B.pipeLo);
+  g.fillStyle = pG;
+  g.fillRect(0, 0, TILE, TILE);
+  g.fillStyle = 'rgba(255,255,255,0.14)';
+  g.fillRect(3, 0, 2, TILE);
+}
+function _renderPipe11(g, B) {
+  const pG = g.createLinearGradient(0, 0, TILE, 0);
+  pG.addColorStop(0, B.pipeLo);
+  pG.addColorStop(0.2, B.pipe);
+  pG.addColorStop(0.7, B.pipe);
+  pG.addColorStop(1, B.pipeHi);
+  g.fillStyle = pG;
+  g.fillRect(0, 0, TILE, TILE);
+}
+function _renderPipe12(g, B) {
+  // Sprite is 18px wide; drawn at sx-2.
+  const pG = g.createLinearGradient(0, 0, TILE + 2, 0);
+  pG.addColorStop(0, B.pipeHi);
+  pG.addColorStop(0.25, B.pipe);
+  pG.addColorStop(0.85, B.pipe);
+  pG.addColorStop(1, B.pipeLo);
+  g.fillStyle = pG;
+  g.fillRect(0, 0, TILE + 2, TILE);
+  g.fillStyle = 'rgba(255,255,255,0.30)';
+  g.fillRect(0, 0, TILE + 4, 1);
+  g.fillStyle = 'rgba(255,255,255,0.18)';
+  g.fillRect(0, 1, TILE + 4, 1);
+  g.fillStyle = 'rgba(255,255,255,0.16)';
+  g.fillRect(3, 1, 2, TILE - 2);
+  g.fillStyle = 'rgba(0,0,0,0.18)';
+  g.fillRect(0, TILE - 1, TILE + 4, 1);
+  g.fillStyle = 'rgba(0,0,0,0.10)';
+  g.fillRect(1, 2, TILE + 2, 1);
+  g.fillStyle = 'rgba(255,255,255,0.08)';
+  g.fillRect(2, 3, TILE - 2, 1);
+}
+function _renderPipe13(g, B) {
+  // Sprite is 18px wide; drawn at sx (right side extends past tile).
+  const pG = g.createLinearGradient(0, 0, TILE + 2, 0);
+  pG.addColorStop(0, B.pipeLo);
+  pG.addColorStop(0.2, B.pipe);
+  pG.addColorStop(0.7, B.pipe);
+  pG.addColorStop(1, B.pipeHi);
+  g.fillStyle = pG;
+  g.fillRect(0, 0, TILE + 2, TILE);
+  g.fillStyle = 'rgba(255,255,255,0.26)';
+  g.fillRect(0, 0, TILE + 2, 1);
+  g.fillStyle = 'rgba(255,255,255,0.14)';
+  g.fillRect(0, 1, TILE + 2, 1);
+  g.fillStyle = 'rgba(0,0,0,0.10)';
+  g.fillRect(0, 2, TILE + 2, 1);
+  g.fillStyle = 'rgba(255,255,255,0.07)';
+  g.fillRect(1, 3, TILE, 1);
+  g.fillStyle = 'rgba(0,0,0,0.12)';
+  g.fillRect(0, TILE - 1, TILE + 2, 1);
+}
+
+function getTileSprite(tile, B, variant) {
+  const key = tile + ':' + B.id + ':' + (variant || '');
+  let c = TILE_CACHE[key];
+  if (c) return c;
+  // Pipe 12/13 are 18px wide; everything else is 16x16.
+  const w = (tile === 12 || tile === 13) ? TILE + 2 : TILE;
+  c = _newTileCanvas(w, TILE);
+  const g = c.getContext('2d');
+  switch (tile) {
+    case 1:
+      if (variant === 'surface') _renderGroundSurface(g, B);
+      else _renderGroundBody(g, B);
+      break;
+    case 2: _renderBrick(g, B); break;
+    case 5: _renderHard(g, B); break;
+    case 3:
+    case 4:
+      if (variant === 'empty') _renderQEmpty(g, B);
+      else _renderQActive(g, B, 'q');
+      break;
+    case 6:
+      if (variant === 'empty') _renderQEmpty(g, B);
+      else _renderQActive(g, B, '1up');
+      break;
+    case 7:
+      if (variant === 'empty') _renderQEmpty(g, B);
+      else _renderQActive(g, B, 'star');
+      break;
+    case 10: _renderPipe10(g, B); break;
+    case 11: _renderPipe11(g, B); break;
+    case 12: _renderPipe12(g, B); break;
+    case 13: _renderPipe13(g, B); break;
+  }
+  TILE_CACHE[key] = c;
+  return c;
+}
+
+// Pre-cached radial halo for ?-block / 1up / star pulsing glow.
+// Single 32x32 white sprite re-tinted via fillStyle + composite.
+const BLOCK_GLOW_CACHE = {};
+function getBlockGlowSprite(color) {
+  if (BLOCK_GLOW_CACHE[color]) return BLOCK_GLOW_CACHE[color];
+  const c = _newTileCanvas(28, 28);
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(14, 14, 2, 14, 14, 14);
+  grd.addColorStop(0, color);
+  grd.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, 28, 28);
+  BLOCK_GLOW_CACHE[color] = c;
+  return c;
+}
+
+(function prebuildTiles() {
+  for (let bi = 0; bi < BIOMES.length; bi++) {
+    const B = BIOMES[bi];
+    getTileSprite(1, B, 'surface');
+    getTileSprite(1, B, 'body');
+    getTileSprite(2, B);
+    getTileSprite(5, B);
+    getTileSprite(3, B);
+    getTileSprite(3, B, 'empty');
+    getTileSprite(4, B);
+    getTileSprite(4, B, 'empty');
+    getTileSprite(6, B);
+    getTileSprite(6, B, 'empty');
+    getTileSprite(7, B);
+    getTileSprite(7, B, 'empty');
+    getTileSprite(10, B);
+    getTileSprite(11, B);
+    getTileSprite(12, B);
+    getTileSprite(13, B);
+  }
+  // Glow halos
+  getBlockGlowSprite('#f0d868'); // forest/snow/desert ?-block
+  getBlockGlowSprite('#ffb060'); // lava ?-block
+  getBlockGlowSprite('#80d0e8'); // 1up
+  getBlockGlowSprite('#c8a8f0'); // star
+})();
 
 let ambientMotes = [];
 function initAmbientMotes() {
@@ -658,6 +1318,52 @@ const GOOMBA_FLAT = [
 ];
 const GOOMBA_PALETTE = { 1: COL.goomba, 2: COL.white, 3: COL.black };
 
+// ----------------------------------------------------------------
+// Per-biome enemy skin variants. Same silhouette, different palette
+// so each section feels distinct without inflating the entity zoo.
+// Indexed by Bm.id (0=Forest, 1=Snow, 2=Desert, 3=Lava).
+// ----------------------------------------------------------------
+const GOOMBA_PALETTE_BY_BIOME = [
+  { 1: '#c06888', 2: COL.white, 3: COL.black },             // Forest: classic mauve mushroom
+  { 1: '#a8c8e8', 2: '#fcfcfc', 3: '#1a2848' },             // Snow: icy pale-blue
+  { 1: '#d09858', 2: '#fcf0c8', 3: '#3a1808' },             // Desert: sandstone/mummy
+  { 1: '#5a2018', 2: '#ffd068', 3: '#100408' },             // Lava: charred with ember glow
+  { 1: '#5a1850', 2: '#e0c0ff', 3: '#100410' },             // Cosmic: void shade with sparkle highlight
+];
+const KOOPA_SHELL_BY_BIOME = [
+  { hi: '#7898d0', mid: '#5878b8', lo: '#384888', head: '#b8d060', headLo: '#607828' }, // Forest
+  { hi: '#a8d8f0', mid: '#7098c8', lo: '#385080', head: '#e0f0fc', headLo: '#5878a8' }, // Snow (icy)
+  { hi: '#d8b070', mid: '#a07840', lo: '#583810', head: '#c89858', headLo: '#604018' }, // Desert (cobra-bronze)
+  { hi: '#d04020', mid: '#883010', lo: '#380808', head: '#ffa040', headLo: '#702008' }, // Lava (salamander)
+  { hi: '#a040d8', mid: '#6018a0', lo: '#280850', head: '#e0c0ff', headLo: '#604098' }, // Cosmic (void-shell)
+];
+const BUZZY_PALETTE_BY_BIOME = [
+  { 1: '#4050b8', 2: COL.white, 3: COL.black },             // Forest (default)
+  { 1: '#80b0e0', 2: '#fcfcfc', 3: '#102448' },             // Snow (frosted shell)
+  { 1: '#a86838', 2: '#fcf0c8', 3: '#3a1808' },             // Desert (scarab)
+  { 1: '#702010', 2: '#ffd068', 3: '#100408' },             // Lava (magma shell)
+  { 1: '#5a1880', 2: '#e0c0ff', 3: '#100410' },             // Cosmic (void shell)
+];
+const SWOOPER_COLORS_BY_BIOME = [
+  { wing: '#5838a0', bodyHi: '#9068c8', bodyMid: '#5838a0', bodyLo: '#2a1050' }, // Forest bat
+  { wing: '#7090c0', bodyHi: '#c0d8f0', bodyMid: '#7090c0', bodyLo: '#304870' }, // Snow owl
+  { wing: '#a06030', bodyHi: '#d8a060', bodyMid: '#a06030', bodyLo: '#502810' }, // Desert hawk
+  { wing: '#a02810', bodyHi: '#ffa040', bodyMid: '#a02810', bodyLo: '#380808' }, // Lava firebat
+  { wing: '#6018a0', bodyHi: '#c878f0', bodyMid: '#6018a0', bodyLo: '#200840' }, // Cosmic stellar-bat
+];
+const PHANTOM_COLORS_BY_BIOME = [
+  { hi: '#fcfcfc', mid: '#e0d8f0', lo: '#b8a8d8', glow: '#fcf0a0' }, // Forest wisp
+  { hi: '#e8f4ff', mid: '#b8d4ec', lo: '#7898c0', glow: '#a0d8ff' }, // Snow spirit
+  { hi: '#fff0c8', mid: '#e8c898', lo: '#a8784a', glow: '#fff8a0' }, // Desert mirage
+  { hi: '#ffe0b0', mid: '#ff9050', lo: '#a04018', glow: '#fff0a0' }, // Lava ember-ghost
+  { hi: '#f0d8ff', mid: '#c890f0', lo: '#7038a8', glow: '#ffe8a0' }, // Cosmic apparition
+];
+
+// Helper: pick the biome variant for an enemy (computed from world x).
+function biomeIdAtX(x) {
+  return biomeAtX(x).id;
+}
+
 const KOOPA_SPRITE = [
   [0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0],
   [0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0],
@@ -950,7 +1656,7 @@ function stopStarMusic() {
 // ================================================================
 // LEVEL BUILDER
 // ================================================================
-const LEVEL_WIDTH = 480;
+const LEVEL_WIDTH = 540;
 const LEVEL_HEIGHT = 15;
 
 function buildLevel() {
@@ -976,134 +1682,197 @@ function buildLevel() {
       for (let y = 12 - (steps - 1 - s); y <= 12; y++) map[y][startX + s] = 5;
     }
   }
+  function platform(x1, x2, y) {
+    for (let x = x1; x <= x2; x++) map[y][x] = 5;
+  }
 
-  // === SECTION 1: GREEN FIELDS (0-55) ===
-  ground(0, 55);
-  map[9][16] = 3;
-  map[9][22] = 2; map[9][23] = 4; map[9][24] = 2; map[9][25] = 3; map[9][26] = 2;
-  map[5][22] = 3;
-  map[9][30] = 2; map[9][31] = 3; map[9][32] = 2;
-  map[9][40] = 3;
-  map[9][45] = 2; map[9][46] = 3; map[9][47] = 2;
-  map[5][46] = 3;
-  stairUp(50, 3);
+  // ==========================================================
+  // SECTION 1: WHISPERING WOODS (forest) — tiles 0..119
+  // Gentle intro: bushes, ? blocks, vines, two short pipes.
+  // Every ? block is reachable directly from below in BOTH small
+  // and big form — no stacked ?-blocks (which trap big Mario).
+  // ==========================================================
+  ground(0, 28);
+  map[9][12] = 3;                                   // first ? block
+  map[9][18] = 2; map[9][19] = 3; map[9][20] = 4; map[9][21] = 2; // brick row + powerup
+  map[5][24] = 3;                                   // lone high ? (no row 9 below = clear path)
+  // Small gap (29-31) — easy hop
+  ground(32, 60);
+  map[5][33] = 6;                                   // 1-up high reward (isolated, no row 9 below)
+  map[9][35] = 3; map[9][36] = 2; map[9][37] = 3;
+  addPipe(44, 2);                                   // small pipe with piranha
+  map[9][50] = 2; map[9][51] = 2; map[9][52] = 2;
+  map[6][55] = 3;                                   // bonus high ? after brick row (clear column)
+  addPipe(57, 3);
+  // Mid gap (61-63)
+  ground(64, 92);
+  // Mossy ruin staircase
+  stairUp(66, 3);
+  map[9][72] = 3;
+  map[9][76] = 2; map[9][77] = 3; map[9][78] = 2;
+  // Floating leaf platform — ? at row 5 (sits flush above row 8 platform; both forms can hit)
+  platform(82, 86, 8);
+  map[5][84] = 3;                                   // big Mario stands flush, jump bonks block (16px clear is exact)
+  addPipe(89, 3);
+  // Final approach
+  ground(94, 120);                                  // up to + including checkpoint tile
+  map[9][98] = 3; map[9][99] = 2; map[9][100] = 4; map[9][101] = 2;
+  // Pre-checkpoint elevation
+  platform(105, 109, 9);
+  map[5][107] = 3;                                  // 3-tile rise from platform
+  stairUp(112, 4);                                  // gentle stairs into checkpoint
 
-  // === SECTION 2: PIPE VALLEY (55-100) ===
-  ground(56, 100);
-  addPipe(58, 2); addPipe(68, 3); addPipe(78, 3); addPipe(88, 4);
-  map[9][62] = 3; map[9][73] = 3; map[9][83] = 3; map[9][84] = 4;
-  map[7][59] = 3; map[7][69] = 3; map[7][79] = 3; map[6][89] = 3;
-  map[9][64] = 2; map[9][65] = 3; map[9][66] = 2;
-  map[9][94] = 2; map[9][95] = 3; map[9][96] = 2;
-  map[7][55] = 7;
+  // ==========================================================
+  // SECTION 2: FROSTPEAK PASS (snow) — tiles 121..239
+  // Slippery-looking ice, snowdrift platforms, longer jumps.
+  // ==========================================================
+  ground(120, 138);
+  // Frozen pillars (hard blocks)
+  for (let y = 11; y <= 12; y++) map[y][125] = 5;
+  for (let y = 9; y <= 12; y++) map[y][131] = 5;
+  map[9][128] = 3;
+  // Ice floe gap (139-142)
+  ground(143, 168);
+  // Stepped ice platforms
+  platform(146, 148, 10);
+  platform(150, 153, 8);
+  map[5][152] = 3;                                   // row 5 above row 8 platform — big Mario stands flush + jump bonks
+  platform(156, 159, 9);
+  map[9][156] = 2; map[9][157] = 4; map[9][158] = 2;
+  // Big icy gap (169-172) — needs solid jump
+  ground(173, 196);
+  // Glacier wall + staircase
+  for (let y = 8; y <= 12; y++) map[y][175] = 5;     // 1-tile glacier pillar
+  stairUp(178, 4);
+  // High vault row at row 5 (no row 9 below — clear column for big-form jumps)
+  map[5][184] = 2; map[5][185] = 3; map[5][187] = 2;
+  map[5][186] = 6;                                   // 1-up surprise (clear column)
+  platform(190, 193, 8);
+  map[9][191] = 3; map[9][192] = 2;
+  // Long crevasse (197-200) — double jump or run
+  ground(201, 240);
+  // Snow-cap floating platforms approaching checkpoint
+  platform(206, 208, 10);
+  platform(212, 215, 8);
+  map[5][214] = 3;                                   // row 5 above row 8 platform — both forms can stand flush + bonk
+  // Hardest stretch: tall ice tower
+  for (let y = 6; y <= 12; y++) map[y][220] = 5;
+  for (let y = 8; y <= 12; y++) map[y][224] = 5;
+  platform(220, 224, 6);                             // bridge across the towers
+  map[3][222] = 7;                                   // STAR at row 3 — gives big Mario 8px head clearance over row 6 bridge
+  // Run-up to checkpoint
+  map[9][230] = 2; map[9][231] = 3; map[9][232] = 2;
+  stairUp(234, 4);
 
-  // === SECTION 3: BLOCK PLAYGROUND (100-155) ===
-  ground(101, 130); ground(134, 155);
-  map[9][105] = 2; map[9][106] = 3; map[9][107] = 2; map[9][108] = 2; map[9][109] = 2;
-  map[5][107] = 4;
-  map[9][115] = 2; map[9][116] = 2; map[9][117] = 3; map[9][118] = 2;
-  map[5][116] = 2; map[5][117] = 2; map[5][118] = 2;
-  map[9][124] = 3; map[9][125] = 2; map[9][126] = 4; map[9][127] = 2;
-  map[5][125] = 3;
-  map[7][112] = 2; map[7][113] = 3; map[7][114] = 2;
-  map[9][138] = 2; map[9][139] = 3; map[9][140] = 2;
-  map[7][140] = 2; map[7][141] = 3;
-  map[9][150] = 4; map[9][151] = 2; map[9][152] = 3;
-  map[5][107] = 6;
+  // ==========================================================
+  // SECTION 3: DUSKDUNE EXPANSE (desert) — tiles 240..359
+  // Sand pyramids, clay pipes, longer flat sprints with cacti.
+  // ==========================================================
+  ground(240, 268);
+  // Pyramid 1
+  stairUp(244, 5);
+  stairDown(249, 5);
+  map[9][254] = 3;
+  map[9][258] = 2; map[9][259] = 3; map[9][260] = 4; map[9][261] = 2;
+  // Sand gap (269-271)
+  ground(272, 300);
+  // Clay pipe duo
+  addPipe(274, 2);
+  addPipe(282, 3);
+  // Floating oasis platform
+  platform(287, 291, 8);
+  map[5][289] = 3;                                   // row 5 above row 8 platform — flush stand + bonk on jump
+  // Pyramid 2 (taller)
+  stairUp(294, 6);
+  stairDown(300, 6);
+  ground(301, 326);
+  // Mid-section: blocks + cactus row (cacti are background only)
+  map[9][308] = 2; map[9][309] = 3; map[9][310] = 2;
+  map[5][312] = 6;                                   // 1-up (clear column, no row 9 below = directly hittable)
+  // Quicksand gap (327-330)
+  ground(331, 360);
+  // Final dunes & ? blocks
+  platform(334, 337, 10);
+  map[9][332] = 3;                                   // ?-block off the platform col so coin/block don't overlap
+  map[9][342] = 2; map[9][343] = 3; map[9][344] = 2;
+  map[5][346] = 4;                                   // powerup in clear column (no row 9 below)
+  addPipe(348, 2);
+  // Approach to lava checkpoint
+  stairUp(354, 4);
 
-  // === SECTION 4: ELEVATED CHALLENGE (155-210) ===
-  ground(156, 164); ground(165, 179); ground(180, 210);
-  for (let x = 165; x <= 179; x++) map[9][x] = 2;
-  map[9][170] = 3; map[9][175] = 4;
-  map[9][171] = 0; map[9][172] = 0;
-  map[9][185] = 3;
-  map[9][190] = 2; map[9][191] = 3; map[9][192] = 2;
-  map[5][190] = 2; map[5][191] = 2;
-  map[7][183] = 3; map[7][184] = 2;
-  map[9][195] = 2; map[9][196] = 3; map[9][197] = 2;
-  addPipe(200, 2); addPipe(207, 3);
-  map[7][200] = 7;
+  // ==========================================================
+  // SECTION 4: EMBERHEART CALDERA (lava) — tiles 360..479
+  // Pure platforming section. Boss has been moved out into its
+  // own COSMIC NEXUS section (480..540), so this stretch is now
+  // a clean, equally-sized lava biome ending right at tile 480.
+  // ==========================================================
+  ground(360, 388);
+  // Initial obsidian rise
+  for (let y = 11; y <= 12; y++) map[y][364] = 5;
+  for (let y = 9; y <= 12; y++) map[y][368] = 5;
+  map[9][371] = 3; map[9][372] = 2; map[9][373] = 4; map[9][374] = 2;
+  map[5][376] = 3;                                   // high ? in clear column (no row 9 below)
+  map[5][384] = 6;                                   // 1-up (lava biome's own life reward, clear column)
+  // Lava chasm 1 (389-392)
+  ground(393, 410);
+  // Floating obsidian islands
+  platform(395, 397, 10);
+  platform(400, 403, 8);
+  map[5][402] = 3;                                   // row 5 above row 8 platform
+  platform(406, 408, 9);
+  map[6][407] = 7;                                   // STAR power-up (row 6 above row 9 platform)
+  // Lava chasm 2 (411-413)
+  ground(414, 438);
+  // Pre-arena obsidian terrain
+  map[9][418] = 2; map[9][419] = 3; map[9][420] = 4; map[9][421] = 2;
+  stairUp(422, 3);                                   // climb 422-424
+  stairDown(425, 3);                                 // descend 425-427
+  for (let y = 9; y <= 12; y++) map[y][432] = 5;     // mid pillar
+  map[5][435] = 3;                                   // high ? in clear column
+  // Lava chasm 3 (439-442)
+  ground(443, 460);
+  // Floating ember platforms
+  platform(446, 449, 8);
+  map[5][447] = 3;                                   // ?-block above row 8 platform
+  for (let y = 10; y <= 12; y++) map[y][453] = 5;
+  for (let y = 8; y <= 12; y++) map[y][457] = 5;
+  platform(453, 457, 7);                             // bridge between two pillars
+  map[4][455] = 6;                                   // 1-up high above bridge (clear column above)
+  // Lava chasm 4 (461-463)
+  ground(464, 479);
+  // Final lava stretch — bricks + powerup before the cosmic biome border
+  map[9][468] = 2; map[9][469] = 3; map[9][470] = 4; map[9][471] = 2;
+  stairUp(474, 3);                                   // small rise 474-476
+  // 477-479 left flat to merge cleanly into the cosmic approach
 
-  // === SECTION 5: GAUNTLET (210-260) ===
-  ground(211, 255); ground(259, 260);
-  map[9][215] = 2; map[9][216] = 3; map[9][217] = 2;
-  map[9][225] = 3; map[9][226] = 2;
-  map[9][230] = 2; map[9][231] = 2; map[9][232] = 3; map[9][233] = 2;
-  map[5][231] = 4;
-  map[9][240] = 2; map[9][241] = 3; map[9][242] = 2;
-  map[9][248] = 4;
-  addPipe(245, 2);
-  map[7][220] = 3; map[7][221] = 2; map[7][222] = 2;
-  map[9][236] = 3; map[9][237] = 2;
-
-  // === SECTION 6: SKY WALK (260-305) ===
-  ground(261, 262);
-  for (let x = 265; x <= 270; x++) map[10][x] = 5;
-  for (let x = 274; x <= 279; x++) map[10][x] = 5;
-  for (let x = 283; x <= 288; x++) map[10][x] = 5;
-  for (let x = 292; x <= 297; x++) map[10][x] = 5;
-  map[7][267] = 3; map[7][276] = 3; map[7][285] = 3; map[7][294] = 4;
-  for (let x = 269; x <= 271; x++) map[8][x] = 5;
-  for (let x = 280; x <= 282; x++) map[7][x] = 5;
-  ground(300, 305);
-
-  // === SECTION 7: DOUBLE JUMP CANYON (305-345) - NEW! ===
-  ground(306, 312);
-  // Floating single/double platforms requiring double jump
-  for (let x = 316; x <= 318; x++) map[10][x] = 5;
-  map[7][317] = 3;
-  for (let x = 323; x <= 324; x++) map[8][x] = 5;
-  map[5][324] = 3;
-  for (let x = 329; x <= 331; x++) map[11][x] = 5;
-  for (let x = 329; x <= 331; x++) map[7][x] = 5;
-  map[4][330] = 4;
-  for (let x = 336; x <= 337; x++) map[9][x] = 5;
-  map[6][337] = 3;
-  for (let x = 342; x <= 344; x++) map[10][x] = 5;
-  map[7][343] = 3;
-  ground(348, 355);
-
-  // === SECTION 8: SPRINT & PIPES (355-395) ===
-  ground(356, 395);
-  addPipe(360, 2); addPipe(370, 3);
-  map[9][363] = 3; map[9][364] = 4; map[9][365] = 2;
-  map[9][375] = 2; map[9][376] = 3; map[9][377] = 2;
-  map[5][376] = 2;
-  map[9][358] = 3; map[9][359] = 2;
-  map[7][368] = 2; map[7][369] = 3;
-  addPipe(380, 2);
-  map[9][385] = 2; map[9][386] = 3; map[9][387] = 2;
-  map[5][386] = 6;
-
-  // === SECTION 9: AERIAL PLAYGROUND (395-420) - double jump showcase ===
-  ground(396, 400);
-  // Rising platforms - need double jump to reach the high ones
-  for (let x = 404; x <= 406; x++) map[11][x] = 5;
-  for (let x = 410; x <= 411; x++) map[9][x] = 5;
-  map[6][411] = 3;
-  for (let x = 415; x <= 416; x++) map[7][x] = 5;
-  map[4][415] = 4;
-  for (let x = 410; x <= 411; x++) map[12][x] = 5;
-  ground(413, 421);
-
-  // === SECTION 10: GRAND FINALE (421-479) ===
-  ground(422, 479);
-  stairUp(414, 4);
-  stairDown(418, 4);
-
-  // Boss arena: flat ground 422-443, gate at 444
+  // ==========================================================
+  // SECTION 5: COSMIC NEXUS (the small "5th section") — tiles 480..540
+  // Universe-themed final showdown: brief approach, pre-boss
+  // checkpoint flag (CHECKPOINT_XS index 3), restock powerup,
+  // then boss arena, then victory walk to the end flag + castle.
+  // ==========================================================
+  ground(480, 540);                                  // continuous floor through arena, flag, castle
+  // Pre-boss restock powerup (mushroom or flower depending on size).
+  // Sits 8 tiles AFTER the checkpoint flag (480) and BEFORE the
+  // arena's left wall (495), so the player can grab it on approach.
+  map[9][488] = 4;
+  // Boss arena: left wall raised dynamically by the intro cutscene.
+  // Right wall (BOSS_GATE_X = 510) is permanent — sealed until outro.
   for (let y = 2; y <= 12; y++) map[y][BOSS_GATE_X] = 5;
+  // Centre block(s) inside the arena. The interior is 14 tiles wide
+  // (cols 496..509), so a SINGLE tile cannot be perfectly centred. We
+  // place a 2-tile block spanning cols 502-503 — its midpoint lands
+  // exactly on the centre of the playable arena.
+  map[9][502] = 2;
+  map[9][503] = 2;
 
-  // Victory staircase after boss
-  stairUp(453, 8);
-
-  // Pre-boss blocks
-  map[9][424] = 3; map[9][426] = 2;
-  // Boss arena block (center)
-  map[9][436] = 2;
-
-  // === STAR BLOCK (late game reward for exploring) ===
-  map[7][330] = 7;
+  // Victory ascent after boss → flag → castle
+  stairUp(514, 6);                                   // cols 514-519 staircase up
+  // 520-526 plateau leading to flagpole at 527, castle at 529
+  // (flag pulled away from the pyramid so the player can air-dash with
+  // a double jump; castle nudged in tight to the flag so it sits front
+  // and centre of the viewport during the victory walk)
+  // Level extends to 540 so the camera has room behind the castle.
 
   return map;
 }
@@ -1116,19 +1885,26 @@ const GRAVITY_UP_RELEASE = 0.50;
 const GRAVITY_DOWN = 0.55;
 const JUMP_VEL = -5.6;
 const MAX_FALL = 6.0;
-const WALK_ACCEL = 0.18;
-const RUN_ACCEL = 0.22;
+// Snappier startup so the blob doesn't feel like it has to "rev up" before
+// running. Skid stays as a separate, intentional reaction to flipping
+// direction — and only when actually flipping (handled in input code below).
+const WALK_ACCEL = 0.36;
+const RUN_ACCEL = 0.45;
 const MAX_WALK = 1.5;
 const MAX_RUN = 2.5;
-const FRICTION = 0.25;
+const FRICTION = 0.28;
 const AIR_FRICTION = 0.03;
-const SKID_DECEL = 0.28;
+const SKID_DECEL = 0.32;
 const COYOTE_FRAMES = 6;
 const JUMP_BUFFER_FRAMES = 6;
 
-const FLAGPOLE_X = 466;
-const CASTLE_X = 471;
-const CHECKPOINT_XS = [120, 302, 396];
+const FLAGPOLE_X = 527;
+const CASTLE_X = 529;
+// Visible respawn flags. Index 0=snow, 1=desert, 2=lava, 3=pre-boss.
+// (URL ?checkpoint=0 is the level start, which has no visible flag.)
+// Each checkpoint sits exactly at its biome's entry tile so the
+// progress bar's tick marks line up perfectly with the colour zones.
+const CHECKPOINT_XS = [120, 240, 360, 480];
 
 // ================================================================
 // GAME STATE
@@ -1263,9 +2039,9 @@ let bossShockwaves = [];
 let marioFireballs = [];
 let fireballCooldown = 0;
 let starMusicInterval = null;
-const BOSS_ARENA_LEFT = 429;
-const BOSS_ARENA_TRIGGER = 431;
-const BOSS_GATE_X = 444;
+const BOSS_ARENA_LEFT = 495;
+const BOSS_ARENA_TRIGGER = 497;
+const BOSS_GATE_X = 510;
 let bossEncounterActive = false;
 let bossIntroPhase = 0;
 let bossIntroTimer = 0;
@@ -1350,86 +2126,119 @@ function resetLevel() {
   spawnEnemies();
   spawnMapCoins();
   spawnBoss();
+  // Show the current biome banner whenever the level resets.
+  const startTx = checkpointIndex >= 0 ? CHECKPOINT_XS[checkpointIndex] + 1 : 1;
+  const startBiome = biomeAtTile(startTx);
+  hudMessage = { text: startBiome.name, life: 150, maxLife: 150 };
 }
 
 function spawnEnemies() {
-  // Section 1 (0-55): gentle intro - spaced out
-  const goombaXs = [
-    22, 38, 50,
-    62, 72, 85,
-    108, 120, 140, 150,
-    168, 172, 188, 195,
-    215, 222, 228, 234, 240, 250,
-    268, 286,
-    350, 363,
-    388, 399,
-  ];
-  goombaXs.forEach(x => {
-    let gy = 12 * TILE;
-    if (x >= 265 && x <= 297) gy = 9 * TILE;
-    if (x >= 165 && x <= 179) gy = 8 * TILE;
-    entities.push(createGoomba(x * TILE, gy));
-  });
+  // Each biome gets 4 distinct enemy types (skin variants count). Counts
+  // are kept moderate so the level never feels crowded — remember the
+  // player has a double-jump, so forgiving spacing keeps it fun.
 
-  // Koopas - spaced out, more strategic, ramp up toward end
-  [48, 90, 125, 175, 192, 235, 275, 345, 365, 390].forEach(x => {
-    entities.push(createKoopa(x * TILE, 12 * TILE));
+  // ----- FOREST (0..119): gentle intro — goomba, koopa, piranha, bat -----
+  [22, 35, 50, 70, 84, 96, 104, 116].forEach(x => {
+    entities.push(createGoomba(x * TILE, 12 * TILE));
   });
+  [40, 78, 100].forEach(x => entities.push(createKoopa(x * TILE, 12 * TILE)));
+  // Forest bat (purple swooper) — adds the 4th distinct type
+  [62, 110].forEach(x => entities.push(createSwooper(x * TILE, 6 * TILE)));
 
-  // Buzzy beetles - tough enemies, introduced mid-game and ramping up
-  [130, 155, 245, 370, 385].forEach(x => {
-    entities.push(createBuzzyBeetle(x * TILE, 12 * TILE));
+  // ----- SNOW (120..239): icy goomba, penguin-koopa, frost-buzzy, snow-owl -----
+  [128, 148, 160, 178, 192, 207, 232].forEach(x => {
+    entities.push(createGoomba(x * TILE, 12 * TILE));
   });
+  [134, 156, 184, 213, 228].forEach(x => entities.push(createKoopa(x * TILE, 12 * TILE)));
+  [165, 195, 225].forEach(x => entities.push(createBuzzyBeetle(x * TILE, 12 * TILE)));
+  [145, 200].forEach(x => entities.push(createSwooper(x * TILE, 6 * TILE)));
 
-  // Piranhas in pipes
-  [[58, 11], [68, 10], [78, 10], [88, 9], [200, 11], [207, 10], [360, 11], [370, 10], [380, 11]].forEach(([px, topRow]) => {
+  // ----- DESERT (240..359): mummy-goomba, cobra-koopa, scarab-buzzy, mirage-phantom -----
+  [254, 277, 290, 308, 320, 336, 344, 356].forEach(x => {
+    entities.push(createGoomba(x * TILE, 12 * TILE));
+  });
+  [262, 305, 340].forEach(x => entities.push(createKoopa(x * TILE, 12 * TILE)));
+  [288, 314, 350].forEach(x => entities.push(createBuzzyBeetle(x * TILE, 12 * TILE)));
+  [270, 320].forEach(x => entities.push(createPhantom(x * TILE, 8 * TILE)));
+
+  // ----- LAVA (360..479): charred-goomba, salamander-koopa, magma-buzzy,
+  // firebat-swooper, ember-phantom — full lava section, no boss inside -----
+  [370, 384, 396, 418, 444, 467].forEach(x => entities.push(createGoomba(x * TILE, 12 * TILE)));
+  [378, 416, 466].forEach(x => entities.push(createKoopa(x * TILE, 12 * TILE)));
+  [400, 415, 450].forEach(x => entities.push(createBuzzyBeetle(x * TILE, 12 * TILE)));
+  [375, 405, 470].forEach(x => entities.push(createSwooper(x * TILE, 7 * TILE)));
+  [390, 410, 458].forEach(x => entities.push(createPhantom(x * TILE, 8 * TILE)));
+
+  // ----- COSMIC NEXUS (480..540): no enemies in this section. The
+  // entire stage is dedicated to the boss fight + post-boss victory
+  // walk — no adds, no flying ghost, just you vs. the boss. -----
+
+  // Piranhas in pipes (forest + desert have pipes)
+  [[44, 11], [57, 10], [89, 10], [274, 11], [282, 10], [348, 11]].forEach(([px, topRow]) => {
     entities.push(createPiranha(px, topRow));
-  });
-
-  // Swooper enemies - fly in sine patterns, mixed in throughout
-  [145, 205, 255, 295, 340, 375].forEach(x => {
-    entities.push(createSwooper(x * TILE, 7 * TILE));
-  });
-
-  // Phantom enemies - slow floating ghosts, after first checkpoint
-  [175, 240, 320, 365].forEach(x => {
-    entities.push(createPhantom(x * TILE, 8 * TILE));
   });
 }
 
 function spawnMapCoins() {
   mapCoins = [];
+  // Rule: never place a static coin in the same column as a nearby ?-block
+  // (since hitting the box already yields a coin). Coins live in arcs, gaps,
+  // platform tops, and clear airspace as collectables along travel paths.
   const coinPositions = [
-    [18, 11], [19, 11], [20, 11],
-    [34, 11], [36, 11], [38, 11],
-    [62, 7], [63, 7], [64, 7],
-    [73, 7], [74, 7],
-    [105, 7], [106, 7], [107, 7], [108, 7], [109, 7],
-    [135, 11], [136, 11], [137, 11],
-    [166, 7], [167, 7], [168, 7], [169, 7],
-    [174, 7], [175, 7], [176, 7], [177, 7],
-    [185, 7], [186, 7], [187, 7],
-    [213, 11], [214, 11],
-    [220, 7], [221, 7], [222, 7],
-    [230, 7], [231, 7], [232, 7],
-    [266, 8], [267, 8], [268, 8],
-    [275, 8], [276, 8], [277, 8],
-    [284, 8], [285, 8], [286, 8],
-    [293, 8], [294, 8], [295, 8],
-    // Double jump canyon - coin arcs between platforms (need double jump!)
-    [314, 9], [315, 8], [316, 7],
-    [320, 7], [321, 6], [322, 7],
-    [326, 8], [327, 7],
-    [333, 9], [334, 8], [335, 7],
-    [339, 8], [340, 7],
-    [345, 9], [346, 8],
-    // Sprint section
-    [366, 11], [367, 11],
-    [376, 7], [377, 7],
-    // Aerial playground - high coins (double jump required)
-    [405, 9], [406, 8],
-    [410, 7],
-    [417, 5], [416, 4],
+    // ----- FOREST -----
+    [4, 11], [6, 11], [8, 11],
+    [15, 11], [16, 11], [17, 11],                   // intro path (extra)
+    [29, 9], [30, 8], [31, 9],                      // gap arc
+    [44, 8], [45, 8],                               // pipe arc 1 (extra)
+    [50, 7], [51, 7], [52, 7],                      // floating arc above brick row
+    [61, 9], [62, 8], [63, 9],                      // pipe gap arc
+    [73, 11], [74, 11],                             // ground stretch (extra)
+    [82, 6], [83, 6], [85, 6], [86, 6],             // leaf platform top (skip col 84 — has ?-block)
+    [98, 11], [99, 11],                             // ground (extra)
+    [105, 7], [106, 7], [108, 7],                   // platform top (skip col 107 — has ?-block)
+    [113, 9], [114, 8], [115, 7],                   // staircase climb
+    // ----- SNOW -----
+    [122, 11], [123, 11], [124, 11],
+    [131, 11], [132, 11],                           // ice path (extra)
+    [139, 9], [140, 8], [141, 9],                   // floe gap arc
+    [150, 6], [151, 6], [153, 6],                   // ice platform top (skip col 152 — has ?-block)
+    [169, 8], [170, 7], [171, 8],                   // big crevasse arc
+    [180, 11], [181, 11],                           // mid stretch (extra)
+    [197, 9], [198, 8], [199, 8], [200, 9],         // long crevasse arc
+    [212, 6], [213, 6], [215, 6],                   // platform top (skip col 214 — has ?-block)
+    [220, 5], [221, 5], [223, 5], [224, 5],         // tower bridge (skip col 222 — has STAR block)
+    [233, 11], [234, 11],                           // approach to checkpoint (extra)
+    // ----- DESERT -----
+    [244, 11], [248, 7],                            // pyramid 1 sides
+    [256, 11], [257, 11],                           // sand path (extra)
+    [269, 9], [270, 8], [271, 9],                   // sand gap arc
+    [287, 6], [288, 6], [290, 6], [291, 6],         // oasis platform top (skip col 289 — has ?-block)
+    [294, 11], [299, 7],                            // pyramid 2 sides
+    [305, 11], [306, 11], [307, 11],
+    [318, 11], [319, 11],                           // sand path (extra)
+    [327, 9], [328, 8], [329, 8], [330, 9],         // quicksand gap arc
+    [334, 8], [335, 8], [337, 8],                   // platform top (skip col 336 if reused, kept clear)
+    [352, 11], [353, 11],                           // approach to lava (extra)
+    // ----- LAVA -----
+    [364, 9], [368, 7],                             // obsidian rises
+    [380, 11],                                      // hot path (extra)
+    [389, 9], [390, 9], [391, 9], [392, 9],         // lava chasm 1
+    [400, 6], [401, 6], [403, 6],                   // floating island (skip col 402 — has ?-block)
+    [411, 9], [412, 9], [413, 9],                   // lava chasm 2
+    [415, 11], [416, 11],                           // path stretch
+    [424, 8], [425, 7], [426, 8],                   // arc over small hill
+    [432, 8], [433, 8],                             // pillar arc (skip col 432 has hard block)
+    [439, 9], [440, 9], [441, 9], [442, 9],         // lava chasm 3
+    [446, 7], [448, 7],                             // ember platform top (skip 447 — has ?-block)
+    [453, 6], [454, 6], [456, 6],                   // bridge between pillars (skip 455 — 1up block)
+    [461, 9], [462, 9], [463, 9],                   // lava chasm 4
+    [465, 11], [472, 11], [473, 11],                // final stretch (skip ?-blocks at 468-471)
+    // ----- COSMIC NEXUS -----
+    // Intentionally NO coins anywhere in the universe section. The
+    // entire stage is the boss climax + victory walk: the only pickup
+    // is the pre-boss restock ?-block at col 488 (mushroom/flower).
+    // Keeping it coin-free preserves the awe-inspiring, magnificent
+    // galactic atmosphere.
   ];
   coinPositions.forEach(([tx, ty]) => {
     if (levelMap[ty] && levelMap[ty][tx]) ty--;
@@ -1610,6 +2419,7 @@ function createGoomba(x, y) {
     type: 'goomba', x, y, vx: -0.35, vy: 0,
     w: 16, h: 16, alive: true, flat: false, flatTimer: 0,
     frame: 0, frameTimer: 0,
+    biome: biomeIdAtX(x),
   };
 }
 
@@ -1618,6 +2428,7 @@ function createKoopa(x, y) {
     type: 'koopa', x, y: y - 8, vx: -0.4, vy: 0,
     w: 16, h: 24, alive: true, shell: false, shellMoving: false,
     frame: 0, frameTimer: 0,
+    biome: biomeIdAtX(x),
   };
 }
 
@@ -1626,6 +2437,7 @@ function createBuzzyBeetle(x, y) {
     type: 'buzzy', x, y, vx: -0.6, vy: 0,
     w: 16, h: 16, alive: true, flat: false, flatTimer: 0,
     frame: 0, frameTimer: 0,
+    biome: biomeIdAtX(x),
   };
 }
 
@@ -1636,6 +2448,7 @@ function createPiranha(pipeX, pipeTopY) {
     alive: true, frame: 0, frameTimer: 0,
     baseY: pipeTopY * TILE, emergeOffset: 0, emergeDir: -1,
     pipeX: pipeX, waitTimer: 0,
+    biome: biomeIdAtX(pipeX * TILE),
   };
 }
 
@@ -1645,6 +2458,7 @@ function createSwooper(x, y) {
     w: 14, h: 14, alive: true,
     frame: 0, frameTimer: 0,
     baseY: y, swoopTick: Math.random() * 100,
+    biome: biomeIdAtX(x),
   };
 }
 
@@ -1654,6 +2468,7 @@ function createPhantom(x, y) {
     w: 14, h: 14, alive: true, flat: false, flatTimer: 0,
     frame: 0, frameTimer: 0,
     baseY: y, floatTick: Math.random() * 100,
+    biome: biomeIdAtX(x),
   };
 }
 
@@ -1983,7 +2798,9 @@ function updateMario() {
       mario.vy = 0;
       mario.onGround = true;
       if (!mario.wasOnGround) {
-        mario.landSquash = 8;
+        // Short squash so it doesn't override the run animation when the
+        // player is already holding a direction at the moment of landing.
+        mario.landSquash = 4;
         dustParticles.push(
           { x: mario.x + mario.w / 2 - 2, y: mario.y + mh, vx: -0.3, vy: -0.25, life: 8, maxLife: 8 },
           { x: mario.x + mario.w / 2 + 2, y: mario.y + mh, vx: 0.3, vy: -0.25, life: 8, maxLife: 8 },
@@ -2011,8 +2828,15 @@ function updateMario() {
     }
   }
 
-  // Pit death
-  if (mario.y > LEVEL_HEIGHT * TILE) mariodie();
+  // Pit death — trigger as soon as Mario fully clears the bottom of the
+  // visible screen. Mark it as a pit fall so mariodie() bypasses the
+  // size-shrink-and-recover branch (otherwise big/fire Mario would just
+  // shrink mid-air, stay invincible for ~2s, and only THEN actually die,
+  // which the player perceives as a "fall that lasts forever").
+  if (mario.y > VIEW_H) {
+    mario.pitDeath = true;
+    mariodie();
+  }
 
   // Animation (only animate when actually moving)
   if (!mario.onGround) {
@@ -2100,7 +2924,9 @@ function updateMario() {
     if (ci > checkpointIndex && mario.x >= CHECKPOINT_XS[ci] * TILE) {
       checkpointIndex = ci;
       playSound('powerup');
-      hudMessage = { text: 'CHECKPOINT REACHED!', life: 120, maxLife: 120 };
+      // Show the biome the player is entering (checkpoint marks the start of a new biome).
+      const enteringBiome = biomeAtTile(CHECKPOINT_XS[ci] + 1);
+      hudMessage = { text: 'ENTERING ' + enteringBiome.name + '!', life: 150, maxLife: 150 };
     }
   }
 
@@ -2147,6 +2973,24 @@ function updateMario() {
 }
 
 function mariodie() {
+  // A pit fall is ALWAYS instant death regardless of power-up state — the
+  // player is already past the bottom of the screen and there's nothing
+  // visible to "shrink and recover" to.
+  if (mario.pitDeath) {
+    mario.fire = false;
+    mario.crouching = false;
+    mario.big = false;
+    mario.h = 16;
+    mario.invincible = 0;
+    mario.dead = true;
+    mario.starPower = 0;
+    stopStarMusic();
+    mario.vy = 0; // skip the bounce-up — would feel like an extra fake fall
+    deathTimer = 80; // jump straight to the end of the death anim
+    screenShake = 3;
+    playSound('die');
+    return;
+  }
   if (mario.invincible > 0) return;
   if (mario.fire) {
     mario.fire = false;
@@ -2225,6 +3069,16 @@ function updateEntities() {
     }
 
     if (e.x > camera.x + VIEW_W + 48 || e.x < camera.x - 80) return;
+
+    // Hard barrier: no flying enemies are allowed inside the cosmic
+    // boss section (tiles 480+). The arena is reserved for the boss
+    // alone — any lava-section drifter that wanders past the boundary
+    // gets immediately removed.
+    if ((e.type === 'phantom' || e.type === 'swooper') && e.x >= BIOME_BOUNDS[3] * TILE - 8) {
+      e.alive = false;
+      e.remove = true;
+      return;
+    }
 
     // Swooper: sine-wave flying enemy, no gravity
     if (e.type === 'phantom') {
@@ -2962,522 +3816,809 @@ function drawTile(x, y, tile) {
   if (sx < -TILE || sx > VIEW_W + TILE) return;
   const tileX = Math.floor(x / TILE);
   const tileY = Math.floor(y / TILE);
-  const key = `${tileX},${tileY}`;
+  const B = biomeAtTile(tileX);
+  const sxI = sx | 0;
+  const yI  = y | 0;
 
-  switch(tile) {
+  switch (tile) {
     case 1: {
-      const gGrad = bx.createLinearGradient(0, y, 0, y + TILE);
-      gGrad.addColorStop(0, COL.groundLight);
-      gGrad.addColorStop(0.15, COL.ground);
-      gGrad.addColorStop(0.7, COL.ground);
-      gGrad.addColorStop(1, COL.groundDark);
-      bx.fillStyle = gGrad;
-      bx.fillRect(sx, y, TILE, TILE);
       const isSurface = tileY === 13 || (tileY > 0 && (!levelMap[tileY - 1] || levelMap[tileY - 1][tileX] === 0));
-      if (isSurface) {
-        bx.fillStyle = 'rgba(200,180,240,0.25)';
-        bx.fillRect(sx, y, TILE, 1);
-        bx.fillStyle = 'rgba(160,140,210,0.12)';
-        bx.fillRect(sx, y + 1, TILE, 1);
-      } else {
-        bx.fillStyle = 'rgba(255,255,255,0.12)';
-        bx.fillRect(sx, y, TILE, 1);
-      }
-      bx.fillStyle = 'rgba(0,0,0,0.1)';
-      bx.fillRect(sx + 7, y + 1, 1, 6);
-      bx.fillRect(sx + 3, y + 7, 1, 2);
-      bx.fillRect(sx + 11, y + 7, 1, 2);
-      bx.fillRect(sx + 7, y + 9, 1, 7);
-      bx.fillStyle = 'rgba(255,255,255,0.06)';
-      bx.fillRect(sx + 1, y + 1, 3, 1);
-      bx.fillRect(sx + 9, y + 8, 2, 1);
-      bx.fillRect(sx + 5, y + 4, 1, 1);
-      bx.fillRect(sx + 12, y + 3, 1, 1);
-      bx.fillRect(sx + 2, y + 12, 1, 1);
-      bx.fillStyle = 'rgba(0,0,0,0.05)';
-      bx.fillRect(sx + 10, y + 5, 1, 1);
-      bx.fillRect(sx + 1, y + 9, 1, 1);
+      bx.drawImage(getTileSprite(1, B, isSurface ? 'surface' : 'body'), sxI, yI);
       break;
     }
-
     case 2: {
-      const bGrad = bx.createLinearGradient(0, y, 0, y + TILE);
-      bGrad.addColorStop(0, COL.brick);
-      bGrad.addColorStop(0.45, COL.brick);
-      bGrad.addColorStop(1, COL.brickLine);
-      bx.fillStyle = bGrad;
-      bx.fillRect(sx, y, TILE, TILE);
-      bx.fillStyle = 'rgba(255,255,255,0.1)';
-      bx.fillRect(sx + 0.5, y + 1, 6, 1);
-      bx.fillRect(sx + 8, y + 1, 7, 1);
-      bx.fillRect(sx + 0.5, y + 8, 2.5, 1);
-      bx.fillRect(sx + 4, y + 8, 7, 1);
-      bx.fillRect(sx + 12, y + 8, 3.5, 1);
-      bx.fillStyle = 'rgba(255,255,255,0.05)';
-      bx.fillRect(sx + 0.5, y + 2, 6, 4.5);
-      bx.fillRect(sx + 8, y + 2, 7, 4.5);
-      bx.fillRect(sx + 0.5, y + 9, 2.5, 6);
-      bx.fillRect(sx + 4, y + 9, 7, 6);
-      bx.fillRect(sx + 12, y + 9, 3.5, 6);
-      bx.fillStyle = 'rgba(0,0,0,0.2)';
-      bx.fillRect(sx, y, TILE, 0.7);
-      bx.fillRect(sx, y + 7, TILE, 0.7);
-      bx.fillRect(sx + 7.2, y, 0.6, 7);
-      bx.fillRect(sx + 3.2, y + 7, 0.6, 9);
-      bx.fillRect(sx + 11.2, y + 7, 0.6, 9);
-      bx.fillRect(sx, y + 15.3, TILE, 0.7);
+      bx.drawImage(getTileSprite(2, B), sxI, yI);
       break;
     }
-
     case 3: case 4: case 6: case 7: {
+      const key = tileX + ',' + tileY;
       if (emptyBlocks.has(key)) {
-        const eGrad = bx.createLinearGradient(0, y, 0, y + TILE);
-        eGrad.addColorStop(0, '#6858a0');
-        eGrad.addColorStop(1, COL.blockDark);
-        bx.fillStyle = eGrad;
-        bx.fillRect(sx, y, TILE, TILE);
-        bx.fillStyle = 'rgba(0,0,0,0.15)';
-        bx.fillRect(sx + TILE - 1.5, y, 1.5, TILE);
-        bx.fillRect(sx, y + TILE - 1.5, TILE, 1.5);
-        bx.fillStyle = 'rgba(255,255,255,0.06)';
-        bx.fillRect(sx, y, TILE, 1);
-        bx.fillRect(sx, y, 1, TILE);
+        bx.drawImage(getTileSprite(tile, B, 'empty'), sxI, yI);
         break;
       }
+      // Pulsing additive halo (cached radial sprite, no per-frame gradient).
       const glow = Math.sin(globalTick * 0.08) * 0.3 + 0.7;
-      const glowAlpha = glow * (tile === 7 ? 0.18 : 0.10);
-      const glowCol = tile === 7 ? '#c8a8f0' : tile === 6 ? '#80d0e8' : '#f0d868';
+      const glowAlpha = glow * (tile === 7 ? 0.20 : 0.12);
+      const glowCol = tile === 7 ? '#c8a8f0' : tile === 6 ? '#80d0e8' : (B.id === 3 ? '#ffb060' : '#f0d868');
       bx.save();
       bx.globalAlpha = glowAlpha;
-      const bkGlw = bx.createRadialGradient(sx + 8, y + 8, 2, sx + 8, y + 8, 14);
-      bkGlw.addColorStop(0, glowCol);
-      bkGlw.addColorStop(1, 'rgba(0,0,0,0)');
-      bx.fillStyle = bkGlw;
-      bx.fillRect(sx - 6, y - 6, TILE + 12, TILE + 12);
+      bx.drawImage(getBlockGlowSprite(glowCol), sxI - 6, yI - 6);
       bx.restore();
-      const is1up = tile === 6;
-      const isStar = tile === 7;
-      const blockBg = is1up ? '#80c0e0' : isStar ? '#a890d0' : COL.block;
-      const blockShd = is1up ? '#5090b0' : isStar ? '#7868a8' : COL.blockShade;
-      const blockDk = is1up ? '#306080' : isStar ? '#584888' : COL.blockDark;
-      const qGrad = bx.createLinearGradient(0, y, 0, y + TILE);
-      qGrad.addColorStop(0, blockBg);
-      qGrad.addColorStop(1, blockShd);
-      bx.fillStyle = qGrad;
-      bx.fillRect(sx, y, TILE, TILE);
-      bx.fillStyle = 'rgba(0,0,0,0.15)';
-      bx.fillRect(sx + TILE - 1.5, y, 1.5, TILE);
-      bx.fillRect(sx, y + TILE - 1.5, TILE, 1.5);
-      bx.fillStyle = 'rgba(255,255,255,0.1)';
-      bx.fillRect(sx, y, TILE, 1);
-      bx.fillRect(sx, y, 1, TILE);
-      bx.fillStyle = `rgba(255,255,255,${glow * 0.12})`;
-      bx.fillRect(sx + 2, y + 2, TILE - 4, TILE - 4);
-      if (isStar) {
-        bx.fillStyle = '#e8c850';
-        bx.fillRect(sx + 7, y + 3, 2, 2);
-        bx.fillRect(sx + 5, y + 5, 6, 2);
-        bx.fillRect(sx + 3, y + 7, 10, 2);
-        bx.fillRect(sx + 5, y + 9, 6, 2);
-        bx.fillRect(sx + 4, y + 10, 3, 2);
-        bx.fillRect(sx + 9, y + 10, 3, 2);
-      } else {
-        bx.fillStyle = blockDk;
-        bx.fillRect(sx + 5, y + 3, 6, 2);
-        bx.fillRect(sx + 9, y + 5, 2, 3);
-        bx.fillRect(sx + 7, y + 7, 2, 2);
-        bx.fillRect(sx + 7, y + 11, 2, 2);
-      }
+      bx.drawImage(getTileSprite(tile, B), sxI, yI);
+      // Tiny inner shimmer (cheap fillRect, no allocation).
+      bx.fillStyle = 'rgba(255,255,255,' + (glow * 0.14).toFixed(3) + ')';
+      bx.fillRect(sxI + 2, yI + 2, TILE - 4, TILE - 4);
       break;
     }
-
     case 5: {
-      const hGrad = bx.createLinearGradient(0, y, 0, y + TILE);
-      hGrad.addColorStop(0, COL.hardBlockLight);
-      hGrad.addColorStop(0.5, COL.hardBlock);
-      hGrad.addColorStop(1, COL.hardBlockDark);
-      bx.fillStyle = hGrad;
-      bx.fillRect(sx, y, TILE, TILE);
-      bx.fillStyle = 'rgba(255,255,255,0.12)';
-      bx.fillRect(sx, y, TILE, 1);
-      bx.fillRect(sx, y, 1, TILE);
-      bx.fillStyle = 'rgba(0,0,0,0.15)';
-      bx.fillRect(sx + TILE - 1, y, 1, TILE);
-      bx.fillRect(sx, y + TILE - 1, TILE, 1);
-      bx.fillStyle = 'rgba(0,0,0,0.06)';
-      bx.fillRect(sx + 2, y + 2, TILE - 4, TILE - 4);
-      bx.fillStyle = 'rgba(255,255,255,0.07)';
-      bx.fillRect(sx + 3, y + 3, TILE - 6, 1);
-      bx.fillRect(sx + 3, y + 3, 1, TILE - 6);
-      bx.fillStyle = 'rgba(0,0,0,0.06)';
-      bx.fillRect(sx + TILE - 4, y + 3, 1, TILE - 6);
-      bx.fillRect(sx + 3, y + TILE - 4, TILE - 6, 1);
-      bx.fillStyle = 'rgba(0,0,0,0.04)';
-      bx.fillRect(sx + 7, y + 2, 1, TILE - 4);
-      bx.fillRect(sx + 2, y + 7, TILE - 4, 1);
+      bx.drawImage(getTileSprite(5, B), sxI, yI);
       break;
     }
-
-    case 10: {
-      const pG10 = bx.createLinearGradient(sx, 0, sx + TILE, 0);
-      pG10.addColorStop(0, COL.pipeHighlight);
-      pG10.addColorStop(0.3, COL.pipe);
-      pG10.addColorStop(0.85, COL.pipe);
-      pG10.addColorStop(1, COL.pipeDark);
-      bx.fillStyle = pG10;
-      bx.fillRect(sx, y, TILE, TILE);
-      bx.fillStyle = 'rgba(255,255,255,0.1)';
-      bx.fillRect(sx + 3, y, 2, TILE);
-      break;
-    }
-    case 11: {
-      const pG11 = bx.createLinearGradient(sx, 0, sx + TILE, 0);
-      pG11.addColorStop(0, COL.pipeDark);
-      pG11.addColorStop(0.2, COL.pipe);
-      pG11.addColorStop(0.7, COL.pipe);
-      pG11.addColorStop(1, COL.pipeHighlight);
-      bx.fillStyle = pG11;
-      bx.fillRect(sx, y, TILE, TILE);
-      break;
-    }
-    case 12: {
-      const pG12 = bx.createLinearGradient(sx - 2, 0, sx + TILE, 0);
-      pG12.addColorStop(0, COL.pipeHighlight);
-      pG12.addColorStop(0.25, COL.pipe);
-      pG12.addColorStop(0.85, COL.pipe);
-      pG12.addColorStop(1, COL.pipeDark);
-      bx.fillStyle = pG12;
-      bx.fillRect(sx - 2, y, TILE + 2, TILE);
-      bx.fillStyle = 'rgba(255,255,255,0.28)';
-      bx.fillRect(sx - 2, y, TILE + 4, 1);
-      bx.fillStyle = 'rgba(255,255,255,0.15)';
-      bx.fillRect(sx - 2, y + 1, TILE + 4, 1);
-      bx.fillStyle = 'rgba(255,255,255,0.14)';
-      bx.fillRect(sx + 1, y + 1, 2, TILE - 2);
-      bx.fillStyle = 'rgba(0,0,0,0.12)';
-      bx.fillRect(sx - 2, y + TILE - 1, TILE + 4, 1);
-      bx.fillStyle = 'rgba(0,0,0,0.08)';
-      bx.fillRect(sx - 1, y + 2, TILE + 2, 1);
-      bx.fillStyle = 'rgba(255,255,255,0.06)';
-      bx.fillRect(sx, y + 3, TILE - 2, 1);
-      bx.save();
-      bx.globalAlpha = 0.08;
-      bx.fillStyle = '#a0f0d0';
-      bx.fillRect(sx - 2, y, 1, TILE);
-      bx.restore();
-      break;
-    }
-    case 13: {
-      const pG13 = bx.createLinearGradient(sx, 0, sx + TILE + 2, 0);
-      pG13.addColorStop(0, COL.pipeDark);
-      pG13.addColorStop(0.2, COL.pipe);
-      pG13.addColorStop(0.7, COL.pipe);
-      pG13.addColorStop(1, COL.pipeHighlight);
-      bx.fillStyle = pG13;
-      bx.fillRect(sx, y, TILE + 2, TILE);
-      bx.fillStyle = 'rgba(255,255,255,0.24)';
-      bx.fillRect(sx, y, TILE + 2, 1);
-      bx.fillStyle = 'rgba(255,255,255,0.12)';
-      bx.fillRect(sx, y + 1, TILE + 2, 1);
-      bx.fillStyle = 'rgba(0,0,0,0.08)';
-      bx.fillRect(sx, y + 2, TILE + 2, 1);
-      bx.fillStyle = 'rgba(255,255,255,0.05)';
-      bx.fillRect(sx + 1, y + 3, TILE, 1);
-      bx.fillStyle = 'rgba(0,0,0,0.1)';
-      bx.fillRect(sx, y + TILE - 1, TILE + 2, 1);
-      bx.save();
-      bx.globalAlpha = 0.08;
-      bx.fillStyle = '#a0f0d0';
-      bx.fillRect(sx + TILE + 1, y, 1, TILE);
-      bx.restore();
-      break;
-    }
+    case 10: bx.drawImage(getTileSprite(10, B), sxI, yI); break;
+    case 11: bx.drawImage(getTileSprite(11, B), sxI, yI); break;
+    case 12: bx.drawImage(getTileSprite(12, B), sxI - 2, yI); break;
+    case 13: bx.drawImage(getTileSprite(13, B), sxI, yI); break;
   }
 }
 
+// Stable per-tile decoration RNG (tile-position based, no allocations)
+function tileRand(seed, salt) {
+  const x = Math.sin(seed * 12.9898 + salt * 78.233) * 43758.5453;
+  return x - Math.floor(x);
+}
+
 function drawBackground() {
-  const skyGrad = bx.createLinearGradient(0, 0, 0, VIEW_H);
-  skyGrad.addColorStop(0, '#2a1848');
-  skyGrad.addColorStop(0.25, '#4a3078');
-  skyGrad.addColorStop(0.5, '#7858a8');
-  skyGrad.addColorStop(0.7, '#a080c8');
-  skyGrad.addColorStop(0.85, '#c8a8e0');
-  skyGrad.addColorStop(1, '#e0d0f0');
+  // ----- SKY GRADIENT (smooth crossfade between adjacent biomes) -----
+  const blend = biomeBlendInfo(camera.rx);
+  const A = blend.from, B = blend.to, T01 = blend.t;
+  const inTransition = (A !== B);
+  // Cache the per-biome static sky gradient. Only the transition path needs
+  // to allocate a fresh one each frame (because the lerp moves continuously).
+  let skyGrad;
+  if (!inTransition) {
+    skyGrad = _staticSkyGrads[A.id];
+    if (!skyGrad) {
+      skyGrad = bx.createLinearGradient(0, 0, 0, VIEW_H);
+      for (let i = 0; i < 6; i++) skyGrad.addColorStop(i / 5, A.sky[i]);
+      _staticSkyGrads[A.id] = skyGrad;
+    }
+  } else {
+    skyGrad = bx.createLinearGradient(0, 0, 0, VIEW_H);
+    for (let i = 0; i < 6; i++) {
+      skyGrad.addColorStop(i / 5, lerpColor(A.sky[i], B.sky[i], T01));
+    }
+  }
   bx.fillStyle = skyGrad;
   bx.fillRect(0, 0, VIEW_W, VIEW_H);
 
-  var glowX = VIEW_W * 0.75;
-  var glowY = VIEW_H * 0.15;
-  var warmGlow = bx.createRadialGradient(glowX, glowY, 0, glowX, glowY, VIEW_W * 0.55);
-  warmGlow.addColorStop(0, 'rgba(255,200,160,0.12)');
-  warmGlow.addColorStop(0.4, 'rgba(230,170,200,0.06)');
-  warmGlow.addColorStop(1, 'rgba(200,150,220,0)');
-  bx.fillStyle = warmGlow;
-  bx.fillRect(0, 0, VIEW_W, VIEW_H);
-
-  // --- STARS (twinkling in the upper sky) ---
-  for (const star of BG_STARS) {
-    const starSx = Math.floor(star.tx * TILE - camera.rx * 0.08) % (VIEW_W + 40);
-    const starSxW = ((starSx % (VIEW_W + 40)) + VIEW_W + 40) % (VIEW_W + 40) - 20;
-    const starSy = star.ty * VIEW_H;
-    const twinkle = Math.sin(globalTick * 0.04 * star.speed + star.phase);
-    const starAlpha = 0.15 + (twinkle * 0.5 + 0.5) * 0.55;
+  // ----- Atmospheric tint per biome (drawn twice during transitions) -----
+  function drawBiomeAtmosphere(Bm, a) {
+    if (a <= 0.005) return;
     bx.save();
-    bx.globalAlpha = starAlpha;
-    bx.fillStyle = '#e8e0fc';
-    bx.beginPath();
-    bx.arc(starSxW, starSy, star.size, 0, Math.PI * 2);
-    bx.fill();
-    if (star.size > 0.9 && twinkle > 0.6) {
-      bx.globalAlpha = (twinkle - 0.6) * 1.2;
-      bx.fillStyle = '#fff';
-      bx.fillRect(starSxW - 2, starSy - 0.3, 4, 0.6);
-      bx.fillRect(starSxW - 0.3, starSy - 2, 0.6, 4);
+    bx.globalAlpha = a;
+    if (Bm.id === 0) {
+      const glowG = bx.createRadialGradient(VIEW_W * 0.78, VIEW_H * 0.18, 0, VIEW_W * 0.78, VIEW_H * 0.18, VIEW_W * 0.65);
+      glowG.addColorStop(0, 'rgba(255,240,180,0.20)');
+      glowG.addColorStop(0.4, 'rgba(200,240,160,0.08)');
+      glowG.addColorStop(1, 'rgba(0,0,0,0)');
+      bx.fillStyle = glowG; bx.fillRect(0, 0, VIEW_W, VIEW_H);
+    } else if (Bm.id === 1) {
+      const auG = bx.createLinearGradient(0, 0, 0, VIEW_H * 0.6);
+      auG.addColorStop(0, 'rgba(180,220,255,0.10)');
+      auG.addColorStop(1, 'rgba(180,220,255,0)');
+      bx.fillStyle = auG; bx.fillRect(0, 0, VIEW_W, VIEW_H * 0.6);
+      // Moon stays at a screen-fixed position so it doesn't pop on/off-screen
+      const moonX = VIEW_W * 0.78;
+      const moonY = 32;
+      const mG = bx.createRadialGradient(moonX, moonY, 1, moonX, moonY, 14);
+      mG.addColorStop(0, '#ffffff');
+      mG.addColorStop(0.5, '#dde8f4');
+      mG.addColorStop(1, 'rgba(220,232,244,0)');
+      bx.fillStyle = mG; bx.beginPath(); bx.arc(moonX, moonY, 14, 0, Math.PI * 2); bx.fill();
+    } else if (Bm.id === 2) {
+      const sunX = 50, sunY = 36;
+      const sG = bx.createRadialGradient(sunX, sunY, 1, sunX, sunY, 30);
+      sG.addColorStop(0, '#fff8c8');
+      sG.addColorStop(0.4, '#fbd070');
+      sG.addColorStop(1, 'rgba(240,160,80,0)');
+      bx.fillStyle = sG; bx.fillRect(0, 0, VIEW_W, VIEW_H);
+      bx.fillStyle = '#fff8c8'; bx.beginPath(); bx.arc(sunX, sunY, 11, 0, Math.PI * 2); bx.fill();
+      bx.fillStyle = 'rgba(120,40,10,0.6)';
+      bx.fillRect(sunX - 4, sunY - 2, 1, 2);
+      bx.fillRect(sunX + 3, sunY - 2, 1, 2);
+      bx.beginPath();
+      bx.arc(sunX, sunY + 2, 3, 0.2, Math.PI - 0.2);
+      bx.strokeStyle = 'rgba(120,40,10,0.6)';
+      bx.lineWidth = 0.8;
+      bx.stroke();
+    } else if (Bm.id === 3) {
+      const vG = bx.createRadialGradient(VIEW_W * 0.5, VIEW_H * 0.95, 5, VIEW_W * 0.5, VIEW_H * 0.95, VIEW_W * 0.7);
+      vG.addColorStop(0, 'rgba(255,140,40,0.22)');
+      vG.addColorStop(0.5, 'rgba(220,60,20,0.12)');
+      vG.addColorStop(1, 'rgba(80,0,10,0)');
+      bx.fillStyle = vG; bx.fillRect(0, 0, VIEW_W, VIEW_H);
+    } else if (Bm.id === 4) {
+      // Cosmic Nexus: pure pixel-art deep space.
+      // Layers (back -> front):
+      //   1. Far starfield (slow parallax, includes Milky Way dust band)
+      //   2. Planets (anchored to arena center, gentle parallax + bob)
+      //   3. Nebula clusters (anchored to arena, slow drift)
+      //   4. Twinkling foreground stars (fixed positions, animated alpha)
+      //   5. Occasional shooting star streak
+      //
+      // Planets/nebulas are anchored RELATIVE TO THE BOSS ARENA camera
+      // position so that when the camera locks for the fight they all
+      // sit in pre-chosen "scenery slots" between the arena walls. The
+      // small approach/exit walks just nudge them with light parallax.
+      const cs = getCosmicSprites();
+      const baseAlpha = bx.globalAlpha;
+      const ARENA_CAM_X = BOSS_ARENA_LEFT * TILE; // = 7920 (camera.x at fight)
+      const relCam = camera.rx - ARENA_CAM_X;
+
+      // ---- 1. STARFIELD ----
+      // Tile the wide starfield sprite horizontally with slow parallax.
+      const sf = cs.starfield;
+      let sfOffset = (camera.rx * 0.08) % sf.width;
+      if (sfOffset < 0) sfOffset += sf.width;
+      bx.drawImage(sf, -sfOffset, 0);
+      if (-sfOffset + sf.width < VIEW_W) {
+        bx.drawImage(sf, -sfOffset + sf.width, 0);
+      }
+
+      // ---- 2. PLANETS + ASTEROIDS ----
+      // Each anchorX is a screen coord that's where the body appears
+      // when the camera is locked at the arena. Visible arena interior
+      // spans screen x = 16 .. 240 (the rest is the wall tiles).
+      function drawPlanetSprite(p, anchorX, anchorY, parallax, phase, bobAmp) {
+        const px = anchorX - relCam * parallax;
+        const py = anchorY + Math.sin(globalTick * 0.005 + phase) * (bobAmp || 1.0);
+        bx.drawImage(p.canvas, Math.round(px - p.w / 2), Math.round(py - p.h / 2));
+      }
+      function drawAsteroidSprite(a, anchorX, anchorY, parallax, driftSpd, spinPhase) {
+        const ax = anchorX - relCam * parallax + Math.sin(globalTick * driftSpd + spinPhase) * 4;
+        const ay = anchorY + Math.cos(globalTick * driftSpd * 0.7 + spinPhase) * 2;
+        bx.drawImage(a.canvas, Math.round(ax - a.w / 2), Math.round(ay - a.h / 2));
+      }
+      // Showcase: big ringed gas giant high up just right of centre.
+      drawPlanetSprite(cs.planetRinged, 148, 54,  0.06, 0,    1.0);
+      // Mid-distance blue ice planet on the right side.
+      drawPlanetSprite(cs.planetBlue,   208, 116, 0.10, 1,    1.3);
+      // Small green planet upper-left for variety
+      drawPlanetSprite(cs.planetGreen,  44,  46,  0.12, 2.2,  0.8);
+      // Small rocky moon lower-left
+      drawPlanetSprite(cs.planetRocky,  72,  146, 0.13, 2,    1.0);
+      // Asteroids — slow drift, scattered in foreground depth
+      drawAsteroidSprite(cs.asteroid1, 100, 80,  0.18, 0.008, 0.0);
+      drawAsteroidSprite(cs.asteroid2, 184, 90,  0.20, 0.011, 1.4);
+      drawAsteroidSprite(cs.asteroid3, 30,  108, 0.22, 0.013, 2.7);
+      drawAsteroidSprite(cs.asteroid2, 224, 70,  0.16, 0.009, 3.5);
+
+      // ---- 3. NEBULA CLUSTERS ----
+      function drawNebulaSprite(sprite, anchorX, anchorY, parallax, driftSpd, phase) {
+        const nx = anchorX - relCam * parallax + Math.sin(globalTick * driftSpd) * 3;
+        const ny = anchorY + Math.sin(globalTick * 0.006 + phase) * 1.5;
+        bx.drawImage(sprite, Math.round(nx - sprite.width / 2), Math.round(ny - sprite.height / 2));
+      }
+      // Three nebulas distributed across the upper sky, all visible during
+      // the fight, anchored between the walls.
+      drawNebulaSprite(cs.nebulaPurple, 86,  30, 0.04, 0.012, 0);
+      drawNebulaSprite(cs.nebulaBlue,   188, 38, 0.06, 0.009, 1.7);
+      drawNebulaSprite(cs.nebulaPink,   128, 88, 0.05, 0.006, 2.9);
+
+      // ---- 4. TWINKLING FOREGROUND STARS ----
+      // Twelve fixed-position stars whose alpha pulses on a sine; uses
+      // tile-deterministic positions so they're stable but distinct.
+      const twinkleCount = 14;
+      bx.fillStyle = '#ffffff';
+      for (let i = 0; i < twinkleCount; i++) {
+        const seed = i * 73 + 11;
+        const tx = ((seed * 9301 + 49297) % 233280) / 233280;
+        const ty = (((seed + 1) * 9301 + 49297) % 233280) / 233280;
+        const px = (tx * VIEW_W) | 0;
+        const py = (ty * VIEW_H * 0.55) | 0;
+        const phase = i * 0.7;
+        const a = 0.35 + 0.55 * Math.max(0, Math.sin(globalTick * 0.06 + phase));
+        bx.globalAlpha = baseAlpha * a;
+        bx.fillRect(px, py, 1, 1);
+        // Cross-flare at peak brightness
+        if (a > 0.75) {
+          bx.globalAlpha = baseAlpha * (a - 0.5);
+          bx.fillRect(px - 1, py, 1, 1);
+          bx.fillRect(px + 1, py, 1, 1);
+          bx.fillRect(px, py - 1, 1, 1);
+          bx.fillRect(px, py + 1, 1, 1);
+        }
+      }
+      bx.globalAlpha = baseAlpha;
+
+      // ---- 5. SHOOTING STARS ----
+      _updateShootingStar();
+      for (let si = 0; si < _shootingStars.length; si++) {
+        const ss = _shootingStars[si];
+        if (!ss.active) continue;
+        const sx = ss.x | 0;
+        const sy = ss.y | 0;
+        // Fade in/out over life
+        const lifeT = ss.life / ss.max;
+        const fade = lifeT < 0.18 ? lifeT / 0.18 : (lifeT > 0.82 ? (1 - lifeT) / 0.18 : 1);
+        bx.globalAlpha = baseAlpha * fade;
+        // Trail — 14 pixel tapered comet tail with subtle colour shift
+        // from white-hot head to soft purple tip (matches cosmic theme).
+        const dirX = Math.sign(ss.vx) || 1;
+        const slope = ss.vy / Math.abs(ss.vx);
+        const tailLen = 14;
+        for (let t = 1; t < tailLen; t++) {
+          const a = 1 - (t / tailLen);
+          // Interpolate white -> lavender along tail
+          const r = Math.round(255 - (255 - 200) * (t / tailLen));
+          const g = Math.round(255 - (255 - 170) * (t / tailLen));
+          const b = 255;
+          bx.fillStyle = `rgba(${r},${g},${b},${(a * 0.9).toFixed(3)})`;
+          bx.fillRect(sx - dirX * t, sy - Math.round(t * slope), 1, 1);
+          // Occasional second-pixel "puff" near the head for thickness
+          if (t < 4) bx.fillRect(sx - dirX * t, sy - Math.round(t * slope) - 1, 1, 1);
+        }
+        // Bright head + cross-flare
+        bx.fillStyle = '#ffffff';
+        bx.fillRect(sx, sy, 1, 1);
+        bx.fillStyle = 'rgba(255,255,255,0.85)';
+        bx.fillRect(sx + dirX, sy, 1, 1);
+        bx.fillRect(sx, sy - 1, 1, 1);
+        bx.fillRect(sx, sy + 1, 1, 1);
+        // Outer glow ring
+        bx.fillStyle = 'rgba(220,200,255,0.4)';
+        bx.fillRect(sx + dirX * 2, sy, 1, 1);
+        bx.fillRect(sx, sy - 2, 1, 1);
+        bx.fillRect(sx, sy + 2, 1, 1);
+        bx.globalAlpha = baseAlpha;
+      }
     }
     bx.restore();
   }
+  drawBiomeAtmosphere(A, inTransition ? (1 - T01) : 1);
+  if (inTransition) drawBiomeAtmosphere(B, T01);
 
-  // --- AMBIENT FLOATING MOTES ---
-  for (const m of ambientMotes) {
-    const moteSx = Math.floor(m.x - camera.rx * 0.6);
-    if (moteSx < -10 || moteSx > VIEW_W + 10) continue;
-    const bob = Math.sin(globalTick * 0.03 + m.phase) * 3;
-    const mAlpha = m.alpha * (0.6 + Math.sin(globalTick * 0.025 + m.phase * 2) * 0.4);
-    bx.save();
-    bx.globalAlpha = mAlpha;
-    bx.fillStyle = '#d8c8f0';
-    bx.beginPath();
-    bx.arc(moteSx, m.y + bob, m.size, 0, Math.PI * 2);
-    bx.fill();
-    bx.restore();
+  // ----- STARS (dark biomes only); fade in/out across transitions -----
+  // Snow + Lava get a sparse twinkle field. Cosmic Nexus gets a denser
+  // multi-coloured field where each star's hue cycles through the four
+  // kingdom signatures (forest green, snow blue, desert gold, lava
+  // orange) — visualising "the universe fight" the user described.
+  const COSMIC_KINGDOM_COLORS = ['#7fd06a', '#a0d8ff', '#ffd07a', '#ff8a40'];
+  function drawStarsForBiome(Bm, a) {
+    if (a <= 0.005) return;
+    if (Bm.id !== 1 && Bm.id !== 3 && Bm.id !== 4) return;
+    const isCosmic = (Bm.id === 4);
+    // Cosmic uses the FULL height of the sky (not just the upper half)
+    // and twinkles much harder.
+    const yLimit = isCosmic ? VIEW_H * 0.95 : VIEW_H * 0.5;
+    for (let i = 0; i < BG_STARS.length; i++) {
+      const star = BG_STARS[i];
+      const span = VIEW_W + 40;
+      let starSx = (star.tx * TILE - camera.rx * (isCosmic ? 0.05 : 0.08)) % span;
+      const starSxW = ((starSx % span) + span) % span - 20;
+      const starSy = star.ty * VIEW_H;
+      if (starSy > yLimit) continue;
+      const twinkle = Math.sin(globalTick * 0.04 * star.speed + star.phase);
+      let baseAlpha = a * (0.20 + (twinkle * 0.5 + 0.5) * 0.55);
+      let col;
+      if (isCosmic) {
+        // Each star permanently locked to one of 4 kingdom colours,
+        // chosen deterministically so they don't shimmer between hues.
+        col = COSMIC_KINGDOM_COLORS[i & 3];
+        baseAlpha *= 1.25;
+      } else {
+        col = Bm.id === 3 ? '#ffd0a0' : '#e8e0fc';
+      }
+      bx.save();
+      bx.globalAlpha = Math.min(1, baseAlpha);
+      bx.fillStyle = col;
+      bx.beginPath();
+      bx.arc(starSxW, starSy, star.size * (isCosmic ? 1.15 : 1), 0, Math.PI * 2);
+      bx.fill();
+      if (star.size > 0.9 && twinkle > 0.6) {
+        bx.globalAlpha = a * (twinkle - 0.6) * 1.2;
+        bx.fillStyle = isCosmic ? col : '#fff';
+        bx.fillRect(starSxW - 2, starSy - 0.3, 4, 0.6);
+        bx.fillRect(starSxW - 0.3, starSy - 2, 0.6, 4);
+      }
+      bx.restore();
+    }
   }
+  drawStarsForBiome(A, inTransition ? (1 - T01) : 1);
+  if (inTransition) drawStarsForBiome(B, T01);
 
   const GY = 13 * TILE;
   const T = TILE;
-  const CYCLE = 48 * T;
   const totalLen = LEVEL_WIDTH * T;
+  const camTxLeft = Math.floor(camera.rx / T);
+  const camTxRight = Math.ceil((camera.rx + VIEW_W) / T);
 
-  // --- Multi-bump shape (used for hills, bushes, and clouds) ---
-  function drawBumps(sx, baseY, bumps, bumpR, fillCol, lightCol) {
-    const spacing = bumpR * 1.5;
-    const totalW = (bumps - 1) * spacing + bumpR * 2;
-    if (sx + totalW < -60 || sx > VIEW_W + 60) return;
-    bx.fillStyle = fillCol;
-    bx.beginPath();
-    for (let i = 0; i < bumps; i++) {
-      const cx = sx + i * spacing + bumpR;
-      bx.moveTo(cx + bumpR, baseY);
-      bx.arc(cx, baseY, bumpR, 0, Math.PI, true);
-    }
-    bx.closePath();
-    bx.fill();
-    bx.fillStyle = fillCol;
-    bx.fillRect(sx, baseY, totalW, 2);
-    if (lightCol) {
-      bx.fillStyle = lightCol;
-      for (let i = 0; i < bumps; i++) {
-        const cx = sx + i * spacing + bumpR;
+  // ====================================================
+  // FAR PARALLAX MOUNTAINS / DUNES / VOLCANOES (single biome,
+  // crossfaded with previous biome during transitions)
+  // ====================================================
+  function drawHillsForBiome(Bm, a) {
+    if (a <= 0.005) return;
+    if (Bm.id === 4) return; // Cosmic Nexus has nebulas instead of hills
+    bx.save();
+    bx.globalAlpha = a;
+    // Wide buffer so big hills (radius up to ~128px) don't pop at edges
+    const startTx = Math.floor((camera.rx * 0.4) / T) - 12;
+    const endTx = Math.floor((camera.rx * 0.4 + VIEW_W) / T) + 12;
+    for (let tx = startTx; tx < endTx; tx++) {
+      if (((tx % 6) + 6) % 6 !== 0) continue;
+      const sx = Math.floor(tx * T - camera.rx * 0.4);
+      const rTiles = 4 + (((tx % 5) + 5) % 5);
+      const r = rTiles * T;
+      if (sx + r < -40 || sx - r > VIEW_W + 40) continue;
+      // Stamp the pre-rendered hill sprite. Hill is centered at sx, base at GY + r*0.4.
+      const sprite = getHillSprite(Bm, rTiles);
+      const drawX = Math.round(sx - sprite.hcxOffset);
+      const drawY = Math.round((GY + r * 0.4) - sprite.hillBaseOffset);
+      bx.drawImage(sprite.canvas, drawX, drawY);
+      // Desert pyramid silhouette every 4th hill — kept as a live draw because
+      // it interacts with GY (the world ground line), not the sprite-local one.
+      if (Bm.id === 2 && (tx / 6) % 4 === 0) {
+        const px = sx + 6;
+        const pH = 38, pW = 60;
+        bx.fillStyle = lerpColor(Bm.hillCol2, '#5a2a18', 0.35);
         bx.beginPath();
-        bx.arc(cx, baseY - bumpR * 0.15, bumpR * 0.5, 0, Math.PI, true);
+        bx.moveTo(px, GY - pH);
+        bx.lineTo(px + pW / 2, GY);
+        bx.lineTo(px - pW / 2, GY);
+        bx.closePath();
+        bx.fill();
+        bx.fillStyle = 'rgba(255,220,150,0.25)';
+        bx.beginPath();
+        bx.moveTo(px, GY - pH);
+        bx.lineTo(px + pW / 2, GY);
+        bx.lineTo(px, GY);
+        bx.closePath();
         bx.fill();
       }
     }
+    bx.restore();
   }
+  drawHillsForBiome(A, inTransition ? (1 - T01) : 1);
+  if (inTransition) drawHillsForBiome(B, T01);
 
-  // --- HILLS (behind everything, slow parallax) ---
-  function drawHill3(hcx, outerR) {
-    if (hcx + outerR < -20 || hcx - outerR > VIEW_W + 20) return;
-    var hillBase = GY + outerR * 0.4;
-    var hGrad = bx.createRadialGradient(hcx - outerR * 0.2, hillBase - outerR * 0.7, outerR * 0.1, hcx, hillBase, outerR);
-    hGrad.addColorStop(0, '#8870b8');
-    hGrad.addColorStop(0.5, '#584090');
-    hGrad.addColorStop(1, '#2a1858');
-    bx.fillStyle = hGrad;
-    bx.beginPath();
-    bx.arc(hcx, hillBase, outerR, Math.PI, 0, false);
-    bx.lineTo(hcx + outerR, VIEW_H + 4);
-    bx.lineTo(hcx - outerR, VIEW_H + 4);
-    bx.closePath();
-    bx.fill();
-
-    var hlGrad = bx.createRadialGradient(hcx - outerR * 0.2, hillBase - outerR * 0.75, outerR * 0.05, hcx - outerR * 0.2, hillBase - outerR * 0.5, outerR * 0.4);
-    hlGrad.addColorStop(0, 'rgba(255,255,255,0.18)');
-    hlGrad.addColorStop(1, 'rgba(255,255,255,0)');
-    bx.fillStyle = hlGrad;
-    bx.beginPath();
-    bx.arc(hcx - outerR * 0.2, hillBase - outerR * 0.5, outerR * 0.4, 0, Math.PI * 2);
-    bx.fill();
-  }
-  for (let base = -CYCLE; base < totalLen + CYCLE; base += CYCLE) {
-    drawHill3(Math.floor((base + 0) - camera.rx * 0.4), 5 * T);
-    drawHill3(Math.floor((base + 16 * T) - camera.rx * 0.4), 2 * T);
-    drawHill3(Math.floor((base + 25 * T) - camera.rx * 0.4), 3.5 * T);
-    drawHill3(Math.floor((base + 40 * T) - camera.rx * 0.4), 1.5 * T);
-  }
-
-  // --- CLOUDS (slow parallax, high in sky, SMB1 pattern: 1,1,3,2,1 bumps) ---
+  // ====================================================
+  // CLOUDS / SNOW CLOUDS / ASH CLOUDS (parallax 0.2)
+  // ====================================================
   const cloudR = 10;
-  const cloudPositions = [
-    { tx: 8, ty: 3, bumps: 1 },
-    { tx: 19, ty: 2, bumps: 1 },
-    { tx: 27, ty: 4, bumps: 3 },
-    { tx: 36, ty: 2, bumps: 2 },
-    { tx: 44, ty: 3, bumps: 1 },
-  ];
-  for (let base = -CYCLE; base < totalLen + CYCLE; base += CYCLE) {
-    for (const cp of cloudPositions) {
-      const csx = Math.floor((base + cp.tx * T) - camera.rx * 0.2);
-      const csy = cp.ty * T;
+  function drawCloudsForBiome(Bm, a) {
+    if (a <= 0.005) return;
+    if (Bm.id === 4) return; // Cosmic Nexus draws nebulas in atmosphere instead
+    bx.save();
+    bx.globalAlpha = a;
+    const startTx = Math.floor((camera.rx * 0.2) / T) - 8;
+    const endTx = Math.floor((camera.rx * 0.2 + VIEW_W) / T) + 8;
+    for (let tx = startTx; tx < endTx; tx++) {
+      if (((tx % 9) + 9) % 9 !== 0) continue;
+      const sx = Math.floor(tx * T - camera.rx * 0.2);
+      const cy = (2 + (((tx % 4) + 4) % 4)) * T;
+      const bumps = 2 + (Math.abs(tx) % 3);
       const spacing = cloudR * 1.5;
-      const totalW = (cp.bumps - 1) * spacing + cloudR * 2;
-      if (csx + totalW < -60 || csx > VIEW_W + 60) continue;
+      const totalW = (bumps - 1) * spacing + cloudR * 2;
+      if (sx + totalW < -60 || sx > VIEW_W + 60) continue;
       bx.save();
-      bx.globalAlpha = 0.15;
-      bx.fillStyle = '#382858';
-      for (let i = 0; i < cp.bumps; i++) {
-        const ccx = csx + i * spacing + cloudR;
+      bx.globalAlpha = a * 0.20;
+      bx.fillStyle = '#000';
+      for (let i = 0; i < bumps; i++) {
+        const ccx = sx + i * spacing + cloudR;
         bx.beginPath();
-        bx.arc(ccx + 1.5, csy + cloudR + 1.5, cloudR, Math.PI, 0, false);
+        bx.arc(ccx + 1.5, cy + cloudR + 1.5, cloudR, Math.PI, 0, false);
         bx.fill();
       }
       bx.restore();
-      for (let i = 0; i < cp.bumps; i++) {
-        const ccx = csx + i * spacing + cloudR;
-        const cGrad = bx.createRadialGradient(ccx - 2, csy + cloudR - cloudR * 0.3, cloudR * 0.1, ccx, csy + cloudR, cloudR);
-        cGrad.addColorStop(0, '#fcfcfc');
-        cGrad.addColorStop(0.5, '#e8e0f8');
-        cGrad.addColorStop(1, '#c8b8e0');
+      for (let i = 0; i < bumps; i++) {
+        const ccx = sx + i * spacing + cloudR;
+        const cGrad = bx.createRadialGradient(ccx - 2, cy + cloudR - cloudR * 0.3, cloudR * 0.1, ccx, cy + cloudR, cloudR);
+        cGrad.addColorStop(0, Bm.cloudCol);
+        cGrad.addColorStop(0.6, Bm.cloudCol);
+        cGrad.addColorStop(1, Bm.cloudShade);
         bx.fillStyle = cGrad;
         bx.beginPath();
-        bx.arc(ccx, csy + cloudR, cloudR, Math.PI, 0, false);
+        bx.arc(ccx, cy + cloudR, cloudR, Math.PI, 0, false);
         bx.fill();
       }
-      bx.fillStyle = '#e8e0f8';
-      bx.fillRect(csx, csy + cloudR, totalW, 2);
+      bx.fillStyle = Bm.cloudShade;
+      bx.fillRect(sx, cy + cloudR, totalW, 2);
+      if (Bm.id === 3) {
+        bx.save();
+        bx.globalAlpha = a * 0.25;
+        bx.fillStyle = 'rgba(255,80,40,1)';
+        bx.fillRect(sx, cy + cloudR, totalW, 2);
+        bx.restore();
+      }
+    }
+    bx.restore();
+  }
+  drawCloudsForBiome(A, inTransition ? (1 - T01) : 1);
+  if (inTransition) drawCloudsForBiome(B, T01);
+
+  // ====================================================
+  // PIT DEPTH SHADOW
+  // Make precipices (gaps in the ground) clearly visible by drawing a
+  // dark vertical fade in every pit column, so the player never misses a
+  // fall hazard. Drawn AFTER hills/clouds so it sits in front of distant
+  // parallax (which would otherwise camouflage the gap), but BEFORE the
+  // level tiles so the ground edges still look crisp.
+  for (let tx = camTxLeft - 1; tx < camTxRight + 1; tx++) {
+    if (tx < 0 || tx >= LEVEL_WIDTH) continue;
+    if (getTile(tx, 13) !== 0) continue; // only pit columns
+    if (tx >= BOSS_ARENA_LEFT - 1 && tx <= BOSS_GATE_X + 1) continue;
+    const PitBm = biomeAtTile(tx);
+    const psx = Math.floor(tx * T - camera.rx);
+    const pitTop = GY; // top of the missing ground row
+    // Lava biome already has a glowing magma bed in pits — don't darken
+    // those (the bright orange itself signals "danger here"). For every
+    // other biome, paint a soft dark wash so the gap reads as a void.
+    if (PitBm.id !== 3) {
+      // Same vertical span / colours every column — cache once per session.
+      if (!_pitDepthGrad) {
+        _pitDepthGrad = bx.createLinearGradient(0, pitTop, 0, VIEW_H);
+        _pitDepthGrad.addColorStop(0, 'rgba(8,4,18,0.40)');
+        _pitDepthGrad.addColorStop(0.55, 'rgba(8,4,18,0.62)');
+        _pitDepthGrad.addColorStop(1, 'rgba(0,0,0,0.85)');
+      }
+      bx.fillStyle = _pitDepthGrad;
+      bx.fillRect(psx, pitTop, T, VIEW_H - pitTop);
+    }
+    // Cliff face highlight on the inside of adjacent ground tiles so the
+    // edge is unmistakable in EVERY biome (including lava).
+    if (getTile(tx - 1, 13) !== 0) {
+      bx.fillStyle = PitBm.id === 3 ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)';
+      bx.fillRect(psx, pitTop, 1, T * 1.2);
+    }
+    if (getTile(tx + 1, 13) !== 0) {
+      bx.fillStyle = PitBm.id === 3 ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)';
+      bx.fillRect(psx + T - 1, pitTop, 1, T * 1.2);
     }
   }
 
-  // --- BUSHES (at ground level, SMB1 pattern: 2,3,1 bumps per cycle) ---
-  const bushR = 10;
-  const bushPositions = [
-    { tx: 11, bumps: 3 },
-    { tx: 23, bumps: 1 },
-    { tx: 41, bumps: 2 },
-  ];
-  for (let base = -CYCLE; base < totalLen + CYCLE; base += CYCLE) {
-    for (const bp of bushPositions) {
-      const bsx = Math.floor((base + bp.tx * T) - camera.rx);
-      const spacing = bushR * 1.5;
-      const totalW = (bp.bumps - 1) * spacing + bushR * 2;
-      if (bsx + totalW < -40 || bsx > VIEW_W + 40) continue;
-      const bushStartTile = Math.floor((base + bp.tx * T) / T);
-      const bushTileSpan = Math.ceil(totalW / T) + 1;
-      let bushOnGround = true;
-      for (let bt = 0; bt < bushTileSpan; bt++) {
-        const cx = bushStartTile + bt;
-        if (cx < 0 || cx >= LEVEL_WIDTH || getTile(cx, 13) === 0) { bushOnGround = false; break; }
+  // ====================================================
+  // GROUND-LEVEL FOREGROUND DECORATIONS per biome
+  // (bushes / drifts / cacti / lava bubbles)
+  // ====================================================
+  for (let tx = camTxLeft - 6; tx < camTxRight + 6; tx++) {
+    if (tx < 0 || tx >= LEVEL_WIDTH) continue;
+    const Bm = biomeAtTile(tx);
+    const sx = Math.floor(tx * T - camera.rx);
+    // skip if no ground here OR a tile sits on top
+    if (getTile(tx, 13) === 0) continue;
+    if (getTile(tx, 12) !== 0) continue;
+    if (tx >= BOSS_ARENA_LEFT - 1 && tx <= BOSS_GATE_X + 1) continue;
+    if (tx >= FLAGPOLE_X - 3) continue;
+    // Don't draw decorations next to a pit — they'd visually bleed over the
+    // gap and hide the precipice. Keeps cliff edges crisp and readable.
+    const pitLeft = getTile(tx - 1, 13) === 0;
+    const pitRight = getTile(tx + 1, 13) === 0;
+    if (pitLeft || pitRight) continue;
+
+    // Each biome decoration uses deterministic spacing
+    const r = tileRand(tx, Bm.id);
+    if (Bm.id === 0) {
+      // Forest bushes (every ~10 tiles), small rocks/mushrooms scattered
+      if (tx % 11 === 3 && r > 0.2) {
+        const bumps = 1 + Math.floor(r * 3);
+        for (let i = 0; i < bumps; i++) {
+          const bcx = sx + i * 14 + 8;
+          if (bcx < -20 || bcx > VIEW_W + 20) continue;
+          const buGrad = bx.createRadialGradient(bcx - 2, GY - 1 - 4, 1, bcx, GY - 1, 9);
+          buGrad.addColorStop(0, Bm.bushHi);
+          buGrad.addColorStop(0.55, Bm.bushMid);
+          buGrad.addColorStop(1, Bm.bushLo);
+          bx.fillStyle = buGrad;
+          bx.beginPath();
+          bx.arc(bcx, GY - 1, 9, Math.PI, 0, false);
+          bx.fill();
+          // Highlight
+          bx.fillStyle = 'rgba(255,255,255,0.18)';
+          bx.beginPath();
+          bx.arc(bcx - 2, GY - 6, 2.5, 0, Math.PI * 2);
+          bx.fill();
+        }
+      } else if (tx % 17 === 5) {
+        // Tiny purple mushroom (theme accent!)
+        if (sx > -10 && sx < VIEW_W + 10) {
+          const mcx = sx + 8;
+          bx.fillStyle = '#fcfcfc';
+          bx.fillRect(mcx - 1, GY - 4, 2, 4);
+          bx.fillStyle = Bm.accent;
+          bx.beginPath();
+          bx.arc(mcx, GY - 5, 4, Math.PI, 0, false);
+          bx.fill();
+          bx.fillStyle = '#fcfcfc';
+          bx.fillRect(mcx - 2, GY - 6, 1, 1);
+          bx.fillRect(mcx + 1, GY - 5, 1, 1);
+        }
       }
-      if (!bushOnGround) continue;
-      let bushBlocked = false;
-      for (let bt = 0; bt < bushTileSpan; bt++) {
-        const cx = bushStartTile + bt;
-        if (getTile(cx, 12) !== 0 || (cx >= BOSS_ARENA_LEFT - 1 && cx <= BOSS_GATE_X + 1) || cx >= FLAGPOLE_X - 3) { bushBlocked = true; break; }
+    } else if (Bm.id === 1) {
+      // Snow drifts and tiny pines
+      if (tx % 7 === 2) {
+        const dcx = sx + 8;
+        if (dcx > -20 && dcx < VIEW_W + 20) {
+          // Drift
+          bx.fillStyle = 'rgba(255,255,255,0.95)';
+          bx.beginPath();
+          bx.ellipse(dcx, GY + 1, 12, 4, 0, Math.PI, 0, false);
+          bx.fill();
+          bx.fillStyle = 'rgba(180,210,240,0.55)';
+          bx.fillRect(dcx - 12, GY + 1, 24, 1.5);
+        }
+      } else if (tx % 13 === 6) {
+        // Snow-laden pine tree
+        const pcx = sx + 8;
+        if (pcx > -20 && pcx < VIEW_W + 20) {
+          // Trunk
+          bx.fillStyle = Bm.trunk;
+          bx.fillRect(pcx - 1, GY - 14, 2, 14);
+          // Foliage triangles
+          for (let i = 0; i < 3; i++) {
+            const ty = GY - 14 - i * 5;
+            const tw = 8 - i * 2;
+            bx.fillStyle = '#264e2e';
+            bx.beginPath();
+            bx.moveTo(pcx - tw, ty + 5);
+            bx.lineTo(pcx, ty - 1);
+            bx.lineTo(pcx + tw, ty + 5);
+            bx.closePath();
+            bx.fill();
+            bx.fillStyle = '#fcfcfc';
+            bx.beginPath();
+            bx.moveTo(pcx - tw, ty + 5);
+            bx.lineTo(pcx - tw + 1, ty + 4);
+            bx.lineTo(pcx, ty + 1);
+            bx.lineTo(pcx + tw - 1, ty + 4);
+            bx.lineTo(pcx + tw, ty + 5);
+            bx.closePath();
+            bx.fill();
+          }
+        }
       }
-      if (bushBlocked) continue;
-      for (let i = 0; i < bp.bumps; i++) {
-        const bcx = bsx + i * spacing + bushR;
-        const buGrad = bx.createRadialGradient(bcx - 2, GY - 1 - bushR * 0.4, bushR * 0.15, bcx, GY - 1, bushR + 1);
-        buGrad.addColorStop(0, '#9080c0');
-        buGrad.addColorStop(0.5, '#6050a0');
-        buGrad.addColorStop(1, '#382878');
-        bx.fillStyle = buGrad;
+    } else if (Bm.id === 2) {
+      // Cacti and palm trees and sun-bleached bones
+      if (tx % 9 === 4) {
+        // Cactus
+        const ccx = sx + 8;
+        if (ccx > -20 && ccx < VIEW_W + 20) {
+          bx.fillStyle = '#3e8a4a';
+          bx.fillRect(ccx - 2, GY - 14, 4, 14);
+          // Arms
+          bx.fillRect(ccx - 6, GY - 10, 4, 2);
+          bx.fillRect(ccx - 6, GY - 12, 2, 4);
+          bx.fillRect(ccx + 2, GY - 8, 4, 2);
+          bx.fillRect(ccx + 4, GY - 11, 2, 4);
+          // Spines
+          bx.fillStyle = '#fcfcc8';
+          bx.fillRect(ccx - 3, GY - 12, 1, 1);
+          bx.fillRect(ccx + 2, GY - 9, 1, 1);
+          bx.fillRect(ccx - 1, GY - 6, 1, 1);
+          // Highlight
+          bx.fillStyle = 'rgba(255,255,255,0.2)';
+          bx.fillRect(ccx - 2, GY - 14, 1, 14);
+          // Flower (purple accent)
+          bx.fillStyle = Bm.accent;
+          bx.beginPath();
+          bx.arc(ccx, GY - 14, 1.5, 0, Math.PI * 2);
+          bx.fill();
+        }
+      } else if (tx % 15 === 7) {
+        // Palm tree
+        const pcx = sx + 8;
+        if (pcx > -20 && pcx < VIEW_W + 20) {
+          // Curved trunk
+          bx.fillStyle = '#7a4818';
+          bx.fillRect(pcx - 1, GY - 18, 2, 18);
+          bx.fillStyle = '#a06830';
+          bx.fillRect(pcx, GY - 18, 1, 18);
+          // Fronds
+          bx.fillStyle = '#3a8048';
+          for (let a = 0; a < 6; a++) {
+            const angle = -Math.PI / 2 + (a - 2.5) * 0.45;
+            const len = 10;
+            const ex = pcx + Math.cos(angle) * len;
+            const ey = GY - 18 + Math.sin(angle) * len;
+            bx.beginPath();
+            bx.moveTo(pcx, GY - 18);
+            bx.lineTo(ex - 1, ey);
+            bx.lineTo(ex + 1, ey + 1);
+            bx.lineTo(pcx + 1, GY - 17);
+            bx.closePath();
+            bx.fill();
+          }
+          // Coconut
+          bx.fillStyle = '#3a1808';
+          bx.beginPath();
+          bx.arc(pcx + 2, GY - 16, 1.5, 0, Math.PI * 2);
+          bx.fill();
+        }
+      } else if (tx % 23 === 12) {
+        // Tiny dune speck
+        bx.fillStyle = 'rgba(160,100,40,0.55)';
+        bx.fillRect(sx + 4, GY - 1, 8, 1);
+      }
+    } else if (Bm.id === 3) {
+      // Lava: rock pillars + glowing lava bubbles in front of ground
+      if (tx % 9 === 3) {
+        const rcx = sx + 8;
+        if (rcx > -20 && rcx < VIEW_W + 20) {
+          // Obsidian pillar silhouette
+          bx.fillStyle = '#1a0a0a';
+          bx.beginPath();
+          bx.moveTo(rcx - 5, GY);
+          bx.lineTo(rcx - 3, GY - 9);
+          bx.lineTo(rcx, GY - 12);
+          bx.lineTo(rcx + 4, GY - 8);
+          bx.lineTo(rcx + 5, GY);
+          bx.closePath();
+          bx.fill();
+          // Hot crack
+          bx.fillStyle = 'rgba(255,120,30,0.85)';
+          bx.fillRect(rcx - 1, GY - 10, 1, 6);
+        }
+      } else if (tx % 6 === 1) {
+        // Lava bubble in foreground (animated)
+        const bcx = sx + 8;
+        const bob = Math.sin(globalTick * 0.08 + tx) * 1.2;
+        if (bcx > -10 && bcx < VIEW_W + 10) {
+          bx.fillStyle = 'rgba(255,140,40,0.55)';
+          bx.beginPath();
+          bx.arc(bcx, GY + 1 + bob, 2.0, 0, Math.PI * 2);
+          bx.fill();
+          bx.fillStyle = 'rgba(255,220,140,0.85)';
+          bx.beginPath();
+          bx.arc(bcx - 0.5, GY + 0.5 + bob, 0.8, 0, Math.PI * 2);
+          bx.fill();
+        }
+      }
+    } else if (Bm.id === 4) {
+      // Cosmic Nexus: floating kingdom-coloured sparks rising from the
+      // obsidian floor — one per ground column, hue cycled per tile so
+      // the four kingdom colours alternate down the corridor.
+      if (tx % 2 === 0) {
+        const scx = sx + 8;
+        if (scx > -10 && scx < VIEW_W + 10) {
+          const hue = COSMIC_KINGDOM_COLORS[(tx >> 1) & 3];
+          const lift = (Math.sin(globalTick * 0.05 + tx * 0.7) + 1) * 5; // 0..10 px lift
+          const fade = 0.45 + Math.sin(globalTick * 0.05 + tx * 0.7 + 1.2) * 0.25;
+          bx.save();
+          bx.globalAlpha = Math.max(0, fade);
+          bx.fillStyle = hue;
+          bx.beginPath();
+          bx.arc(scx, GY - 1 - lift, 1.1, 0, Math.PI * 2);
+          bx.fill();
+          // Faint trail dot beneath
+          bx.globalAlpha = Math.max(0, fade) * 0.45;
+          bx.fillRect(scx - 0.5, GY - 1 - lift * 0.45, 1, 1);
+          bx.restore();
+        }
+      }
+      // Rare obsidian shard silhouette
+      if (tx % 13 === 4) {
+        const rcx = sx + 8;
+        if (rcx > -20 && rcx < VIEW_W + 20) {
+          bx.fillStyle = '#1a0a18';
+          bx.beginPath();
+          bx.moveTo(rcx - 4, GY);
+          bx.lineTo(rcx - 1, GY - 10);
+          bx.lineTo(rcx + 3, GY - 6);
+          bx.lineTo(rcx + 5, GY);
+          bx.closePath();
+          bx.fill();
+          // Purple void crack
+          bx.fillStyle = 'rgba(220,160,255,0.75)';
+          bx.fillRect(rcx, GY - 8, 1, 6);
+        }
+      }
+    }
+  }
+
+  // ====================================================
+  // BIOME-SPECIFIC AMBIENT PARTICLES (snow / sand / embers / leaves)
+  // Stable seeds (no camera-based reseed) so they don't teleport while walking.
+  // ====================================================
+  function drawParticlesForBiome(Bm, a) {
+    if (a <= 0.005) return;
+    const part = Bm.particle;
+    for (let i = 0; i < part.count; i++) {
+      const seed = i + Bm.id * 113 + 7;
+      const r1 = tileRand(seed, 1);
+      const r2 = tileRand(seed, 2);
+      const r3 = tileRand(seed, 3);
+      const sx = Math.floor((r1 * (VIEW_W * 1.4)) - VIEW_W * 0.2);
+      const baseY = r2 * VIEW_H * 0.85;
+      const sz = part.sizeMin + r3 * (part.sizeMax - part.sizeMin);
+      if (part.kind === 'snow') {
+        const drift = (globalTick * (0.4 + r3 * 0.5)) % VIEW_H;
+        const px = sx + Math.sin(globalTick * 0.04 + i) * 3;
+        const py = (baseY + drift) % VIEW_H;
+        bx.save();
+        bx.globalAlpha = a * 0.6;
+        bx.fillStyle = '#fcfcfc';
         bx.beginPath();
-        bx.arc(bcx, GY - 1, bushR, Math.PI, 0, false);
+        bx.arc(px, py, sz, 0, Math.PI * 2);
         bx.fill();
+        bx.restore();
+      } else if (part.kind === 'sand') {
+        const drift = (globalTick * (0.7 + r3 * 0.6)) % (VIEW_W + 40);
+        const px = ((sx + drift) % (VIEW_W + 40)) - 20;
+        const py = baseY + Math.sin(globalTick * 0.03 + i) * 2;
+        bx.save();
+        bx.globalAlpha = a * 0.45;
+        bx.fillStyle = part.color;
+        bx.fillRect(px, py, sz, sz);
+        bx.restore();
+      } else if (part.kind === 'ember') {
+        const rise = (globalTick * (0.5 + r3 * 0.7)) % (VIEW_H + 20);
+        const px = sx + Math.sin(globalTick * 0.05 + i) * 2;
+        const py = (VIEW_H - rise + baseY * 0.2) % VIEW_H;
+        bx.save();
+        bx.globalAlpha = a * 0.7 * (0.5 + 0.5 * Math.sin(globalTick * 0.1 + i));
+        bx.fillStyle = part.color;
+        bx.beginPath();
+        bx.arc(px, py, sz, 0, Math.PI * 2);
+        bx.fill();
+        bx.globalAlpha = a * 0.25;
+        bx.fillStyle = '#ff8040';
+        bx.beginPath();
+        bx.arc(px, py, sz * 2, 0, Math.PI * 2);
+        bx.fill();
+        bx.restore();
+      } else if (part.kind === 'leaf') {
+        const drift = (globalTick * (0.4 + r3 * 0.4)) % VIEW_H;
+        const sway = Math.sin(globalTick * 0.05 + i) * 5;
+        const px = sx + sway;
+        const py = (baseY + drift) % VIEW_H;
+        bx.save();
+        bx.globalAlpha = a * 0.55;
+        bx.fillStyle = part.color;
+        bx.beginPath();
+        bx.ellipse(px, py, sz * 1.2, sz * 0.6, sway * 0.05, 0, Math.PI * 2);
+        bx.fill();
+        bx.restore();
       }
-      bx.fillStyle = '#6050a0';
-      bx.fillRect(bsx, GY - 1, totalW, 2);
     }
   }
+  drawParticlesForBiome(A, inTransition ? (1 - T01) : 1);
+  if (inTransition) drawParticlesForBiome(B, T01);
 
-  // --- TREES (scattered, not too many) ---
-  const treePositions = [
-    { tx: 6, s: 1.1 },
-    { tx: 17, s: 0.8 },
-    { tx: 35, s: 1.0 },
-  ];
-  for (let base = 0; base < totalLen + CYCLE; base += CYCLE) {
-    for (const tp of treePositions) {
-      const tsx = Math.floor((base + tp.tx * T) - camera.rx);
-      if (tsx < -30 || tsx > VIEW_W + 30) continue;
-      const treeTileX = Math.floor((base + tp.tx * T) / T);
-      if (treeTileX < 0 || treeTileX >= LEVEL_WIDTH || getTile(treeTileX, 13) === 0) continue;
-      if (getTile(treeTileX, 12) !== 0) continue;
-      if (treeTileX >= BOSS_ARENA_LEFT - 1 && treeTileX <= BOSS_GATE_X + 1) continue;
-      if (treeTileX >= FLAGPOLE_X - 3) continue;
-      const s = tp.s;
-      const trunkW = Math.floor(4 * s);
-      const trunkH = Math.floor(12 * s);
-      const tkGrad = bx.createLinearGradient(tsx - trunkW, 0, tsx + trunkW, 0);
-      tkGrad.addColorStop(0, '#3c2858');
-      tkGrad.addColorStop(0.5, '#584078');
-      tkGrad.addColorStop(1, '#3c2858');
-      bx.fillStyle = tkGrad;
-      bx.fillRect(tsx - Math.floor(trunkW / 2), GY - trunkH, trunkW, trunkH);
-      const foliageR = Math.floor(9 * s);
-      const foliageY = GY - trunkH - Math.floor(3 * s);
-      const fGrad = bx.createRadialGradient(tsx - foliageR * 0.2, foliageY - foliageR * 0.3, foliageR * 0.1, tsx, foliageY, foliageR);
-      fGrad.addColorStop(0, '#9878c8');
-      fGrad.addColorStop(0.5, '#6050a0');
-      fGrad.addColorStop(1, '#302060');
-      bx.fillStyle = fGrad;
-      bx.beginPath();
-      bx.arc(tsx, foliageY, foliageR, 0, Math.PI * 2);
-      bx.fill();
-      bx.save();
-      bx.globalAlpha = 0.25;
-      bx.fillStyle = '#d0c0f0';
-      bx.beginPath();
-      bx.arc(tsx - Math.floor(2 * s), foliageY - Math.floor(3 * s), Math.floor(3.5 * s), 0, Math.PI * 2);
-      bx.fill();
-      bx.restore();
+  // Lava-only: glowing magma bed under the ground row (visible in gaps).
+  // Drawn now (during drawBackground) so subsequent drawLevel ground tiles cover it,
+  // letting it show only where the level has no ground tile (ie. in pits).
+  // Faded smoothly during desert<->lava transitions to avoid pop-in.
+  function drawLavaBed(a) {
+    if (a <= 0.005) return;
+    bx.save();
+    bx.globalAlpha = a;
+    const lavaTop = GY;
+    const lavaH = TILE * 2;
+    if (!_lavaBedGrad) {
+      _lavaBedGrad = bx.createLinearGradient(0, lavaTop, 0, lavaTop + lavaH);
+      _lavaBedGrad.addColorStop(0, '#fff0a0');
+      _lavaBedGrad.addColorStop(0.18, '#ffb050');
+      _lavaBedGrad.addColorStop(0.55, '#e04018');
+      _lavaBedGrad.addColorStop(1, '#5a1010');
     }
-  }
-
-  // --- FENCES (a few per cycle) ---
-  const fencePositions = [14, 30, 45];
-  for (let base = 0; base < totalLen + CYCLE; base += CYCLE) {
-    for (const ftx of fencePositions) {
-      const fsx = Math.floor((base + ftx * T) - camera.rx);
-      if (fsx < -40 || fsx > VIEW_W + 40) continue;
-      const fenceTileX = Math.floor((base + ftx * T) / T);
-      let fenceOnGround = true;
-      for (let fp = 0; fp < 4; fp++) {
-        const checkX = fenceTileX + fp;
-        if (checkX < 0 || checkX >= LEVEL_WIDTH || getTile(checkX, 13) === 0 || getTile(checkX, 12) !== 0) { fenceOnGround = false; break; }
-        if (checkX >= BOSS_ARENA_LEFT - 1 && checkX <= BOSS_GATE_X + 1) { fenceOnGround = false; break; }
-        if (checkX >= FLAGPOLE_X - 3) { fenceOnGround = false; break; }
-      }
-      if (!fenceOnGround) continue;
-      for (let p = 0; p < 4; p++) {
-        const fpx = fsx + p * 8;
-        const pGrad = bx.createLinearGradient(fpx, 0, fpx + 3, 0);
-        pGrad.addColorStop(0, '#9888c0');
-        pGrad.addColorStop(0.5, '#8070a8');
-        pGrad.addColorStop(1, '#605090');
-        bx.fillStyle = pGrad;
-        bx.fillRect(fpx, GY - 14, 3, 14);
-        bx.fillStyle = 'rgba(255,255,255,0.15)';
-        bx.fillRect(fpx, GY - 14, 3, 1);
-      }
-      const rGrad = bx.createLinearGradient(0, GY - 13, 0, GY - 11);
-      rGrad.addColorStop(0, '#9888c0');
-      rGrad.addColorStop(1, '#605090');
-      bx.fillStyle = rGrad;
-      bx.fillRect(fsx - 1, GY - 12, 34, 2);
-      bx.fillRect(fsx - 1, GY - 6, 34, 2);
+    bx.fillStyle = _lavaBedGrad;
+    bx.fillRect(0, lavaTop, VIEW_W, lavaH);
+    bx.fillStyle = 'rgba(255,255,200,0.65)';
+    for (let xx = 0; xx < VIEW_W; xx += 3) {
+      const yy = lavaTop + Math.sin(globalTick * 0.10 + xx * 0.18) * 1.4;
+      bx.fillRect(xx, yy, 3, 1);
     }
+    bx.fillStyle = 'rgba(255,200,80,0.35)';
+    for (let xx = 0; xx < VIEW_W; xx += 6) {
+      const yy = lavaTop + 3 + Math.sin(globalTick * 0.07 + xx * 0.10) * 1.0;
+      bx.fillRect(xx, yy, 4, 1);
+    }
+    bx.restore();
   }
+  let lavaA = 0;
+  if (B.id === 3) lavaA = inTransition ? T01 : 1;
+  else if (A.id === 3 && inTransition) lavaA = 1 - T01;
+  drawLavaBed(lavaA);
 }
 
 function drawMario() {
@@ -3491,38 +4632,67 @@ function drawMario() {
   const dir = mario.facing;
   const isBig = mario.big;
 
-  const bodyR = isBig ? 9 : 6.5;
+  // Blob body slightly bigger and a touch rounder for a more "huggable" silhouette.
+  const bodyR = isBig ? 9.5 : 6.85;
   const cx = px + 7;
   const cy = isBig ? py + 11 : py + 7;
 
   let sqX = 1.0, sqY = 1.0, bounceY = 0;
 
-  if (mario.dead) {
+  // ----- Boss cutscene freeze -----
+  // During the boss intro/outro the gameplay update loop early-returns
+  // and just zeroes mario.vx/vy. But `globalTick` keeps incrementing,
+  // so any sin-driven animation below (idle breathing, in-air stretch,
+  // double-jump spin, etc.) would still play and make the blob look
+  // like it's twitching while it should be completely still.
+  // Force a neutral, perfectly-static pose for the entire cutscene.
+  const inBossCutscene = (bossIntroPhase > 0 || bossOutroPhase > 0);
+  if (inBossCutscene) {
+    // Skip every animation branch — render the blob as a still statue.
+  } else if (mario.dead) {
     sqX = 1.25; sqY = 0.7;
   } else if (mario.doubleJumpAnim > 0) {
     var djt = (20 - mario.doubleJumpAnim) / 20;
-    var spin = Math.sin(djt * Math.PI * 2) * 0.15;
-    sqX = 0.85 + spin;
-    sqY = 1.15 - spin;
+    // Smoother spin curve (uses ease in/out instead of raw sine) so the
+    // squash feels graceful rather than jittery.
+    var spinPhase = djt * Math.PI * 2;
+    var spin = Math.sin(spinPhase) * 0.14;
+    sqX = 0.86 + spin;
+    sqY = 1.14 - spin;
   } else if (!mario.onGround) {
-    sqX = 0.88; sqY = 1.12;
+    // Subtle in-air stretch; lerp a little with vy so a fast fall stretches
+    // a touch more than a hover (more natural).
+    var airStretch = Math.max(-1, Math.min(1, mario.vy * 0.18));
+    sqX = 0.90 - airStretch * 0.04;
+    sqY = 1.10 + airStretch * 0.05;
   } else if (mario.landSquash > 0) {
-    var landT = mario.landSquash / 8;
-    sqX = 1.0 + 0.2 * landT;
-    sqY = 1.0 - 0.15 * landT;
-    bounceY = bodyR * 0.15 * landT;
+    var landT = mario.landSquash / 4;
+    var landE = landT * landT * (3 - 2 * landT); // smoothstep ease
+    sqX = 1.0 + 0.18 * landE;
+    sqY = 1.0 - 0.13 * landE;
+    bounceY = bodyR * 0.12 * landE;
   } else if (mario.skidding) {
     sqX = 1.12; sqY = 0.9;
   } else if (mario.crouching && isBig) {
     sqX = 1.3; sqY = 0.65;
     bounceY = bodyR * (1 - sqY);
   } else if (Math.abs(mario.vx) > 0.15) {
-    var walkSpeed = 0.22 + Math.abs(mario.vx) * 0.08;
+    // Smoother run cycle: cosine drives the squash so the body looks like
+    // it lands and pushes off instead of just oscillating up & down.
+    var walkSpeed = 0.20 + Math.abs(mario.vx) * 0.085;
     const t = globalTick * walkSpeed;
     var intensity = Math.min(1, Math.abs(mario.vx) / 2.5);
-    bounceY = Math.sin(t) * (1.0 + intensity * 0.8);
-    sqX = 1.0 + Math.cos(t) * 0.05 * intensity;
-    sqY = 1.0 - Math.cos(t) * 0.05 * intensity;
+    var bAmp = 0.85 + intensity * 0.75;
+    bounceY = Math.sin(t) * bAmp;
+    var sqAmp = 0.06 * intensity;
+    sqX = 1.0 + Math.cos(t) * sqAmp;
+    sqY = 1.0 - Math.cos(t) * sqAmp;
+  } else {
+    // Idle breathing — barely-there jiggle so the blob feels alive.
+    var breathe = Math.sin(globalTick * 0.05) * 0.025;
+    sqX = 1.0 - breathe;
+    sqY = 1.0 + breathe;
+    bounceY = Math.sin(globalTick * 0.05) * 0.25;
   }
 
   let bodyCol, shadCol, feetCol, highCol;
@@ -3544,6 +4714,7 @@ function drawMario() {
   const rX = bodyR * sqX;
   const rY = bodyR * sqY;
 
+  // Body silhouette (dark backplate, slight offset for grounded depth)
   bx.fillStyle = shadCol;
   bx.beginPath();
   bx.ellipse(cx - 1, bcy + 0.5, rX + 1, rY + 1, 0, 0, Math.PI * 2);
@@ -3695,17 +4866,31 @@ function drawEntities() {
     if (sx < -TILE || sx > VIEW_W + TILE) return;
 
     if (e.type === 'goomba') {
-      drawPixels(bx, sx, Math.floor(e.y), e.flat ? GOOMBA_FLAT : GOOMBA_SPRITE, GOOMBA_PALETTE, e.frame === 1);
+      var gPal = GOOMBA_PALETTE_BY_BIOME[e.biome | 0] || GOOMBA_PALETTE;
+      drawPixels(bx, sx, Math.floor(e.y), e.flat ? GOOMBA_FLAT : GOOMBA_SPRITE, gPal, e.frame === 1);
+      // Subtle ember/snow flecks for the lava/snow variants — keeps the
+      // section ID readable without changing the silhouette.
+      if (e.biome === 3 && !e.flat) {
+        var ge = (globalTick * 0.18) % 6;
+        bx.fillStyle = 'rgba(255,180,60,0.6)';
+        bx.fillRect(sx + 4, Math.floor(e.y) - ge, 1, 1);
+        bx.fillRect(sx + 11, Math.floor(e.y) - (ge + 3) % 6, 1, 1);
+      } else if (e.biome === 1 && !e.flat) {
+        bx.fillStyle = 'rgba(255,255,255,0.85)';
+        bx.fillRect(sx + 5, Math.floor(e.y) + 1, 1, 1);
+        bx.fillRect(sx + 9, Math.floor(e.y) + 2, 1, 1);
+      }
     } else if (e.type === 'koopa') {
       var ey = Math.floor(e.y);
       var ecx = sx + 8;
+      var kPal = KOOPA_SHELL_BY_BIOME[e.biome | 0] || KOOPA_SHELL_BY_BIOME[0];
       if (e.shell) {
         // Shell mode (h=16): ground at ey+16, center shell at ey+10
         var shCy = ey + 10;
         var shGrad = bx.createRadialGradient(ecx + 1, shCy - 1, 1, ecx, shCy, 7);
-        shGrad.addColorStop(0, '#7898d0');
-        shGrad.addColorStop(0.6, '#5878b8');
-        shGrad.addColorStop(1, '#384888');
+        shGrad.addColorStop(0, kPal.hi);
+        shGrad.addColorStop(0.6, kPal.mid);
+        shGrad.addColorStop(1, kPal.lo);
         bx.fillStyle = shGrad;
         bx.beginPath();
         bx.ellipse(ecx, shCy, 7, 5.5, 0, 0, Math.PI * 2);
@@ -3714,13 +4899,13 @@ function drawEntities() {
         bx.beginPath();
         bx.ellipse(ecx + 1, shCy - 2, 3, 2, -0.3, 0, Math.PI * 2);
         bx.fill();
-        bx.fillStyle = '#384888';
+        bx.fillStyle = kPal.lo;
         bx.beginPath();
         bx.ellipse(ecx, shCy + 4, 7, 1.5, 0, 0, Math.PI * 2);
         bx.fill();
         if (e.shellMoving) {
           var spinPhase = globalTick * 0.5;
-          bx.strokeStyle = '#384888';
+          bx.strokeStyle = kPal.lo;
           bx.lineWidth = 0.8;
           bx.beginPath();
           bx.arc(ecx + Math.cos(spinPhase) * 3, shCy, 2, 0, Math.PI * 2);
@@ -3743,9 +4928,9 @@ function drawEntities() {
         // Shell (on back)
         var shellCy = groundY - 10 + kbob;
         var ksGrad = bx.createRadialGradient(ecx - kdir, shellCy - 1, 1, ecx - kdir, shellCy, 8);
-        ksGrad.addColorStop(0, '#7898d0');
-        ksGrad.addColorStop(0.6, '#5878b8');
-        ksGrad.addColorStop(1, '#384888');
+        ksGrad.addColorStop(0, kPal.hi);
+        ksGrad.addColorStop(0.6, kPal.mid);
+        ksGrad.addColorStop(1, kPal.lo);
         bx.fillStyle = ksGrad;
         bx.beginPath();
         bx.ellipse(ecx - kdir, shellCy, 7, 6, 0, 0, Math.PI * 2);
@@ -3757,7 +4942,7 @@ function drawEntities() {
         bx.ellipse(ecx - kdir + 1, shellCy - 3, 3, 2, -0.3, 0, Math.PI * 2);
         bx.fill();
         bx.restore();
-        bx.strokeStyle = '#384888';
+        bx.strokeStyle = kPal.lo;
         bx.lineWidth = 0.6;
         bx.beginPath();
         bx.moveTo(ecx - kdir, shellCy - 5);
@@ -3767,9 +4952,9 @@ function drawEntities() {
         var headX = ecx + kdir * 6;
         var headY = shellCy - 7 + kbob;
         var hGrad = bx.createRadialGradient(headX, headY, 0.5, headX, headY + 1, 4);
-        hGrad.addColorStop(0, '#b8d060');
-        hGrad.addColorStop(0.7, '#88a840');
-        hGrad.addColorStop(1, '#607828');
+        hGrad.addColorStop(0, kPal.head);
+        hGrad.addColorStop(0.7, kPal.head);
+        hGrad.addColorStop(1, kPal.headLo);
         bx.fillStyle = hGrad;
         bx.beginPath();
         bx.ellipse(headX, headY, 3.5, 3.5, 0, 0, Math.PI * 2);
@@ -3785,15 +4970,17 @@ function drawEntities() {
         bx.fill();
       }
     } else if (e.type === 'buzzy') {
-      drawPixels(bx, sx, Math.floor(e.y), e.flat ? BUZZY_FLAT : BUZZY_SPRITE, BUZZY_PALETTE, e.frame === 1);
+      var bPal = BUZZY_PALETTE_BY_BIOME[e.biome | 0] || BUZZY_PALETTE;
+      drawPixels(bx, sx, Math.floor(e.y), e.flat ? BUZZY_FLAT : BUZZY_SPRITE, bPal, e.frame === 1);
     } else if (e.type === 'swooper') {
       if (e.flat) return;
+      var swPal = SWOOPER_COLORS_BY_BIOME[e.biome | 0] || SWOOPER_COLORS_BY_BIOME[0];
       var scx = sx + 7, scy = Math.floor(e.y) + 7;
       var wt = (e.swoopTick || 0) * 4;
       var wingFlap = Math.sin(wt);
 
       // Left wing (rounded ellipse)
-      bx.fillStyle = '#5838a0';
+      bx.fillStyle = swPal.wing;
       bx.beginPath();
       bx.ellipse(scx - 8, scy - 1 + wingFlap * 4, 5, 2.5 + wingFlap, -0.3 + wingFlap * 0.3, 0, Math.PI * 2);
       bx.fill();
@@ -3804,16 +4991,16 @@ function drawEntities() {
 
       // Body
       var swGrad = bx.createRadialGradient(scx + 1, scy - 1, 1, scx, scy, 6);
-      swGrad.addColorStop(0, '#9068c8');
-      swGrad.addColorStop(0.7, '#5838a0');
-      swGrad.addColorStop(1, '#2a1050');
+      swGrad.addColorStop(0, swPal.bodyHi);
+      swGrad.addColorStop(0.7, swPal.bodyMid);
+      swGrad.addColorStop(1, swPal.bodyLo);
       bx.fillStyle = swGrad;
       bx.beginPath();
       bx.ellipse(scx, scy, 5, 4.5, 0, 0, Math.PI * 2);
       bx.fill();
 
       // Ears
-      bx.fillStyle = '#5838a0';
+      bx.fillStyle = swPal.bodyMid;
       bx.beginPath();
       bx.moveTo(scx - 3, scy - 4);
       bx.lineTo(scx - 5, scy - 8);
@@ -3826,6 +5013,20 @@ function drawEntities() {
       bx.lineTo(scx + 1, scy - 4);
       bx.closePath();
       bx.fill();
+      // Lava-variant: trailing ember sparks behind the firebat
+      if (e.biome === 3) {
+        for (var ie = 0; ie < 2; ie++) {
+          var ephase = (globalTick * 0.15 + ie * 1.7) % 1;
+          var ealpha = 1 - ephase;
+          bx.save();
+          bx.globalAlpha = ealpha * 0.7;
+          bx.fillStyle = ie === 0 ? '#ffd060' : '#ff8030';
+          bx.beginPath();
+          bx.arc(scx - (e.vx > 0 ? 6 : -6) - ephase * 6, scy + 1, 1.2 - ephase, 0, Math.PI * 2);
+          bx.fill();
+          bx.restore();
+        }
+      }
 
       // Eyes - glowing
       bx.fillStyle = '#fcf0a0';
@@ -3860,6 +5061,7 @@ function drawEntities() {
       bx.fill();
     } else if (e.type === 'phantom') {
       if (e.flat) return;
+      var phPal = PHANTOM_COLORS_BY_BIOME[e.biome | 0] || PHANTOM_COLORS_BY_BIOME[0];
       var pcx = sx + 7, pcy = Math.floor(e.y) + 6;
       var pTick = (e.floatTick || 0);
       var pAlpha = 0.85 + Math.sin(pTick * 1.5) * 0.1;
@@ -3870,9 +5072,9 @@ function drawEntities() {
       bx.globalAlpha = pAlpha;
 
       var phGrad = bx.createRadialGradient(pcx + 1, pcy - 2, 1, pcx, pcy + 1, 8);
-      phGrad.addColorStop(0, '#fcfcfc');
-      phGrad.addColorStop(0.5, '#e0d8f0');
-      phGrad.addColorStop(1, '#b8a8d8');
+      phGrad.addColorStop(0, phPal.hi);
+      phGrad.addColorStop(0.5, phPal.mid);
+      phGrad.addColorStop(1, phPal.lo);
       bx.fillStyle = phGrad;
       bx.beginPath();
       bx.arc(pcx, pcy - 1, 7, Math.PI, 0, false);
@@ -4951,56 +6153,588 @@ function drawFlagPole() {
 
 function drawCastle() {
   const ccx = Math.floor(CASTLE_X * TILE - camera.rx);
-  if (ccx < -80 || ccx > VIEW_W + 20) return;
+  if (ccx < -160 || ccx > VIEW_W + 40) return;
 
-  const wallGrad = bx.createLinearGradient(ccx, 0, ccx + 5 * TILE, 0);
-  wallGrad.addColorStop(0, COL.castleLight);
-  wallGrad.addColorStop(0.3, COL.castle);
-  wallGrad.addColorStop(1, COL.castleDark);
-  bx.fillStyle = wallGrad;
-  bx.fillRect(ccx, 8 * TILE, 5 * TILE, 5 * TILE);
+  const W = 5 * TILE; // 80px wide overall
+  const groundY = 13 * TILE;
 
-  bx.fillStyle = 'rgba(0,0,0,0.15)';
-  bx.fillRect(ccx + 5 * TILE - 2, 8 * TILE, 2, 5 * TILE);
-  bx.fillStyle = 'rgba(255,255,255,0.08)';
-  bx.fillRect(ccx, 8 * TILE, 5 * TILE, 1);
+  // ----- 1. COSMIC HALO (soft purple aura behind the castle) -----
+  // Makes the victory castle pop against the deep-space sky and reads
+  // as the magical end-of-journey objective.
+  const halo = bx.createRadialGradient(
+    ccx + W / 2, groundY - 56, 4,
+    ccx + W / 2, groundY - 56, 110
+  );
+  halo.addColorStop(0, 'rgba(200,160,255,0.30)');
+  halo.addColorStop(0.5, 'rgba(140,90,220,0.10)');
+  halo.addColorStop(1, 'rgba(0,0,0,0)');
+  bx.fillStyle = halo;
+  bx.fillRect(ccx - 60, groundY - 170, W + 120, 170);
 
-  const doorGrad = bx.createLinearGradient(0, 10 * TILE, 0, 13 * TILE);
-  doorGrad.addColorStop(0, '#201830');
-  doorGrad.addColorStop(1, '#100810');
-  bx.fillStyle = doorGrad;
-  bx.fillRect(ccx + 2 * TILE, 11 * TILE, TILE, 2 * TILE);
-  bx.beginPath();
-  bx.arc(ccx + 2.5 * TILE, 11 * TILE, TILE / 2, Math.PI, 0, false);
-  bx.fill();
-
-  for (let i = 0; i < 5; i++) {
-    const bGrad = bx.createLinearGradient(0, 7 * TILE, 0, 8 * TILE);
-    bGrad.addColorStop(0, COL.castleLight);
-    bGrad.addColorStop(1, COL.castle);
-    bx.fillStyle = bGrad;
-    bx.fillRect(ccx + i * TILE, 7 * TILE, TILE - 2, TILE);
-    bx.fillStyle = 'rgba(255,255,255,0.1)';
-    bx.fillRect(ccx + i * TILE, 7 * TILE, TILE - 2, 1);
+  // Helper: tower body with vertical light/shade gradient
+  function tower(tx, ty, tw, th) {
+    const g = bx.createLinearGradient(tx, 0, tx + tw, 0);
+    g.addColorStop(0, COL.castleLight);
+    g.addColorStop(0.4, COL.castle);
+    g.addColorStop(1, COL.castleDark);
+    bx.fillStyle = g;
+    bx.fillRect(tx, ty, tw, th);
+    bx.fillStyle = 'rgba(255,255,255,0.10)';
+    bx.fillRect(tx, ty, tw, 1);
+    bx.fillStyle = 'rgba(0,0,0,0.20)';
+    bx.fillRect(tx + tw - 1, ty, 1, th);
   }
 
-  bx.fillStyle = '#0a0818';
-  bx.fillRect(ccx + TILE + 2, 9 * TILE + 2, 6, 8);
-  bx.fillRect(ccx + 3 * TILE + 2, 9 * TILE + 2, 6, 8);
-  bx.fillStyle = 'rgba(180,140,80,0.25)';
-  bx.fillRect(ccx + TILE + 3, 9 * TILE + 3, 4, 2);
-  bx.fillRect(ccx + 3 * TILE + 3, 9 * TILE + 3, 4, 2);
+  // Helper: crenellated battlement (n teeth across width, h tall)
+  function crenellation(tx, ty, tw, n, h) {
+    const tooth = Math.max(2, Math.floor(tw / (n * 2 - 1)));
+    for (let i = 0; i < n; i++) {
+      const x = tx + i * tooth * 2;
+      bx.fillStyle = COL.castle;
+      bx.fillRect(x, ty, tooth, h);
+      bx.fillStyle = 'rgba(255,255,255,0.14)';
+      bx.fillRect(x, ty, tooth, 1);
+      bx.fillStyle = 'rgba(0,0,0,0.20)';
+      bx.fillRect(x + tooth - 1, ty, 1, h);
+    }
+  }
 
-  const twrGrad = bx.createLinearGradient(ccx + 1.5 * TILE, 0, ccx + 3.5 * TILE, 0);
-  twrGrad.addColorStop(0, COL.castleLight);
-  twrGrad.addColorStop(0.3, COL.castle);
-  twrGrad.addColorStop(1, COL.castleDark);
-  bx.fillStyle = twrGrad;
-  bx.fillRect(ccx + 1.5 * TILE, 5 * TILE, 2 * TILE, 3 * TILE);
-  bx.fillStyle = 'rgba(255,255,255,0.08)';
-  bx.fillRect(ccx + 1.5 * TILE, 5 * TILE, 2 * TILE, 1);
-  bx.fillStyle = 'rgba(0,0,0,0.12)';
-  bx.fillRect(ccx + 3.5 * TILE - 1, 5 * TILE, 1, 3 * TILE);
+  // ----- 2. CORNER TOWERS (taller than the main wall) -----
+  tower(ccx, 6 * TILE, TILE, 7 * TILE);
+  tower(ccx + W - TILE, 6 * TILE, TILE, 7 * TILE);
+  crenellation(ccx, 6 * TILE - 4, TILE, 2, 4);
+  crenellation(ccx + W - TILE, 6 * TILE - 4, TILE, 2, 4);
+
+  // ----- 3. MAIN WALL (between corner towers) -----
+  tower(ccx + TILE, 8 * TILE, W - 2 * TILE, 5 * TILE);
+  // Stone-block grid for masonry texture
+  bx.fillStyle = 'rgba(0,0,0,0.18)';
+  for (let r = 1; r < 5; r++) {
+    bx.fillRect(ccx + TILE, 8 * TILE + r * TILE, W - 2 * TILE, 1);
+  }
+  for (let c = 1; c < 3; c++) {
+    bx.fillRect(ccx + TILE + c * TILE, 8 * TILE, 1, 5 * TILE);
+  }
+  // Battlements on top of wall
+  crenellation(ccx + TILE, 8 * TILE - 4, W - 2 * TILE, 4, 4);
+
+  // ----- 4. CENTRAL TOWER (above the wall) -----
+  const cw = 2 * TILE;
+  const cx = ccx + (W - cw) / 2;
+  const cy = 4 * TILE;
+  const ch = 4 * TILE;
+  tower(cx, cy, cw, ch);
+  bx.fillStyle = 'rgba(0,0,0,0.18)';
+  for (let r = 1; r < 4; r++) bx.fillRect(cx, cy + r * TILE, cw, 1);
+  bx.fillRect(cx + TILE, cy, 1, ch);
+  crenellation(cx, cy - 4, cw, 3, 4);
+
+  // ----- 5. SPIRE & GLOWING STAR -----
+  const spireH = 14;
+  const spireApexX = cx + cw / 2;
+  const spireBaseY = cy - 4;
+  const spireApexY = spireBaseY - spireH;
+  // Triangle spire body
+  bx.fillStyle = COL.castleDark;
+  bx.beginPath();
+  bx.moveTo(cx + 4, spireBaseY);
+  bx.lineTo(cx + cw - 4, spireBaseY);
+  bx.lineTo(spireApexX, spireApexY);
+  bx.closePath();
+  bx.fill();
+  // Spire highlight (left edge)
+  bx.fillStyle = COL.castleLight;
+  bx.beginPath();
+  bx.moveTo(cx + 4, spireBaseY);
+  bx.lineTo(cx + 6, spireBaseY);
+  bx.lineTo(spireApexX, spireApexY);
+  bx.closePath();
+  bx.fill();
+
+  // Pulsing star at the apex
+  const pulse = 0.7 + 0.3 * Math.sin(globalTick * 0.08);
+  const starX = Math.round(spireApexX);
+  const starY = spireApexY - 4;
+  // Halo
+  bx.save();
+  bx.globalAlpha = pulse * 0.7;
+  const starHalo = bx.createRadialGradient(starX, starY, 0.5, starX, starY, 14);
+  starHalo.addColorStop(0, 'rgba(255,240,160,0.95)');
+  starHalo.addColorStop(0.5, 'rgba(255,200,80,0.45)');
+  starHalo.addColorStop(1, 'rgba(255,200,80,0)');
+  bx.fillStyle = starHalo;
+  bx.fillRect(starX - 16, starY - 16, 32, 32);
+  bx.restore();
+  // 4-point pixel star
+  bx.fillStyle = '#ffffff';
+  bx.fillRect(starX, starY, 1, 1);
+  bx.fillStyle = '#fff8c8';
+  bx.fillRect(starX - 1, starY, 1, 1);
+  bx.fillRect(starX + 1, starY, 1, 1);
+  bx.fillRect(starX, starY - 1, 1, 1);
+  bx.fillRect(starX, starY + 1, 1, 1);
+  // Outer rays (pulsing)
+  bx.save();
+  bx.globalAlpha = pulse;
+  bx.fillStyle = '#ffe080';
+  bx.fillRect(starX - 3, starY, 2, 1);
+  bx.fillRect(starX + 2, starY, 2, 1);
+  bx.fillRect(starX, starY - 3, 1, 2);
+  bx.fillRect(starX, starY + 2, 1, 2);
+  bx.restore();
+
+  // ----- 6. DOOR (cosmic portal) -----
+  const doorW = TILE;
+  const doorH = 2 * TILE;
+  const doorX = Math.round(ccx + (W - doorW) / 2);
+  const doorY = 11 * TILE;
+  // Dark interior + arched top
+  bx.fillStyle = '#070315';
+  bx.fillRect(doorX, doorY, doorW, doorH);
+  bx.beginPath();
+  bx.arc(doorX + doorW / 2, doorY, doorW / 2, Math.PI, 0, false);
+  bx.fill();
+  // Cosmic glow inside the door
+  const dg = bx.createLinearGradient(0, doorY - 6, 0, doorY + doorH);
+  dg.addColorStop(0, 'rgba(180,120,255,0.45)');
+  dg.addColorStop(1, 'rgba(40,20,80,0)');
+  bx.fillStyle = dg;
+  bx.beginPath();
+  bx.arc(doorX + doorW / 2, doorY, doorW / 2, Math.PI, 0, false);
+  bx.fill();
+  bx.fillRect(doorX + 1, doorY, doorW - 2, doorH);
+  // Animated star sparkles drifting up inside the door
+  for (let s = 0; s < 3; s++) {
+    const sx = doorX + 3 + s * 4;
+    const cycle = doorH + 4;
+    const sy = doorY + doorH - ((globalTick * 0.6 + s * 14) % cycle);
+    const sa = 0.4 + Math.sin(globalTick * 0.12 + s * 2) * 0.4;
+    if (sa > 0.05) {
+      bx.fillStyle = `rgba(255,240,160,${Math.max(0, sa).toFixed(2)})`;
+      bx.fillRect(sx | 0, sy | 0, 1, 1);
+    }
+  }
+  // Soft golden frame around the door
+  bx.fillStyle = 'rgba(255,200,80,0.30)';
+  bx.fillRect(doorX, doorY + 1, 1, doorH - 1);
+  bx.fillRect(doorX + doorW - 1, doorY + 1, 1, doorH - 1);
+
+  // ----- 7. WINDOWS (with star glow) -----
+  function starWindow(wx, wy) {
+    bx.fillStyle = '#070315';
+    bx.fillRect(wx, wy, 6, 8);
+    bx.fillStyle = 'rgba(255,210,100,0.55)';
+    bx.fillRect(wx + 1, wy + 1, 4, 6);
+    // 4-point sparkle
+    bx.fillStyle = '#ffffff';
+    bx.fillRect(wx + 3, wy + 3, 1, 1);
+    bx.fillStyle = 'rgba(255,255,200,0.85)';
+    bx.fillRect(wx + 2, wy + 3, 1, 1);
+    bx.fillRect(wx + 4, wy + 3, 1, 1);
+    bx.fillRect(wx + 3, wy + 2, 1, 1);
+    bx.fillRect(wx + 3, wy + 4, 1, 1);
+    // Frame
+    bx.fillStyle = 'rgba(255,200,80,0.30)';
+    bx.fillRect(wx, wy, 1, 8);
+    bx.fillRect(wx + 5, wy, 1, 8);
+  }
+  function smallWindow(wx, wy) {
+    bx.fillStyle = '#070315';
+    bx.fillRect(wx, wy, 4, 6);
+    bx.fillStyle = 'rgba(255,200,80,0.55)';
+    bx.fillRect(wx + 1, wy + 1, 2, 4);
+    bx.fillStyle = '#fff8c0';
+    bx.fillRect(wx + 1, wy + 2, 1, 1);
+    bx.fillRect(wx + 2, wy + 3, 1, 1);
+  }
+  // Wall windows flanking the door
+  starWindow(ccx + TILE + 4, 9 * TILE + 4);
+  starWindow(ccx + W - 2 * TILE + 6, 9 * TILE + 4);
+  // Central tower window
+  starWindow(cx + (cw - 6) / 2, cy + TILE);
+  // Corner tower windows (small)
+  smallWindow(ccx + 6, 8 * TILE);
+  smallWindow(ccx + W - 10, 8 * TILE);
+  smallWindow(ccx + 6, 10 * TILE + 2);
+  smallWindow(ccx + W - 10, 10 * TILE + 2);
+
+  // ----- 8. AMBIENT SPARKLES around the castle -----
+  // A handful of tiny twinkling stars drifting near the castle to sell
+  // the "magical objective in space" feel. Deterministic positions, sin
+  // alpha animation.
+  for (let i = 0; i < 8; i++) {
+    const seed = i * 53 + 19;
+    const fx = ((seed * 9301 + 49297) % 233280) / 233280;
+    const fy = (((seed + 7) * 9301 + 49297) % 233280) / 233280;
+    const px = ccx - 30 + Math.round(fx * (W + 60));
+    const py = Math.round(fy * 7 * TILE);
+    const a = 0.25 + 0.55 * Math.max(0, Math.sin(globalTick * 0.07 + i * 0.9));
+    if (a < 0.1) continue;
+    bx.fillStyle = `rgba(255,255,220,${a.toFixed(2)})`;
+    bx.fillRect(px, py, 1, 1);
+  }
+}
+
+let _progressZoneGrads = null;
+let _pitDepthGrad = null;
+let _lavaBedGrad = null;
+const _staticSkyGrads = {};
+
+// ---------------------------------------------------------------
+// Cosmic Nexus sprite cache.
+// Pure pixel-art galaxy: a deep starfield (with a soft Milky Way
+// dust band built FROM stars, not a gradient), small nebula
+// clusters made of crisp coloured pixels, and pixel-art planets
+// with hard banding. Everything is stamped with imageSmoothing
+// disabled so it stays crunchy when upscaled — no soft Photoshop
+// blobs, no double-scaled blur.
+// ---------------------------------------------------------------
+let _cosmicSprites = null;
+function getCosmicSprites() {
+  if (_cosmicSprites) return _cosmicSprites;
+
+  function makeRng(seed) {
+    let s = seed >>> 0;
+    return function rand() {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      return (s & 0xffffff) / 0xffffff;
+    };
+  }
+
+  function pixelDisk(g, cx, cy, r, color) {
+    g.fillStyle = color;
+    const r2 = r * r;
+    for (let y = -r; y <= r; y++) {
+      for (let x = -r; x <= r; x++) {
+        if (x * x + y * y <= r2) g.fillRect((cx + x) | 0, (cy + y) | 0, 1, 1);
+      }
+    }
+  }
+
+  // ----- Big starfield (parallax-tiled across the cosmic biome) -----
+  // Built from hundreds of pixel stars at varying brightness/colour,
+  // PLUS a denser dust band along a diagonal which reads as the Milky
+  // Way without any gradient. Deterministic so it never resamples.
+  function buildStarfield(w, h) {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const g = c.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    const rand = makeRng(0xC05A11C);
+    const rint = (n) => (rand() * n) | 0;
+
+    // Diagonal Milky Way band — denser stars + dust pixels along a
+    // gentle slope. Computed per-x so the band is a wave, not a strip.
+    const bandCenterAt = (x) => h * 0.45 + Math.sin(x * 0.0035) * h * 0.06;
+    const bandHalf = h * 0.18;
+
+    // Background dust along the band — coloured 1px specks, very faint.
+    const dustCols = ['180,160,255', '220,200,255', '255,200,220', '160,200,255'];
+    for (let i = 0; i < 1100; i++) {
+      const x = rand() * w;
+      const yOff = (rand() - 0.5) * bandHalf * 2;
+      const y = bandCenterAt(x) + yOff;
+      const a = (0.05 + rand() * 0.10) * (1 - Math.abs(yOff) / bandHalf);
+      g.fillStyle = `rgba(${dustCols[rint(dustCols.length)]},${a.toFixed(3)})`;
+      g.fillRect(x | 0, y | 0, 1, 1);
+    }
+
+    // Sparse background stars across the entire sky.
+    for (let i = 0; i < 700; i++) {
+      const x = rand() * w;
+      const y = rand() * h;
+      const a = 0.20 + rand() * 0.45;
+      g.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`;
+      g.fillRect(x | 0, y | 0, 1, 1);
+    }
+
+    // Mid-brightness coloured stars.
+    const starCols = ['#ffffff', '#cce0ff', '#ffd0e0', '#e0d0ff', '#fff5cc', '#bff0ff'];
+    for (let i = 0; i < 140; i++) {
+      const x = rand() * w;
+      const y = rand() * h;
+      g.fillStyle = starCols[rint(starCols.length)];
+      g.fillRect(x | 0, y | 0, 1, 1);
+    }
+
+    // Bright "hero" stars with crisp 4-point cross-flare.
+    for (let i = 0; i < 22; i++) {
+      const x = (rand() * w) | 0;
+      const y = (rand() * h) | 0;
+      g.fillStyle = '#ffffff';
+      g.fillRect(x, y, 1, 1);
+      g.fillStyle = 'rgba(255,255,255,0.55)';
+      g.fillRect(x - 1, y, 1, 1);
+      g.fillRect(x + 1, y, 1, 1);
+      g.fillRect(x, y - 1, 1, 1);
+      g.fillRect(x, y + 1, 1, 1);
+      g.fillStyle = 'rgba(255,255,255,0.20)';
+      g.fillRect(x - 2, y, 1, 1);
+      g.fillRect(x + 2, y, 1, 1);
+      g.fillRect(x, y - 2, 1, 1);
+      g.fillRect(x, y + 2, 1, 1);
+    }
+    return c;
+  }
+
+  // ----- Nebula as a pixel cluster (NOT a soft blob) -----
+  // Three concentric shells of pixel dots — outer dim, middle, inner
+  // bright — produce a clearly-shaped nebula that reads as a pixel-art
+  // dust cloud. Stable per-seed so each nebula has a unique silhouette.
+  function buildNebulaCluster(seed, coreColor, midColor, dimColor) {
+    const w = 56, h = 36;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const g = c.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    const rand = makeRng(seed);
+    const cx = w / 2, cy = h / 2;
+
+    // Dim halo
+    g.fillStyle = dimColor;
+    for (let i = 0; i < 60; i++) {
+      const a = rand() * Math.PI * 2;
+      const r = (rand() * 0.5 + 0.5) * 18;
+      const x = cx + Math.cos(a) * r;
+      const y = cy + Math.sin(a) * r * 0.55;
+      g.fillRect(x | 0, y | 0, 1, 1);
+    }
+    // Mid layer
+    g.fillStyle = midColor;
+    for (let i = 0; i < 38; i++) {
+      const a = rand() * Math.PI * 2;
+      const r = (rand() * 0.6 + 0.3) * 12;
+      const x = cx + Math.cos(a) * r;
+      const y = cy + Math.sin(a) * r * 0.6;
+      g.fillRect(x | 0, y | 0, 1, 1);
+    }
+    // Bright core
+    g.fillStyle = coreColor;
+    for (let i = 0; i < 20; i++) {
+      const a = rand() * Math.PI * 2;
+      const r = (rand() * 0.7 + 0.1) * 6;
+      const x = cx + Math.cos(a) * r;
+      const y = cy + Math.sin(a) * r * 0.65;
+      g.fillRect(x | 0, y | 0, 1, 1);
+    }
+    // Hot pixels (bright white in the heart)
+    g.fillStyle = '#ffffff';
+    for (let i = 0; i < 4; i++) {
+      const x = cx + (rand() - 0.5) * 6;
+      const y = cy + (rand() - 0.5) * 4;
+      g.fillRect(x | 0, y | 0, 1, 1);
+    }
+    return c;
+  }
+
+  // ----- Pixel-art planets -----
+  // Properly shaded with a fake sphere normal: each pixel computes its
+  // Z component from (x,y) and dots with a top-left light vector. The
+  // resulting brightness is posterised into 4 bands (dark side, shadow,
+  // base, highlight) — gives clean, crisp pixel-art planets that read
+  // as 3D spheres without any anti-aliasing.
+  function buildPlanet(diameter, base, hi, lo, mid, opts) {
+    opts = opts || {};
+    const ringSpan = opts.ring ? Math.round(diameter * 0.55) : 2;
+    const total = diameter + ringSpan * 2;
+    const c = document.createElement('canvas');
+    c.width = c.height = total;
+    const g = c.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    const cx = (total / 2) | 0;
+    const cy = (total / 2) | 0;
+    const R = (diameter / 2) | 0;
+    const r2 = R * R;
+    const ringRx = R + Math.round(ringSpan * 0.85);
+    const ringRy = Math.max(2, Math.round(ringRx * 0.28));
+
+    // Back half of ring (pixel arc, dimmed to feel "behind")
+    if (opts.ring) {
+      g.fillStyle = opts.ringDim || opts.ring;
+      const steps = ringRx * 4;
+      for (let i = 0; i <= steps; i++) {
+        const t = Math.PI + (i / steps) * Math.PI;
+        g.fillRect((cx + Math.cos(t) * ringRx) | 0, (cy + Math.sin(t) * ringRy) | 0, 1, 1);
+      }
+    }
+
+    // Body — sphere-lit pixel by pixel
+    for (let y = -R; y <= R; y++) {
+      for (let x = -R; x <= R; x++) {
+        const d2 = x * x + y * y;
+        if (d2 > r2) continue;
+        const z = Math.sqrt(r2 - d2);
+        const nx = x / R, ny = y / R, nz = z / R;
+        // Light source: top-left, slightly forward
+        const dot = -nx * 0.55 - ny * 0.55 + nz * 0.62;
+        let col;
+        if (dot > 0.78) col = hi;
+        else if (dot > 0.40) col = mid;
+        else if (dot > 0.05) col = base;
+        else col = lo;
+        g.fillStyle = col;
+        g.fillRect((cx + x) | 0, (cy + y) | 0, 1, 1);
+      }
+    }
+
+    // Surface bands (gas giant): subtle dark stripes only on pixels that
+    // are NOT in deep shadow (so bands show on the lit hemisphere).
+    if (opts.bands) {
+      g.fillStyle = 'rgba(0,0,0,0.22)';
+      for (let by = -R + 2; by < R; by += 3) {
+        for (let x = -R; x <= R; x++) {
+          if (x * x + by * by > r2) continue;
+          const z2 = r2 - x * x - by * by;
+          if (z2 <= 0) continue;
+          const z = Math.sqrt(z2);
+          const dot = -(x / R) * 0.55 - (by / R) * 0.55 + (z / R) * 0.62;
+          if (dot > 0.05) g.fillRect((cx + x) | 0, (cy + by) | 0, 1, 1);
+        }
+      }
+    }
+
+    // Specular highlight pixel — placed at the brightest sphere point
+    g.fillStyle = '#ffffff';
+    g.fillRect(cx - Math.round(R * 0.45), cy - Math.round(R * 0.45), 1, 1);
+
+    // Front half of ring (full brightness, in front of planet)
+    if (opts.ring) {
+      g.fillStyle = opts.ring;
+      const steps = ringRx * 4;
+      for (let i = 0; i <= steps; i++) {
+        const t = (i / steps) * Math.PI;
+        g.fillRect((cx + Math.cos(t) * ringRx) | 0, (cy + Math.sin(t) * ringRy) | 0, 1, 1);
+      }
+    }
+
+    return { canvas: c, w: total, h: total };
+  }
+
+  // ----- Asteroid (irregular pixel rock) -----
+  // Small lumpy silhouette made of stacked pixel ellipses, with crater
+  // pixels sprinkled on the lit side. Stable per seed.
+  function buildAsteroid(seed, baseR, body, hi, lo) {
+    const rand = makeRng(seed);
+    const total = baseR * 2 + 4;
+    const c = document.createElement('canvas');
+    c.width = c.height = total;
+    const g = c.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    const cx = (total / 2) | 0;
+    const cy = (total / 2) | 0;
+    // Bumpy silhouette — for each pixel, distance check with random radius modulation
+    const angleR = [];
+    const samples = 16;
+    for (let i = 0; i < samples; i++) angleR.push(baseR * (0.78 + rand() * 0.30));
+    function localR(angle) {
+      const f = (angle / (Math.PI * 2)) * samples;
+      const i0 = Math.floor(f) % samples;
+      const i1 = (i0 + 1) % samples;
+      const t = f - Math.floor(f);
+      return angleR[i0] * (1 - t) + angleR[i1] * t;
+    }
+    for (let y = -baseR - 2; y <= baseR + 2; y++) {
+      for (let x = -baseR - 2; x <= baseR + 2; x++) {
+        const d = Math.sqrt(x * x + y * y);
+        if (d <= 0.01) {
+          g.fillStyle = hi;
+          g.fillRect(cx, cy, 1, 1);
+          continue;
+        }
+        const a = Math.atan2(y, x) + Math.PI;
+        const r = localR(a);
+        if (d > r) continue;
+        // Light source top-left
+        const nx = x / r, ny = y / r;
+        const lit = -nx * 0.6 - ny * 0.6;
+        let col;
+        if (lit > 0.55) col = hi;
+        else if (lit > 0.0) col = body;
+        else col = lo;
+        g.fillStyle = col;
+        g.fillRect((cx + x) | 0, (cy + y) | 0, 1, 1);
+      }
+    }
+    // 2-3 crater pixels on lit side
+    g.fillStyle = lo;
+    for (let i = 0; i < 3; i++) {
+      const cax = -1 + Math.round(rand() * 2);
+      const cay = -1 + Math.round(rand() * 2);
+      g.fillRect(cx + cax, cy + cay, 1, 1);
+    }
+    return { canvas: c, w: total, h: total };
+  }
+
+  _cosmicSprites = {
+    starfield:    buildStarfield(VIEW_W * 3, Math.round(VIEW_H * 0.78)),
+    nebulaPurple: buildNebulaCluster(0xA1B2C3, '#e8c0ff', '#a060d8', '#5028a0'),
+    nebulaBlue:   buildNebulaCluster(0x4D7C9F, '#c0e0ff', '#5080d0', '#28408a'),
+    nebulaPink:   buildNebulaCluster(0xE08CB0, '#ffd0e8', '#d060a0', '#80286a'),
+    // Big ringed gas giant — lavender / amethyst with bright ring
+    planetRinged: buildPlanet(28, '#9868c8', '#e8c8ff', '#241048', '#7048a8', { ring: 'rgba(232,212,255,0.95)', ringDim: 'rgba(160,130,200,0.55)', bands: true }),
+    // Mid-distance ice/water planet
+    planetBlue:   buildPlanet(20, '#4878c8', '#bce0ff', '#0a1238', '#3460a8', { bands: true }),
+    // Small rocky / desert moon
+    planetRocky:  buildPlanet(14, '#b89870', '#ffeac8', '#2a1808', '#8c6c50', {}),
+    // Small green/teal planet for variety
+    planetGreen:  buildPlanet(12, '#48a878', '#c8ffd8', '#0a2818', '#308860', {}),
+    // Asteroids — different shapes
+    asteroid1:    buildAsteroid(0xA570A1D, 5, '#7a6858', '#c8b89c', '#2a2018'),
+    asteroid2:    buildAsteroid(0x131DA70, 4, '#6c5848', '#b8a890', '#241810'),
+    asteroid3:    buildAsteroid(0xB10B570, 3, '#807060', '#d0c0a8', '#2c2018'),
+  };
+  return _cosmicSprites;
+}
+
+// Cosmic shooting-stars. Up to 3 streaks can be active at once; each
+// has its own life timer so streaks can overlap. Spawn cadence is
+// short enough that the player almost always sees one within a few
+// seconds, but randomised so it never feels metronomic.
+const _shootingStars = [
+  { active: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, max: 0 },
+  { active: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, max: 0 },
+  { active: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, max: 0 },
+];
+let _shootingStarSpawn = 30;
+function _updateShootingStar() {
+  for (let i = 0; i < _shootingStars.length; i++) {
+    const s = _shootingStars[i];
+    if (!s.active) continue;
+    s.x += s.vx;
+    s.y += s.vy;
+    s.life++;
+    if (s.life >= s.max || s.x < -20 || s.x > VIEW_W + 20 || s.y > VIEW_H) s.active = false;
+  }
+  _shootingStarSpawn--;
+  if (_shootingStarSpawn <= 0) {
+    let slot = -1;
+    for (let i = 0; i < _shootingStars.length; i++) if (!_shootingStars[i].active) { slot = i; break; }
+    if (slot >= 0) {
+      const s = _shootingStars[slot];
+      const goLeft = Math.random() < 0.5;
+      s.x = goLeft ? VIEW_W + 10 : -10;
+      s.y = 6 + Math.random() * VIEW_H * 0.55;
+      const spd = 3.6 + Math.random() * 2.2;
+      s.vx = goLeft ? -spd : spd;
+      s.vy = 0.5 + Math.random() * 0.9;
+      s.life = 0;
+      s.max = 55 + Math.random() * 35;
+      s.active = true;
+    }
+    _shootingStarSpawn = 60 + Math.random() * 140;
+  }
+}
+function _buildProgressZoneGrads(barY, barH) {
+  // Forest green / snow blue / desert gold / lava red / cosmic purple.
+  const biomeColors = ['#3a8a3a', '#bcd6ec', '#e8a868', '#c83a20', '#8a40e8'];
+  const arr = [];
+  for (let i = 0; i < biomeColors.length; i++) {
+    const g = bx.createLinearGradient(0, barY, 0, barY + barH);
+    g.addColorStop(0, biomeColors[i]);
+    g.addColorStop(1, lerpColor(biomeColors[i], '#0d0b16', 0.55));
+    arr.push(g);
+  }
+  return arr;
 }
 
 function drawProgressBar() {
@@ -5013,38 +6747,52 @@ function drawProgressBar() {
     }
   }
 
-  const barX = 16;
-  const barY = 29;
-  const barW = VIEW_W - 32;
+  const barX = 14;
+  const barY = 30;
+  const barW = VIEW_W - 28;
   const barH = 3;
 
-  bx.fillStyle = 'rgba(0,0,0,0.4)';
-  bx.beginPath();
-  bx.roundRect(barX - 1, barY - 1, barW + 2, barH + 2, 2);
-  bx.fill();
+  // Flat brutalist track: tiny inset frame, hairline border, no rounded pill.
+  bx.fillStyle = 'rgba(7,6,12,0.85)';
+  bx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
+  bx.fillStyle = 'rgba(255,255,255,0.10)';
+  bx.fillRect(barX - 1, barY - 1, barW + 2, 1);                 // top hairline
+  bx.fillRect(barX - 1, barY + barH, barW + 2, 1);              // bottom hairline
 
-  const pbGrad = bx.createLinearGradient(0, barY, 0, barY + barH);
-  pbGrad.addColorStop(0, '#484058');
-  pbGrad.addColorStop(1, '#282030');
-  bx.fillStyle = pbGrad;
-  bx.beginPath();
-  bx.roundRect(barX, barY, barW, barH, 1.5);
-  bx.fill();
+  // Biome-tinted zones along the track (forest -> snow -> desert -> lava
+  // -> cosmic). Zone boundaries are taken from checkpoint positions, which
+  // are aligned 1:1 with biome entries — so every tick lands exactly on
+  // the start of its colour zone.
+  if (!_progressZoneGrads) _progressZoneGrads = _buildProgressZoneGrads(barY, barH);
+  const zoneBounds = CHECKPOINT_XS.concat(LEVEL_WIDTH);
+  let prevTx = 0;
+  for (let bi = 0; bi < zoneBounds.length; bi++) {
+    const startTx = prevTx;
+    const endTx = zoneBounds[bi];
+    const startProg = (startTx * TILE) / ((LEVEL_WIDTH - 15) * TILE);
+    const endProg = Math.min(1, (endTx * TILE) / ((LEVEL_WIDTH - 15) * TILE));
+    const sx = barX + Math.round(startProg * (barW - 4));
+    const ex = barX + Math.round(endProg * (barW - 4));
+    bx.fillStyle = _progressZoneGrads[bi];
+    bx.fillRect(sx, barY, ex - sx, barH);
+    prevTx = endTx;
+  }
 
+  // Checkpoint ticks — sharp 1px verticals with subtle purple cap on top.
   for (var ci = 0; ci < CHECKPOINT_XS.length; ci++) {
     var cpProgress = (CHECKPOINT_XS[ci] * TILE) / ((LEVEL_WIDTH - 15) * TILE);
     var cpX = barX + Math.round(cpProgress * (barW - 4));
-    bx.fillStyle = 'rgba(200,180,240,0.35)';
-    bx.fillRect(cpX, barY - 1, 1, barH + 2);
+    bx.fillStyle = 'rgba(255,255,255,0.65)';
+    bx.fillRect(cpX, barY - 2, 1, barH + 4);
+    bx.fillStyle = '#b890ff';
+    bx.fillRect(cpX, barY - 2, 1, 1);
   }
 
-  const finGrad = bx.createRadialGradient(barX + barW - 3, barY + 1, 1, barX + barW - 3, barY + 1, 4);
-  finGrad.addColorStop(0, '#e0d0f8');
-  finGrad.addColorStop(1, '#a090c0');
-  bx.fillStyle = finGrad;
-  bx.beginPath();
-  bx.arc(barX + barW - 2, barY + barH / 2, 2.5, 0, Math.PI * 2);
-  bx.fill();
+  // Finish flag marker at the very right — tiny purple square with white tip
+  bx.fillStyle = '#b890ff';
+  bx.fillRect(barX + barW - 3, barY - 2, 3, barH + 4);
+  bx.fillStyle = '#f3eefe';
+  bx.fillRect(barX + barW - 3, barY - 2, 1, 1);
 
   racePlayers.forEach((p, i) => {
     const col = getPlayerDisplayColor(p.color || 'lavender');
@@ -5083,41 +6831,87 @@ function drawProgressBar() {
   });
 }
 
+// ---------------------------------------------------------------
+// HUD sprite cache
+// The HUD strip background, hairline divider, accent block and coin
+// glyph are all completely static. Rebuilding their gradients every
+// frame was just GC noise — bake them into a single offscreen sprite.
+// ---------------------------------------------------------------
+let _hudStripSprite = null;
+function getHudStripSprite() {
+  if (_hudStripSprite) return _hudStripSprite;
+  const stripH = 26;
+  const c = document.createElement('canvas');
+  c.width = VIEW_W;
+  c.height = stripH;
+  const g = c.getContext('2d');
+  const hudG = g.createLinearGradient(0, 0, 0, stripH);
+  hudG.addColorStop(0, 'rgba(7,6,12,0.78)');
+  hudG.addColorStop(0.65, 'rgba(7,6,12,0.55)');
+  hudG.addColorStop(1, 'rgba(7,6,12,0)');
+  g.fillStyle = hudG;
+  g.fillRect(0, 0, VIEW_W, stripH);
+  g.fillStyle = 'rgba(255,255,255,0.10)';
+  g.fillRect(0, stripH - 1, VIEW_W, 1);
+  g.fillStyle = '#b890ff';
+  g.fillRect(VIEW_W / 2 - 6, stripH - 1, 12, 1);
+  _hudStripSprite = c;
+  return c;
+}
+let _hudCoinSprite = null;
+function getHudCoinSprite() {
+  if (_hudCoinSprite) return _hudCoinSprite;
+  const c = document.createElement('canvas');
+  c.width = 8;
+  c.height = 8;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(4, 4, 0.5, 4.5, 4.5, 3.6);
+  grad.addColorStop(0, '#fff5b0');
+  grad.addColorStop(0.55, COL.coin);
+  grad.addColorStop(1, '#7a5810');
+  g.fillStyle = grad;
+  g.beginPath();
+  g.ellipse(4, 4, 2.6, 3.2, 0, 0, Math.PI * 2);
+  g.fill();
+  _hudCoinSprite = c;
+  return c;
+}
+
 function drawHUD() {
-  const sh = 'rgba(0,0,0,0.55)';
+  bx.drawImage(getHudStripSprite(), 0, 0);
 
-  drawPixelText(bx, 'BLOB', 24, 8, COL.text, sh);
-  drawPixelText(bx, String(score).padStart(6, '0'), 24, 18, COL.text, sh);
+  const sh = 'rgba(0,0,0,0.85)';
+  const labelCol = '#9890b0';   // mono-mute (matches menu --fg-mute)
+  const valCol = '#f3eefe';     // crisp white for values
 
-  const hudCoinGrad = bx.createRadialGradient(74, 20, 1, 75, 21, 4);
-  hudCoinGrad.addColorStop(0, '#fcf0a0');
-  hudCoinGrad.addColorStop(0.5, COL.coin);
-  hudCoinGrad.addColorStop(1, '#a08020');
-  bx.fillStyle = hudCoinGrad;
-  bx.beginPath();
-  bx.ellipse(75, 22, 3, 3.5, 0, 0, Math.PI * 2);
-  bx.fill();
-  drawPixelText(bx, 'x' + String(coins).padStart(2, '0'), 82, 18, COL.text, sh);
+  // Layout: small uppercase mono label on row 4, value on row 14.
+  // Columns at px: 6 / 64 / 122 / 168 / 200 (multiplayer fits in same space)
+  drawPixelText(bx, 'BLOB',   6,  4, labelCol, sh);
+  drawPixelText(bx, String(score).padStart(6, '0'), 6, 14, valCol, sh);
 
+  // Coin glyph (cached gold disc sprite) + count
+  bx.drawImage(getHudCoinSprite(), 60, 12);
+  drawPixelText(bx, 'x' + String(coins).padStart(2, '0'), 70, 14, valCol, sh);
+
+  drawPixelText(bx, 'LIVES', 100, 4, labelCol, sh);
   const livesStr = 'x' + (lives - 1);
-  const livesColor = lives <= 1 ? '#ff80a0' : COL.text;
-  drawPixelText(bx, 'LIVES', 108, 8, COL.text, sh);
-  drawPixelText(bx, livesStr, 116, 18, livesColor, sh);
+  const livesCol = lives <= 1 ? '#ff7090' : valCol;
+  drawPixelText(bx, livesStr, 100, 14, livesCol, sh);
 
-  drawPixelText(bx, 'ZONE', 150, 8, COL.text, sh);
-  drawPixelText(bx, '1-1', 154, 18, COL.text, sh);
+  drawPixelText(bx, 'ZONE', 138, 4, labelCol, sh);
+  drawPixelText(bx, '1-1',  138, 14, valCol, sh);
 
   if (multiplayerMode) {
-    drawPixelText(bx, 'MATCH', 204, 8, COL.text, sh);
+    drawPixelText(bx, 'MATCH', 196, 4, labelCol, sh);
     const min = Math.floor(matchTimeRemaining / 60);
     const sec = matchTimeRemaining % 60;
     const timeStr = String(min) + ':' + String(sec).padStart(2, '0');
-    const tColor = matchTimeRemaining <= 30 && matchTimeRemaining % 2 === 0 ? '#ff80a0' : COL.text;
-    drawPixelText(bx, timeStr, 208, 18, tColor, sh);
+    const tCol = matchTimeRemaining <= 30 && matchTimeRemaining % 2 === 0 ? '#ff7090' : valCol;
+    drawPixelText(bx, timeStr, 196, 14, tCol, sh);
   } else {
-    drawPixelText(bx, 'TIME', 210, 8, COL.text, sh);
-    const tColor = time <= 30 && time % 2 === 0 ? '#ff80a0' : COL.text;
-    drawPixelText(bx, String(Math.max(0, time)).padStart(3, '0'), 214, 18, tColor, sh);
+    drawPixelText(bx, 'TIME', 210, 4, labelCol, sh);
+    const tCol = time <= 30 && time % 2 === 0 ? '#ff7090' : valCol;
+    drawPixelText(bx, String(Math.max(0, time)).padStart(3, '0'), 210, 14, tCol, sh);
   }
 
   drawProgressBar();
@@ -5152,31 +6946,35 @@ function drawScoreboard() {
   const colScoreC = panelX + 188;
   const colStatusC = panelX + 218;
 
-  bx.save();
-  bx.globalAlpha = 0.92;
-  bx.fillStyle = '#0c0614';
-  bx.beginPath();
-  bx.roundRect(panelX, panelY, panelW, panelH, 4);
-  bx.fill();
-  bx.restore();
+  // Brutalist scoreboard surface — flat dark panel, hard purple offset
+  // shadow, hairline strokes. Matches the menu's panel system.
+  bx.fillStyle = '#6a4dc6';
+  bx.fillRect(panelX + 3, panelY + 3, panelW, panelH);
+  bx.fillStyle = '#0d0b16';
+  bx.fillRect(panelX, panelY, panelW, panelH);
+  bx.fillStyle = 'rgba(255,255,255,0.32)';
+  bx.fillRect(panelX, panelY, panelW, 1);
+  bx.fillRect(panelX, panelY + panelH - 1, panelW, 1);
+  bx.fillRect(panelX, panelY, 1, panelH);
+  bx.fillRect(panelX + panelW - 1, panelY, 1, panelH);
+  // Tiny purple accent tick in the top-left
+  bx.fillStyle = '#b890ff';
+  bx.fillRect(panelX + 4, panelY + 4, 6, 1);
+  bx.fillRect(panelX + 4, panelY + 4, 1, 4);
 
-  bx.fillStyle = 'rgba(160,120,220,0.25)';
-  bx.fillRect(panelX + 2, panelY, panelW - 4, 1);
-  bx.fillRect(panelX + 2, panelY + panelH - 1, panelW - 4, 1);
-
-  var titleStr = 'RACE  ' + racePlayers.length + ' PLAYERS';
+  var titleStr = '/ RACE   ' + racePlayers.length + ' PLAYERS';
   var titleW = titleStr.length * 6;
-  drawPixelText(bx, titleStr, panelX + Math.floor((panelW - titleW) / 2), panelY + 3, '#c0a8e8', null);
+  drawPixelText(bx, titleStr, panelX + Math.floor((panelW - titleW) / 2), panelY + 3, '#f3eefe', null);
 
   var colY = panelY + titleH + 1;
-  var hCol = '#6858a0';
+  var hCol = '#9890b0';
   drawPixelText(bx, '#', panelX + 5, colY, hCol, null);
   drawPixelText(bx, 'NAME', colName, colY, hCol, null);
   drawPixelText(bx, 'PROG', colProgC - 12, colY, hCol, null);
   drawPixelText(bx, 'COINS', colCoinsC - 15, colY, hCol, null);
   drawPixelText(bx, 'SCORE', colScoreC - 15, colY, hCol, null);
 
-  bx.fillStyle = 'rgba(160,120,220,0.12)';
+  bx.fillStyle = 'rgba(255,255,255,0.18)';
   bx.fillRect(panelX + 4, panelY + headerH - 1, panelW - 8, 1);
 
   for (var i = 0; i < maxVisible; i++) {
@@ -5201,32 +6999,32 @@ function drawScoreboard() {
       bx.restore();
     }
 
-    drawPixelText(bx, String(i + 1), panelX + 5, rowY + 1, '#8878a8', null);
+    drawPixelText(bx, String(i + 1), panelX + 5, rowY + 1, '#9890b0', null);
 
     var nameStr = p.name || 'Blobby';
     if (nameStr.length > 12) nameStr = nameStr.substring(0, 12);
     drawPixelText(bx, nameStr, colName, rowY + 1, col, null);
 
     var pctStr = Math.round((p.progress || 0) * 100) + '%';
-    drawPixelText(bx, pctStr, colProgC - Math.floor(pctStr.length * 3), rowY + 1, '#d0c0e8', null);
+    drawPixelText(bx, pctStr, colProgC - Math.floor(pctStr.length * 3), rowY + 1, '#f3eefe', null);
 
     var coinStr = String(p.coins || 0);
     drawPixelText(bx, coinStr, colCoinsC - Math.floor(coinStr.length * 3), rowY + 1, '#f0d050', null);
 
     var scoreStr = String(p.gameScore || 0);
-    drawPixelText(bx, scoreStr, colScoreC - Math.floor(scoreStr.length * 3), rowY + 1, '#e0d0f8', null);
+    drawPixelText(bx, scoreStr, colScoreC - Math.floor(scoreStr.length * 3), rowY + 1, '#f3eefe', null);
 
     var statusStr = '';
     if (p.finished) statusStr = (p.finishTime / 1000).toFixed(1) + 'S';
     else if (!p.alive) statusStr = 'OUT';
-    var statusCol = p.finished ? '#80e8a0' : '#ff6060';
+    var statusCol = p.finished ? '#80e8a0' : '#ff7090';
     if (statusStr) drawPixelText(bx, statusStr, colStatusC - Math.floor(statusStr.length * 3), rowY + 1, statusCol, null);
   }
 
   if (hasMore) {
     var moreStr = '+' + (sorted.length - maxVisible) + ' MORE';
     var moreW = moreStr.length * 6;
-    drawPixelText(bx, moreStr, panelX + Math.floor((panelW - moreW) / 2), panelY + panelH - 10, '#8878a8', null);
+    drawPixelText(bx, moreStr, panelX + Math.floor((panelW - moreW) / 2), panelY + panelH - 10, '#9890b0', null);
   }
 }
 
@@ -5234,15 +7032,31 @@ function drawLevel() {
   const startTX = Math.max(0, Math.floor(camera.rx / TILE) - 1);
   const endTX = Math.min(LEVEL_WIDTH, Math.ceil((camera.rx + VIEW_W) / TILE) + 1);
 
+  // Precompute bump particle lookup once per frame instead of running
+  // particles.find() per visible tile (was O(particles * tiles) ≈ thousands
+  // of comparisons every frame).
+  let bumpMap = null;
+  for (let i = 0; i < particles.length; i++) {
+    const p = particles[i];
+    if (p.type === 'bump') {
+      if (!bumpMap) bumpMap = new Map();
+      bumpMap.set(p.x + ',' + p.origY, p);
+    }
+  }
+
   for (let ty = 0; ty < LEVEL_HEIGHT; ty++) {
+    const row = levelMap[ty];
+    const rowY = ty * TILE;
     for (let tx = startTX; tx < endTX; tx++) {
-      const tile = levelMap[ty][tx];
+      const tile = row[tx];
       if (tile !== 0) {
-        let drawY = ty * TILE;
-        const bump = particles.find(p => p.type === 'bump' && p.x === tx * TILE && p.origY === ty * TILE);
-        if (bump) {
-          var bt = 1 - bump.timer / 8;
-          drawY -= Math.sin(bt * Math.PI) * 6;
+        let drawY = rowY;
+        if (bumpMap) {
+          const bump = bumpMap.get((tx * TILE) + ',' + rowY);
+          if (bump) {
+            const bt = 1 - bump.timer / 8;
+            drawY -= Math.sin(bt * Math.PI) * 6;
+          }
         }
         drawTile(tx * TILE, drawY, tile);
       }
@@ -5323,39 +7137,94 @@ function drawBlobIcon(bcx, bcy, r, colorId, dead) {
 }
 
 function render() {
+  // Helper: paint a brutalist panel surface (deep black, 1px stroke,
+  // 3px hard offset shadow) — matches the menu treatment and gives every
+  // game-state overlay a consistent "console card" look.
+  function drawBrutalistPanel(x, y, w, h, accent) {
+    accent = accent || '#6a4dc6';
+    // Hard offset shadow first so it sits behind the surface
+    bx.fillStyle = accent;
+    bx.fillRect(x + 3, y + 3, w, h);
+    // Surface
+    bx.fillStyle = '#0d0b16';
+    bx.fillRect(x, y, w, h);
+    // Stroke (top + bottom + sides as thin hairlines)
+    bx.fillStyle = 'rgba(255,255,255,0.32)';
+    bx.fillRect(x, y, w, 1);
+    bx.fillRect(x, y + h - 1, w, 1);
+    bx.fillRect(x, y, 1, h);
+    bx.fillRect(x + w - 1, y, 1, h);
+    // Tiny purple accent tick in the top-left corner
+    bx.fillStyle = '#b890ff';
+    bx.fillRect(x + 4, y + 4, 6, 1);
+    bx.fillRect(x + 4, y + 4, 1, 4);
+  }
+
   if (gameState === 'gameover') {
-    bx.fillStyle = '#100818';
+    // Backdrop: deep black with a soft purple vignette in the corners
+    bx.fillStyle = '#07060c';
     bx.fillRect(0, 0, VIEW_W, VIEW_H);
-    var goVig = bx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.2, VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.7);
-    goVig.addColorStop(0, 'rgba(40,20,60,0.0)');
-    goVig.addColorStop(1, 'rgba(0,0,0,0.35)');
+    var goVig = bx.createRadialGradient(VIEW_W * 0.2, VIEW_H * 0.2, 0, VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.8);
+    goVig.addColorStop(0, 'rgba(106,77,198,0.10)');
+    goVig.addColorStop(1, 'rgba(0,0,0,0)');
     bx.fillStyle = goVig;
     bx.fillRect(0, 0, VIEW_W, VIEW_H);
-    drawBlobIcon(VIEW_W / 2, VIEW_H / 2 - 20, 12, mySelectedColor, true);
-    var goPhase = Math.floor(globalTick / 5) % 3;
-    var goCols = ['#c0a8e8', '#d8b8f0', '#b098d0'];
+
+    // Brutalist panel
+    var goPanelW = 168, goPanelH = 96;
+    var goPanelX = (VIEW_W - goPanelW) >> 1;
+    var goPanelY = ((VIEW_H - goPanelH) >> 1) - 4;
+    drawBrutalistPanel(goPanelX, goPanelY, goPanelW, goPanelH);
+
+    // Mono eyebrow
+    drawPixelText(bx, '/ SYSTEM HALT',  goPanelX + 14, goPanelY + 12, '#9890b0', null);
+
+    // Sad blob portrait
+    drawBlobIcon(VIEW_W / 2, goPanelY + 38, 11, mySelectedColor, true);
+
+    // Title — clean white with subtle phase shimmer
+    var goPhase = Math.floor(globalTick / 6) % 2;
+    var goCol = goPhase ? '#f3eefe' : '#e6deff';
     var goText = 'GAME OVER';
     var goW = goText.length * 6;
-    drawPixelText(bx, goText, ((VIEW_W - goW) / 2) | 0, (VIEW_H / 2 + 6) | 0, goCols[goPhase], '#1a1028');
-    var goAlpha = 0.4 + 0.4 * Math.sin(globalTick * 0.06);
+    drawPixelText(bx, goText, ((VIEW_W - goW) / 2) | 0, goPanelY + 56, goCol, 'rgba(0,0,0,0.85)');
+
+    // Footer prompt with breathing alpha
+    var goAlpha = 0.55 + 0.45 * Math.sin(globalTick * 0.06);
     bx.save();
     bx.globalAlpha = goAlpha;
-    var goPrompt = 'PRESS ENTER';
+    var goPrompt = '> PRESS ENTER';
     var goPW = goPrompt.length * 6;
-    drawPixelText(bx, goPrompt, ((VIEW_W - goPW) / 2) | 0, (VIEW_H / 2 + 22) | 0, '#a090c0', null);
+    drawPixelText(bx, goPrompt, ((VIEW_W - goPW) / 2) | 0, goPanelY + 76, '#b890ff', null);
     bx.restore();
+
     ctx.drawImage(buf, 0, 0, buf.width, buf.height, 0, 0, canvas.width, canvas.height);
     drawScanlines();
     return;
   }
   if (gameState === 'lifeLost') {
-    bx.fillStyle = '#100818';
+    // Backdrop
+    bx.fillStyle = '#07060c';
     bx.fillRect(0, 0, VIEW_W, VIEW_H);
-    const wText = 'ZONE 1-1';
-    const wW = wText.length * 6;
-    drawPixelText(bx, wText, ((VIEW_W - wW) / 2) | 0, (VIEW_H / 2 - 28) | 0, '#e0d0f8', null);
-    drawBlobIcon(VIEW_W / 2 - 10, VIEW_H / 2 + 2, 10, mySelectedColor, false);
-    drawPixelText(bx, 'x  ' + (lives - 1), (VIEW_W / 2 + 6) | 0, (VIEW_H / 2) | 0, '#e0d0f8', null);
+    var llVig = bx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, 0, VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.6);
+    llVig.addColorStop(0, 'rgba(106,77,198,0.08)');
+    llVig.addColorStop(1, 'rgba(0,0,0,0)');
+    bx.fillStyle = llVig;
+    bx.fillRect(0, 0, VIEW_W, VIEW_H);
+
+    // Compact brutalist card
+    var llW = 132, llH = 64;
+    var llX = (VIEW_W - llW) >> 1;
+    var llY = ((VIEW_H - llH) >> 1) - 4;
+    drawBrutalistPanel(llX, llY, llW, llH);
+
+    drawPixelText(bx, '/ ZONE 1-1', llX + 14, llY + 12, '#9890b0', null);
+
+    // Blob + remaining lives counter, side by side
+    drawBlobIcon(llX + 36, llY + 42, 10, mySelectedColor, false);
+    drawPixelText(bx, 'x ' + Math.max(0, lives - 1), llX + 64, llY + 38, '#f3eefe', 'rgba(0,0,0,0.85)');
+    drawPixelText(bx, 'LIVES LEFT', llX + 64, llY + 50, '#9890b0', null);
+
     ctx.drawImage(buf, 0, 0, buf.width, buf.height, 0, 0, canvas.width, canvas.height);
     drawScanlines();
     return;
@@ -5381,53 +7250,66 @@ function render() {
   drawHUD();
   drawScoreboard();
 
+  // Floating HUD message ("ENTERING FROSTPEAK PASS!" etc.) — flat brutalist
+  // chip with thin hairline, slides in from above and fades out at the end.
   if (hudMessage) {
     var hm = hudMessage;
     var fadeIn = Math.min(1, (hm.maxLife - hm.life) / 15);
     var fadeOut = Math.min(1, hm.life / 20);
     var hmAlpha = Math.min(fadeIn, fadeOut);
     var slideY = (1 - fadeIn) * -8;
-    bx.save();
-    bx.globalAlpha = hmAlpha * 0.6;
-    var hmW = hm.text.length * 6 + 20;
+    var hmW = hm.text.length * 6 + 24;
     var hmX = Math.round((VIEW_W - hmW) / 2);
     var hmY = Math.round(VIEW_H * 0.32 + slideY);
-    bx.fillStyle = '#1a1028';
-    bx.beginPath();
-    bx.roundRect(hmX, hmY - 2, hmW, 14, 4);
-    bx.fill();
+    bx.save();
+    bx.globalAlpha = hmAlpha * 0.85;
+    bx.fillStyle = '#0d0b16';
+    bx.fillRect(hmX, hmY - 2, hmW, 14);
+    bx.fillStyle = 'rgba(255,255,255,0.20)';
+    bx.fillRect(hmX, hmY - 2, hmW, 1);
+    bx.fillRect(hmX, hmY + 11, hmW, 1);
+    bx.fillStyle = '#b890ff';
+    bx.fillRect(hmX, hmY - 2, 2, 14);
     bx.globalAlpha = hmAlpha;
     var textX = Math.round((VIEW_W - hm.text.length * 6) / 2);
-    drawPixelText(bx, hm.text, textX, hmY + 1, '#e0d0f8', null);
+    drawPixelText(bx, hm.text, textX, hmY + 1, '#f3eefe', null);
     bx.restore();
   }
 
   if (eliminated && multiplayerMode) {
-
-    bx.fillStyle = 'rgba(16,8,24,0.85)';
+    // Smoked-out backdrop
+    bx.fillStyle = 'rgba(7,6,12,0.88)';
     bx.fillRect(0, 0, VIEW_W, VIEW_H);
-    var elVig = bx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.15, VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.65);
-    elVig.addColorStop(0, 'rgba(60,20,30,0.0)');
-    elVig.addColorStop(1, 'rgba(0,0,0,0.3)');
+    var elVig = bx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, 0, VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.7);
+    elVig.addColorStop(0, 'rgba(106,77,198,0.10)');
+    elVig.addColorStop(1, 'rgba(0,0,0,0)');
     bx.fillStyle = elVig;
     bx.fillRect(0, 0, VIEW_W, VIEW_H);
 
-    var elPhase = Math.floor(globalTick / 6) % 2;
+    var elW2 = 168, elH2 = 110;
+    var elX2 = (VIEW_W - elW2) >> 1;
+    var elY2 = ((VIEW_H - elH2) >> 1) - 6;
+    drawBrutalistPanel(elX2, elY2, elW2, elH2, '#a13050');
+
+    drawPixelText(bx, '/ KO',  elX2 + 14, elY2 + 12, '#ff7090', null);
+    drawBlobIcon(VIEW_W / 2, elY2 + 38, 11, mySelectedColor, true);
+
+    var elPhase = Math.floor(globalTick / 7) % 2;
     var elText = 'ELIMINATED';
     var elW = elText.length * 6;
-    drawPixelText(bx, elText, Math.round((VIEW_W - elW) / 2), VIEW_H / 2 - 38, elPhase ? '#ff80a0' : '#e06080', '#1a1028');
+    drawPixelText(bx, elText, Math.round((VIEW_W - elW) / 2), elY2 + 56, elPhase ? '#ff7090' : '#ff90a8', 'rgba(0,0,0,0.85)');
 
-    drawBlobIcon(VIEW_W / 2, VIEW_H / 2 - 14, 10, mySelectedColor, true);
+    drawPixelText(bx, 'SCORE',  elX2 + 16, elY2 + 72, '#9890b0', null);
+    drawPixelText(bx, String(score), elX2 + 16, elY2 + 82, '#f3eefe', 'rgba(0,0,0,0.85)');
+    drawPixelText(bx, 'COINS',  elX2 + elW2 - 56, elY2 + 72, '#9890b0', null);
+    drawPixelText(bx, String(coins), elX2 + elW2 - 56, elY2 + 82, '#f3eefe', 'rgba(0,0,0,0.85)');
 
-    drawPixelText(bx, 'SCORE: ' + score, 32, VIEW_H / 2 + 6, '#e0d0f8', '#1a1028');
-    drawPixelText(bx, 'COINS: ' + coins, 32, VIEW_H / 2 + 16, '#e0d0f8', '#1a1028');
-
-    var pulseAlpha = 0.5 + 0.5 * Math.sin(globalTick * 0.05);
+    var pulseAlpha = 0.55 + 0.45 * Math.sin(globalTick * 0.05);
     bx.save();
     bx.globalAlpha = pulseAlpha;
-    var waitText = 'WAITING FOR MATCH TO END...';
+    var waitText = '> WAITING FOR MATCH...';
     var waitW = waitText.length * 6;
-    drawPixelText(bx, waitText, Math.round((VIEW_W - waitW) / 2), VIEW_H / 2 + 34, '#a898c8', '#1a1028');
+    drawPixelText(bx, waitText, Math.round((VIEW_W - waitW) / 2), elY2 + elH2 - 12, '#b890ff', null);
     bx.restore();
 
     if (hudMessage) {
@@ -5436,17 +7318,20 @@ function render() {
       var fo2 = Math.min(1, hm2.life / 20);
       var a2 = Math.min(fi2, fo2);
       var sy2 = (1 - fi2) * -8;
-      bx.save();
-      bx.globalAlpha = a2 * 0.6;
-      var w2 = hm2.text.length * 6 + 20;
+      var w2 = hm2.text.length * 6 + 24;
       var x2 = Math.round((VIEW_W - w2) / 2);
-      var y2 = Math.round(VIEW_H * 0.32 + sy2);
-      bx.fillStyle = '#1a1028';
-      bx.beginPath();
-      bx.roundRect(x2, y2 - 2, w2, 14, 4);
-      bx.fill();
+      var y2 = Math.round(VIEW_H * 0.18 + sy2);
+      bx.save();
+      bx.globalAlpha = a2 * 0.85;
+      bx.fillStyle = '#0d0b16';
+      bx.fillRect(x2, y2 - 2, w2, 14);
+      bx.fillStyle = 'rgba(255,255,255,0.20)';
+      bx.fillRect(x2, y2 - 2, w2, 1);
+      bx.fillRect(x2, y2 + 11, w2, 1);
+      bx.fillStyle = '#b890ff';
+      bx.fillRect(x2, y2 - 2, 2, 14);
       bx.globalAlpha = a2;
-      drawPixelText(bx, hm2.text, Math.round((VIEW_W - hm2.text.length * 6) / 2), y2 + 1, '#e0d0f8', null);
+      drawPixelText(bx, hm2.text, Math.round((VIEW_W - hm2.text.length * 6) / 2), y2 + 1, '#f3eefe', null);
       bx.restore();
     }
 
@@ -5454,32 +7339,46 @@ function render() {
   }
 
   if (gameState === 'win' && !multiplayerMode) {
-    bx.fillStyle = 'rgba(16,8,24,0.82)';
-    bx.fillRect(0, VIEW_H / 2 - 52, VIEW_W, 104);
-    bx.fillStyle = 'rgba(192,168,232,0.15)';
-    bx.fillRect(0, VIEW_H / 2 - 52, VIEW_W, 1);
-    bx.fillRect(0, VIEW_H / 2 + 51, VIEW_W, 1);
+    // Single-player victory card — wide brutalist panel listing the score
+    // breakdown line by line.
+    var winPW = 200, winPH = 116;
+    var winPX = (VIEW_W - winPW) >> 1;
+    var winPY = ((VIEW_H - winPH) >> 1) - 8;
+    drawBrutalistPanel(winPX, winPY, winPW, winPH);
 
-    var titlePhase = Math.floor(globalTick / 4) % 3;
-    var titleCols = ['#c0a8e8', '#e0d0f8', '#d8b8f0'];
+    drawPixelText(bx, '/ MISSION COMPLETE', winPX + 14, winPY + 12, '#9890b0', null);
+
+    var titlePhase = Math.floor(globalTick / 5) % 2;
+    var titleCol = titlePhase ? '#f3eefe' : '#e6deff';
     const ccText = 'ADVENTURE CLEAR!';
     const ccW = ccText.length * 6;
-    drawPixelText(bx, ccText, Math.round((VIEW_W - ccW) / 2), VIEW_H / 2 - 44, titleCols[titlePhase], '#1a1028');
+    drawPixelText(bx, ccText, Math.round((VIEW_W - ccW) / 2), winPY + 28, titleCol, 'rgba(0,0,0,0.85)');
 
-    drawPixelText(bx, 'FLAG BONUS: ' + flagBonus, 32, VIEW_H / 2 - 28, '#e0d0f8', '#1a1028');
-    drawPixelText(bx, 'TIME BONUS: ' + timeBonus, 32, VIEW_H / 2 - 18, '#e0d0f8', '#1a1028');
-    drawPixelText(bx, 'COINS: ' + coins + ' x200 = ' + (coins * 200), 32, VIEW_H / 2 - 8, '#e0d0f8', '#1a1028');
-    drawPixelText(bx, 'ENEMIES: ' + enemiesKilled, 32, VIEW_H / 2 + 2, '#e0d0f8', '#1a1028');
+    var rowX = winPX + 18;
+    var labelCol = '#9890b0';
+    var valCol = '#f3eefe';
+    drawPixelText(bx, 'FLAG BONUS',                rowX,        winPY + 46, labelCol, null);
+    drawPixelText(bx, String(flagBonus),           winPX + winPW - 60, winPY + 46, valCol, 'rgba(0,0,0,0.85)');
+    drawPixelText(bx, 'TIME BONUS',                rowX,        winPY + 56, labelCol, null);
+    drawPixelText(bx, String(timeBonus),           winPX + winPW - 60, winPY + 56, valCol, 'rgba(0,0,0,0.85)');
+    drawPixelText(bx, 'COINS x200',                rowX,        winPY + 66, labelCol, null);
+    drawPixelText(bx, String(coins * 200),         winPX + winPW - 60, winPY + 66, valCol, 'rgba(0,0,0,0.85)');
+    drawPixelText(bx, 'ENEMIES KO',                rowX,        winPY + 76, labelCol, null);
+    drawPixelText(bx, String(enemiesKilled),       winPX + winPW - 60, winPY + 76, valCol, 'rgba(0,0,0,0.85)');
 
-    const totalText = 'TOTAL: ' + Math.round(score);
-    drawPixelText(bx, totalText, 32, VIEW_H / 2 + 16, '#c0a8e8', '#1a1028');
+    // Divider before total
+    bx.fillStyle = 'rgba(255,255,255,0.18)';
+    bx.fillRect(winPX + 14, winPY + 86, winPW - 28, 1);
 
-    var prAlpha = 0.5 + 0.5 * Math.sin(globalTick * 0.06);
+    drawPixelText(bx, 'TOTAL',                     rowX,        winPY + 90, '#b890ff', null);
+    drawPixelText(bx, String(Math.round(score)),   winPX + winPW - 60, winPY + 90, '#b890ff', 'rgba(0,0,0,0.85)');
+
+    var prAlpha = 0.55 + 0.45 * Math.sin(globalTick * 0.06);
     bx.save();
     bx.globalAlpha = prAlpha;
-    const prText = 'PRESS ENTER TO PLAY AGAIN';
+    const prText = '> PRESS ENTER TO PLAY AGAIN';
     const prW = prText.length * 6;
-    drawPixelText(bx, prText, Math.round((VIEW_W - prW) / 2), VIEW_H / 2 + 34, '#d0c0e8', '#1a1028');
+    drawPixelText(bx, prText, Math.round((VIEW_W - prW) / 2), winPY + winPH - 12, '#b890ff', null);
     bx.restore();
   }
 
@@ -5901,8 +7800,15 @@ function startSinglePlayer() {
   if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
     const cp = new URLSearchParams(location.search).get('checkpoint');
     if (cp !== null) {
-      const idx = parseInt(cp, 10);
-      if (idx >= 0 && idx < CHECKPOINT_XS.length) checkpointIndex = idx;
+      // ?checkpoint=N maps as: 0=start (no flag), 1=snow, 2=desert,
+      // 3=lava, 4=pre-boss. Internally CHECKPOINT_XS is zero-indexed
+      // and only contains the visible flags, so subtract 1.
+      const n = parseInt(cp, 10);
+      if (n === 0) {
+        checkpointIndex = -1;
+      } else if (n >= 1 && n <= CHECKPOINT_XS.length) {
+        checkpointIndex = n - 1;
+      }
     }
   }
   resetLevel();

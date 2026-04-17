@@ -3,22 +3,45 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Embeddablob Adventures</title>
+<title>Embeddablob</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  /* ----------------------------------------------------------------
+     Embeddablob Adventures — modern retro-brutalist menu theme.
+     Deep black canvas, sharp edges, hard offset shadows, monospace
+     numbering, big tight typography. Purple lives only as an accent
+     (logo glow, hover state, focus rings) so the brand color never
+     drowns the chrome.
+  ----------------------------------------------------------------- */
+  :root {
+    --bg-0: #07060c;             /* deepest canvas */
+    --bg-1: #0d0b16;             /* surface */
+    --bg-2: #14111f;             /* raised surface */
+    --line: rgba(255,255,255,0.10);
+    --line-strong: rgba(255,255,255,0.32);
+    --fg: #f3eefe;
+    --fg-mute: #9890b0;
+    --fg-dim: #5b5470;
+    --accent: #b890ff;           /* blob purple — used SPARINGLY */
+    --accent-deep: #6a4dc6;
+    --danger: #ff7090;
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
     width: 100%; height: 100%;
     overflow: hidden;
-    background: #0e0818;
+    background: var(--bg-0);
+    color: var(--fg);
   }
   body {
     display: flex;
     justify-content: center;
     align-items: center;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
   #gameWrapper {
     position: relative;
@@ -36,24 +59,33 @@
   }
   #scanlineToggle {
     position: absolute;
-    top: 6px; left: 6px;
+    top: 10px; left: 10px;
     z-index: 12;
-    background: rgba(20,12,40,0.5);
-    border: 1px solid rgba(140,110,200,0.3);
-    color: rgba(180,160,220,0.6);
-    font-family: 'Fredoka', sans-serif;
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    color: var(--fg-mute);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-size: 10px;
     font-weight: 500;
-    padding: 3px 8px;
-    border-radius: 4px;
+    padding: 4px 9px;
+    border-radius: 0;
     cursor: pointer;
-    letter-spacing: 0.5px;
-    transition: all 0.15s;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    transition: all 0.12s ease;
   }
   #scanlineToggle:hover {
-    background: rgba(40,25,70,0.7);
-    color: rgba(220,200,240,0.8);
-    border-color: rgba(180,150,240,0.5);
+    background: var(--bg-2);
+    color: var(--fg);
+    border-color: var(--accent);
+    box-shadow: 3px 3px 0 var(--accent-deep);
+    transform: translate(-1px, -1px);
+  }
+  /* Mouse-only control — never trap keyboard focus (Space is the jump key
+     in-game and would re-toggle the CRT if this button stayed focused). */
+  #scanlineToggle:focus,
+  #scanlineToggle:focus-visible {
+    outline: none;
   }
 
   .overlay {
@@ -65,15 +97,22 @@
     align-items: center;
     justify-content: center;
     z-index: 10;
-    color: #fff;
+    color: var(--fg);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     border-radius: 6px;
   }
   .overlay.hidden { display: none; }
 
+  /* Brutalist canvas: deep black, faint dot grid, thin diagonal hatch.
+     The grid uses a tiled background-image so it stays perfectly crisp at
+     any zoom. Purple is reserved for the accent vignette only. */
   #menuOverlay {
-    background: radial-gradient(ellipse at 50% 35%, rgba(35,20,70,0.93) 0%, rgba(12,6,20,0.96) 70%);
+    background:
+      radial-gradient(ellipse at 78% 12%, rgba(184,144,255,0.10) 0%, rgba(184,144,255,0) 55%),
+      radial-gradient(ellipse at 18% 92%, rgba(106,77,198,0.08) 0%, rgba(106,77,198,0) 60%),
+      linear-gradient(180deg, #07060c 0%, #050409 100%);
+    overflow: hidden;
   }
   #crtOverlay {
     position: absolute;
@@ -85,277 +124,507 @@
   }
   #menuOverlay > * { position: relative; z-index: 1; }
   #pauseOverlay {
-    background: rgba(12,6,20,0.85);
+    background: rgba(7,6,12,0.86);
     z-index: 15;
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(6px);
+  }
+
+  /* Top status bar — runs across the menu like an industrial hud strip */
+  .menu-topbar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 14px 0 14px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10px;
+    color: var(--fg-dim);
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .menu-topbar .left-pad { padding-left: 92px; } /* leave room for CRT toggle */
+  .menu-topbar .chip {
+    border: 1px solid var(--line);
+    padding: 3px 7px;
+    background: var(--bg-1);
+    color: var(--fg-mute);
+  }
+  .menu-topbar .chip .dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    background: var(--accent);
+    margin-right: 6px;
+    vertical-align: middle;
+    box-shadow: 0 0 6px var(--accent);
+    animation: blink 1.6s ease-in-out infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
   }
 
   .menu-container {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    padding: 20px 24px;
-    max-width: 480px;
+    align-items: stretch;
+    padding: 64px 28px 56px 28px;
+    max-width: 460px;
     width: 92%;
+    position: relative;
+    z-index: 1;
   }
 
-  .menu-logo {
-    font-family: 'Fredoka', sans-serif;
-    font-size: clamp(24px, 5.5vw, 44px);
-    font-weight: 700;
-    color: #d8c8f8;
-    text-shadow:
-      0 0 16px rgba(160,120,240,0.45),
-      0 0 40px rgba(140,90,220,0.2),
-      0 2px 0 #8060c0,
-      0 4px 0 #604098;
-    letter-spacing: 2px;
-    margin-bottom: 2px;
-    text-align: center;
-    animation: logoPulse 3s ease-in-out infinite;
-  }
-  @keyframes logoPulse {
-    0%, 100% { text-shadow: 0 0 16px rgba(160,120,240,0.45), 0 0 40px rgba(140,90,220,0.2), 0 2px 0 #8060c0, 0 4px 0 #604098; }
-    50% { text-shadow: 0 0 24px rgba(180,140,255,0.55), 0 0 60px rgba(160,110,240,0.3), 0 2px 0 #9070d0, 0 4px 0 #7050a8; }
-  }
-  .menu-subtitle {
-    font-family: 'Fredoka', sans-serif;
-    font-size: clamp(10px, 2vw, 14px);
-    color: #8878b0;
-    margin-bottom: 28px;
-    letter-spacing: 5px;
-    text-transform: uppercase;
-    font-weight: 500;
-    text-shadow: 0 0 10px rgba(140,100,200,0.25);
-  }
-  .menu-section-title {
-    font-family: 'Fredoka', sans-serif;
-    font-size: clamp(18px, 3.5vw, 26px);
-    font-weight: 600;
-    color: #d0c0f0;
-    margin-bottom: 6px;
-    letter-spacing: 1px;
-  }
-  .menu-section-sub {
-    font-size: clamp(11px, 2vw, 14px);
-    color: #8878a8;
-    margin-bottom: 20px;
-    font-weight: 400;
-  }
-
-  .btn-row {
+  /* HERO BLOCK ----------------------------------------------------- */
+  .hero-eyebrow {
     display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    justify-content: center;
     align-items: center;
-    width: 100%;
+    gap: 10px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10px;
+    color: var(--fg-mute);
+    letter-spacing: 2.4px;
+    text-transform: uppercase;
     margin-bottom: 14px;
   }
+  .hero-eyebrow .bar {
+    flex: 1; height: 1px; background: var(--line);
+  }
+  .hero-eyebrow .accent {
+    color: var(--accent);
+    font-weight: 600;
+  }
 
+  /* True 8-bit wordmark. Press Start 2P is the canonical NES/SNES
+     pixel face — paired with a hard 4-step purple stack shadow it
+     reads exactly like a Mario / Kirby / Metroid arcade title card.
+     No blur, no negative tracking, pixel-perfect rendering. */
+  .menu-logo {
+    font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
+    font-size: clamp(20px, 4.6vw, 36px);
+    font-weight: 400;
+    color: var(--fg);
+    letter-spacing: 0;
+    line-height: 1.1;
+    margin: 4px 0 14px 0;
+    text-align: left;
+    position: relative;
+    text-transform: none;
+    white-space: nowrap;
+    /* Stacked single-pixel shadows produce that classic arcade depth
+       without any antialiased glow. Each step is the brand purple. */
+    text-shadow:
+      2px 0   0 var(--accent-deep),
+      0   2px 0 var(--accent-deep),
+      2px 2px 0 var(--accent-deep),
+      4px 4px 0 var(--accent-deep);
+    image-rendering: pixelated;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: none;
+  }
+  /* Drop the duplicated ::before halo — the sharp text-shadow stack
+     above already provides the retro depth. */
+  .menu-logo::before { content: none; }
+  .menu-logo .dot {
+    display: inline-block;
+    width: 10px; height: 10px;
+    background: var(--accent);
+    margin-left: 6px;
+    margin-bottom: 0;
+    vertical-align: baseline;
+    /* Pure square pixel — no glow — matches the arcade aesthetic. */
+    box-shadow: none;
+    animation: blink 1.0s steps(2, end) infinite;
+  }
+  .menu-subtitle {
+    font-family: 'Press Start 2P', 'JetBrains Mono', ui-monospace, monospace;
+    font-size: clamp(8px, 1.2vw, 11px);
+    color: var(--fg-mute);
+    margin: 0 0 28px 2px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    font-weight: 400;
+    text-align: left;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: none;
+  }
+  .menu-subtitle .sep { color: var(--accent); margin: 0 8px; }
+
+  .menu-section-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(20px, 4vw, 30px);
+    font-weight: 700;
+    color: var(--fg);
+    margin: 0 0 4px 0;
+    letter-spacing: -0.5px;
+  }
+  .menu-section-sub {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: clamp(10px, 1.6vw, 12px);
+    color: var(--fg-mute);
+    margin-bottom: 24px;
+    font-weight: 400;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  /* BUTTONS -------------------------------------------------------- */
+  .btn-row {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    margin-bottom: 8px;
+  }
+  .btn-row.inline {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .btn-row.inline .menu-btn { flex: 1; min-width: 130px; }
+
+  /* Brutalist primary button: sharp rectangle, 1px border, hard purple
+     offset shadow appears on hover. Number prefix in monospace creates
+     the catalog-card vibe. */
   .menu-btn {
-    background: linear-gradient(180deg, rgba(100,70,180,0.3) 0%, rgba(50,30,100,0.25) 100%);
-    border: 2px solid rgba(140,110,200,0.4);
-    border-bottom-width: 3px;
-    color: #d8c8f0;
-    padding: 12px 24px;
-    font-size: clamp(11px, 2vw, 14px);
-    font-family: 'Fredoka', sans-serif;
-    font-weight: 500;
+    background: var(--bg-1);
+    border: 1px solid var(--line-strong);
+    color: var(--fg);
+    padding: 16px 20px;
+    font-size: clamp(12px, 1.7vw, 14px);
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
     cursor: pointer;
     min-width: 170px;
-    text-align: center;
-    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, color 0.15s, text-shadow 0.15s, transform 0.15s;
+    text-align: left;
     letter-spacing: 1.5px;
-    border-radius: 10px;
+    border-radius: 0;
     position: relative;
     overflow: hidden;
-    text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    text-transform: uppercase;
+    text-shadow: none;
+    transition: transform 0.12s ease, box-shadow 0.12s ease,
+                background 0.12s ease, border-color 0.12s ease,
+                color 0.12s ease;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
   }
-  .menu-btn:hover, .menu-btn:focus {
-    background: linear-gradient(180deg, rgba(130,90,220,0.5) 0%, rgba(80,50,160,0.4) 100%);
-    border-color: rgba(180,150,240,0.7);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(120,80,200,0.3), 0 0 20px rgba(140,100,220,0.15);
+  .menu-btn .num {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10px;
+    color: var(--fg-dim);
+    letter-spacing: 1.5px;
+    margin-right: 10px;
+    transition: color 0.12s ease;
+  }
+  .menu-btn .arrow {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 14px;
+    color: var(--fg-dim);
+    transition: transform 0.18s ease, color 0.12s ease;
+  }
+  .menu-btn:hover, .menu-btn:focus-visible {
+    background: var(--bg-2);
+    border-color: var(--accent);
+    color: var(--fg);
+    transform: translate(-2px, -2px);
+    box-shadow: 5px 5px 0 var(--accent-deep);
     outline: none;
-    color: #fff;
-    text-shadow: 0 0 8px rgba(200,170,255,0.4);
+  }
+  .menu-btn:hover .num, .menu-btn:focus-visible .num { color: var(--accent); }
+  .menu-btn:hover .arrow, .menu-btn:focus-visible .arrow {
+    color: var(--accent);
+    transform: translateX(4px);
   }
   .menu-btn:active {
-    transform: translateY(0px);
-    box-shadow: 0 1px 4px rgba(120,80,200,0.2);
+    transform: translate(0, 0);
+    box-shadow: 1px 1px 0 var(--accent-deep);
+  }
+  /* "Ghost" variant for back / secondary actions */
+  .menu-btn.ghost {
+    background: transparent;
+    border-color: var(--line);
+    color: var(--fg-mute);
+    padding: 12px 16px;
+    font-size: 12px;
+  }
+  .menu-btn.ghost:hover {
+    border-color: var(--line-strong);
+    color: var(--fg);
+    box-shadow: 4px 4px 0 var(--bg-2);
   }
 
+  /* INPUTS --------------------------------------------------------- */
   .menu-input {
-    background: rgba(20,12,40,0.6);
-    border: 1.5px solid rgba(120,90,180,0.3);
-    color: #e0d0f8;
-    padding: 10px 16px;
-    font-size: clamp(13px, 2.2vw, 16px);
-    font-family: 'Fredoka', sans-serif;
+    background: var(--bg-0);
+    border: 1px solid var(--line-strong);
+    color: var(--fg);
+    padding: 14px 16px;
+    font-size: clamp(13px, 2vw, 15px);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
     text-align: center;
-    margin: 5px 0;
+    margin: 4px 0;
     width: 100%;
-    max-width: 260px;
-    letter-spacing: 3px;
+    max-width: 320px;
+    letter-spacing: 4px;
     text-transform: uppercase;
-    border-radius: 8px;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    border-radius: 0;
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+    caret-color: var(--accent);
   }
   .menu-input:focus {
     outline: none;
-    border-color: rgba(180,150,240,0.6);
-    box-shadow: 0 0 12px rgba(140,100,220,0.15);
+    border-color: var(--accent);
+    box-shadow: 4px 4px 0 var(--accent-deep);
+    transform: translate(-1px, -1px);
   }
   .menu-input::placeholder {
-    color: rgba(120,100,160,0.5);
-    letter-spacing: 1px;
-    text-transform: none;
-  }
-  .menu-label {
-    color: #8878a8;
-    font-size: clamp(9px, 1.6vw, 11px);
-    margin-top: 12px;
-    margin-bottom: 3px;
-    font-weight: 500;
-    letter-spacing: 1.5px;
+    color: var(--fg-dim);
+    letter-spacing: 2px;
     text-transform: uppercase;
   }
+  .menu-label {
+    color: var(--fg-mute);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: clamp(9px, 1.4vw, 11px);
+    margin-top: 14px;
+    margin-bottom: 4px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .menu-label::before {
+    content: '';
+    display: inline-block;
+    width: 6px; height: 1px;
+    background: var(--accent);
+  }
+
   .room-code {
-    font-family: 'Fredoka', sans-serif;
-    font-size: clamp(24px, 5vw, 34px);
-    color: #d0b8f8;
-    letter-spacing: 8px;
-    margin: 6px 0 14px 0;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: clamp(28px, 5.5vw, 40px);
+    color: var(--fg);
+    letter-spacing: 12px;
+    margin: 8px 0 18px 0;
     font-weight: 700;
-    text-shadow: 0 3px 12px rgba(160,100,240,0.3);
+    background: var(--bg-1);
+    border: 1px solid var(--line-strong);
+    padding: 16px 20px 16px 32px;
+    text-align: center;
+    box-shadow: 5px 5px 0 var(--accent-deep);
   }
   .player-list {
-    color: #a898d0;
-    font-size: clamp(10px, 1.8vw, 12px);
-    margin: 6px 0;
+    color: var(--fg-mute);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: clamp(10px, 1.7vw, 12px);
+    margin: 8px 0;
     line-height: 1.9;
     text-align: left;
-    min-width: 200px;
-    max-width: 300px;
+    min-width: 220px;
+    max-width: 320px;
     width: 100%;
+    border: 1px solid var(--line);
+    background: var(--bg-1);
+    padding: 6px;
   }
   .player-list div {
-    padding: 3px 10px;
-    border-radius: 5px;
-    transition: background 0.15s;
+    padding: 6px 10px;
+    transition: background 0.12s;
+    color: var(--fg);
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
   }
-  .player-list div:nth-child(odd) { background: rgba(60,40,100,0.15); }
-  .error-msg { color: #ff80a0; font-size: 11px; margin-top: 6px; min-height: 16px; }
+  .player-list div:nth-child(odd) { background: rgba(255,255,255,0.025); }
+  .error-msg {
+    color: var(--danger);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10px;
+    margin-top: 8px;
+    min-height: 16px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+  }
   .back-link {
-    color: #6858a0;
-    font-size: clamp(10px, 1.6vw, 12px);
+    color: var(--fg-dim);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: clamp(10px, 1.5vw, 11px);
     cursor: pointer;
-    margin-top: 16px;
-    transition: color 0.2s;
+    margin-top: 18px;
+    transition: color 0.15s, transform 0.15s;
     font-weight: 500;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    align-self: flex-start;
   }
-  .back-link:hover { color: #d0c0f0; }
+  .back-link:hover { color: var(--accent); transform: translateX(-2px); }
 
   .color-picker-label {
-    color: #8878a8;
-    font-size: clamp(9px, 1.6vw, 11px);
+    color: var(--fg-mute);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: clamp(9px, 1.4vw, 11px);
     margin-top: 14px;
     margin-bottom: 12px;
     font-weight: 500;
-    letter-spacing: 1.5px;
+    letter-spacing: 2px;
     text-transform: uppercase;
+    display: flex; align-items: center; gap: 8px;
   }
+  .color-picker-label::before {
+    content: '';
+    display: inline-block;
+    width: 6px; height: 1px;
+    background: var(--accent);
+  }
+  /* Square swatches with thin frames — brutalist palette card. */
   .color-picker {
     display: grid;
-    grid-template-columns: repeat(6, 30px);
-    gap: 12px;
-    justify-content: center;
+    grid-template-columns: repeat(6, 34px);
+    gap: 10px;
+    justify-content: start;
     margin-bottom: 16px;
   }
   .color-swatch {
-    width: 30px; height: 30px;
-    border-radius: 50%;
-    border: 2.5px solid transparent;
+    width: 34px; height: 34px;
+    border-radius: 0;
+    border: 1px solid var(--line);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
     position: relative;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    box-shadow: none;
   }
   .color-swatch:hover {
-    transform: scale(1.2);
-    box-shadow: 0 0 12px rgba(192,168,232,0.35);
+    transform: translate(-2px, -2px);
+    box-shadow: 3px 3px 0 var(--bg-2);
+    border-color: var(--line-strong);
   }
   .color-swatch.selected {
-    border-color: #fff;
-    transform: scale(1.2);
-    box-shadow: 0 0 16px rgba(192,168,232,0.5), inset 0 0 4px rgba(255,255,255,0.2);
+    border-color: var(--fg);
+    transform: translate(-2px, -2px);
+    box-shadow: 3px 3px 0 var(--accent-deep);
   }
   .color-swatch.taken {
-    opacity: 0.2;
+    opacity: 0.18;
     cursor: not-allowed;
     pointer-events: none;
   }
   .color-swatch.taken::after {
-    content: 'X';
+    content: '\00d7';
     position: absolute;
     top: 50%; left: 50%;
     transform: translate(-50%, -50%);
     color: #fff;
-    font-size: 11px;
-    font-weight: bold;
+    font-size: 16px;
+    font-weight: 700;
     text-shadow: 1px 1px 0 #000;
   }
 
   .spinner {
     display: inline-block;
-    width: 16px; height: 16px;
-    border: 2.5px solid rgba(192,168,232,0.2);
-    border-top-color: #c0a8e8;
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
+    width: 12px; height: 12px;
+    border: 1.5px solid var(--line);
+    border-top-color: var(--accent);
+    border-radius: 0;
+    animation: spin 0.8s linear infinite;
     vertical-align: middle;
-    margin-right: 6px;
+    margin-right: 8px;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
   .menu-btn:disabled {
-    opacity: 0.4;
+    opacity: 0.35;
     cursor: not-allowed;
     pointer-events: none;
   }
 
+  /* PAUSE OVERLAY -------------------------------------------------- */
+  #pauseOverlay .menu-container {
+    padding: 28px;
+    max-width: 360px;
+    border: 1px solid var(--line-strong);
+    background: var(--bg-1);
+    box-shadow: 6px 6px 0 var(--accent-deep);
+  }
   #pauseOverlay .menu-btn {
-    margin-bottom: 12px;
+    margin-bottom: 10px;
+    width: 100%;
   }
   .pause-title {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Space Grotesk', sans-serif;
     font-size: clamp(22px, 4.5vw, 32px);
     font-weight: 700;
-    color: #d8c8f8;
-    margin-bottom: 24px;
-    letter-spacing: 4px;
-    text-shadow: 0 0 14px rgba(160,120,240,0.4), 0 2px 0 #7050a0;
+    color: var(--fg);
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+    text-align: left;
+    width: 100%;
+    position: relative;
   }
+  .pause-title::after {
+    content: '';
+    display: block;
+    width: 32px; height: 2px;
+    background: var(--accent);
+    margin-top: 12px;
+  }
+  .pause-sub {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--fg-mute);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 22px;
+    text-align: left;
+    width: 100%;
+  }
+
+  /* Controls strip — compact mono row pinned at bottom */
   .controls-hint {
-    color: rgba(140,120,180,0.45);
-    font-family: 'Fredoka', sans-serif;
-    font-size: clamp(8px, 1.3vw, 10px);
+    color: var(--fg-dim);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: clamp(9px, 1.3vw, 10px);
     font-weight: 400;
-    margin-top: 24px;
-    line-height: 2;
-    text-align: center;
-    letter-spacing: 0.5px;
+    margin-top: 26px;
+    line-height: 1.9;
+    text-align: left;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+    width: 100%;
+  }
+  .controls-hint .key {
+    display: inline-block;
+    border: 1px solid var(--line-strong);
+    color: var(--fg);
+    padding: 1px 6px;
+    margin: 0 4px 0 0;
+    background: var(--bg-1);
+    font-size: 9px;
+    letter-spacing: 1px;
+  }
+  .controls-hint .sep {
+    display: inline-block;
+    width: 2px; height: 2px;
+    background: var(--accent);
+    border-radius: 0;
+    margin: 0 10px;
+    vertical-align: middle;
   }
 
   #countdown {
     position: absolute;
     top: 50%; left: 50%;
     transform: translate(-50%,-50%);
-    font-family: 'Fredoka', sans-serif;
-    font-size: clamp(40px, 10vw, 72px);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(40px, 10vw, 84px);
     font-weight: 700;
-    color: #e0d0f8;
-    text-shadow: 0 4px 16px rgba(160,100,240,0.4);
+    color: var(--fg);
+    text-shadow: 4px 4px 0 var(--accent-deep);
+    letter-spacing: -2px;
     z-index: 20;
     display: none;
   }
@@ -364,23 +633,26 @@
     position: absolute;
     top: 0; right: 0;
     width: min(180px, 28vw);
-    background: rgba(12,6,20,0.85);
+    background: rgba(7,6,12,0.88);
     backdrop-filter: blur(4px);
     z-index: 5;
-    padding: 6px;
+    padding: 8px;
     display: none;
-    font-family: 'Inter', sans-serif;
-    border-bottom-left-radius: 8px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    border-left: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
   }
   #raceTimeline.visible { display: block; }
   .timeline-title {
-    color: #a898c8;
-    font-size: clamp(8px, 1.4vw, 10px);
-    text-align: center;
-    margin-bottom: 5px;
-    letter-spacing: 1.5px;
+    color: var(--fg-mute);
+    font-size: clamp(8px, 1.3vw, 10px);
+    text-align: left;
+    margin-bottom: 6px;
+    letter-spacing: 1.8px;
     font-weight: 600;
     text-transform: uppercase;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 4px;
   }
   .timeline-player { margin: 3px 0; }
   .timeline-name { color: #d0c0e8; font-size: clamp(7px, 1.2vw, 9px); margin-bottom: 2px; display: flex; align-items: center; gap: 3px; }
@@ -397,14 +669,15 @@
     line-height: 1;
   }
   .timeline-bar-bg {
-    background: rgba(40,25,70,0.6);
-    height: 5px;
-    border-radius: 3px;
+    background: rgba(255,255,255,0.06);
+    height: 4px;
+    border-radius: 0;
     overflow: hidden;
+    border: 1px solid var(--line);
   }
   .timeline-bar-fill {
     height: 100%;
-    border-radius: 3px;
+    border-radius: 0;
     transition: width 0.25s ease;
   }
 
@@ -418,19 +691,21 @@
     padding: 10px 20px;
   }
   .m-btn {
-    width: 56px; height: 56px;
-    background: rgba(160,130,220,0.12);
-    border: 1.5px solid rgba(160,130,220,0.25);
-    border-radius: 50%;
-    color: rgba(220,200,240,0.7);
+    width: 60px; height: 60px;
+    background: var(--bg-1);
+    border: 1px solid var(--line-strong);
+    border-radius: 0;
+    color: var(--fg);
     font-size: 22px;
     display: flex; align-items: center; justify-content: center;
     pointer-events: all; user-select: none; -webkit-user-select: none;
-    transition: background 0.1s;
+    transition: background 0.1s, box-shadow 0.1s, transform 0.1s;
   }
   .m-btn:active {
-    background: rgba(160,130,220,0.3);
-    border-color: rgba(180,150,240,0.5);
+    background: var(--bg-2);
+    border-color: var(--accent);
+    box-shadow: 3px 3px 0 var(--accent-deep);
+    transform: translate(-1px, -1px);
   }
   .m-dpad { display: flex; gap: 8px; align-items: flex-end; }
   .m-actions { display: flex; gap: 10px; align-items: flex-end; }
@@ -443,13 +718,17 @@
   }
 
   @media (max-width: 600px) {
-    .menu-btn { min-width: 140px; padding: 10px 18px; }
-    .menu-container { padding: 14px; }
-    .color-swatch { width: 26px; height: 26px; }
-    .color-picker { grid-template-columns: repeat(6, 26px); gap: 8px; }
+    .menu-btn { min-width: 140px; padding: 14px 16px; }
+    .menu-container { padding: 56px 18px 44px 18px; }
+    .color-swatch { width: 28px; height: 28px; }
+    .color-picker { grid-template-columns: repeat(6, 28px); gap: 8px; }
+    .menu-topbar { padding: 10px 10px 0 10px; font-size: 9px; }
+    .menu-topbar .left-pad { padding-left: 80px; }
   }
   @media (max-width: 400px) {
-    .menu-btn { min-width: 120px; padding: 9px 14px; font-size: 11px; }
+    .menu-btn { min-width: 120px; padding: 12px 14px; font-size: 11px; }
+    .menu-logo { font-size: clamp(18px, 6.5vw, 26px); }
+    .menu-subtitle { font-size: 8px; letter-spacing: 3px; }
   }
 </style>
 </head>
@@ -461,81 +740,154 @@
 
   <div id="menuOverlay" class="overlay">
     <div id="menuMain" class="menu-container">
-      <div class="menu-logo">Embeddablob</div>
+      <h1 class="menu-logo" data-text="Embeddablob">Embeddablob<span class="dot"></span></h1>
       <div class="menu-subtitle">Adventures</div>
+
       <div class="btn-row">
-        <button class="menu-btn" onclick="showSinglePlayerSetup()">SINGLE PLAYER</button>
+        <button class="menu-btn" onclick="showSinglePlayerSetup()">
+          <span><span class="num">01</span>SINGLE PLAYER</span>
+          <span class="arrow">&rsaquo;</span>
+        </button>
       </div>
-      <div class="btn-row">
-        <button class="menu-btn" onclick="showCreateRoom()">CREATE ROOM</button>
-        <button class="menu-btn" onclick="showJoinRoom()">JOIN ROOM</button>
+      <div class="btn-row inline">
+        <button class="menu-btn" onclick="showCreateRoom()">
+          <span><span class="num">02</span>CREATE ROOM</span>
+          <span class="arrow">&rsaquo;</span>
+        </button>
+        <button class="menu-btn" onclick="showJoinRoom()">
+          <span><span class="num">03</span>JOIN ROOM</span>
+          <span class="arrow">&rsaquo;</span>
+        </button>
       </div>
+
       <div class="controls-hint">
-        Arrows: Move &nbsp;&nbsp; Space/Up: Jump (x2!) &nbsp;&nbsp; Shift/X: Run &amp; Shoot<br>
-        ESC: Pause
+        <span class="key">&larr; &rarr;</span>MOVE<span class="sep"></span>
+        <span class="key">SPACE</span>JUMP&times;2<span class="sep"></span>
+        <span class="key">SHIFT</span>RUN<span class="sep"></span>
+        <span class="key">X</span>SHOOT<span class="sep"></span>
+        <span class="key">ESC</span>PAUSE
       </div>
     </div>
 
     <div id="menuSinglePlayer" class="menu-container" style="display:none;">
+      <div class="hero-eyebrow">
+        <span class="accent">/01.1</span>
+        <span>SOLO RUN</span>
+        <span class="bar"></span>
+      </div>
       <div class="menu-section-title">Single Player</div>
-      <div class="menu-section-sub">Choose your blob!</div>
+      <div class="menu-section-sub">// Choose your blob</div>
       <div class="color-picker-label">PICK YOUR COLOR</div>
       <div class="color-picker" id="singleColorPicker"></div>
-      <button class="menu-btn" onclick="startSinglePlayer()">START GAME</button>
-      <div class="back-link" onclick="showMainMenu()">&#8592; Back</div>
+      <div class="btn-row">
+        <button class="menu-btn" onclick="startSinglePlayer()">
+          <span><span class="num">&gt;</span>START GAME</span>
+          <span class="arrow">&rsaquo;</span>
+        </button>
+      </div>
+      <div class="back-link" onclick="showMainMenu()">&larr; BACK</div>
     </div>
 
     <div id="menuCreate" class="menu-container" style="display:none;">
+      <div class="hero-eyebrow">
+        <span class="accent">/02</span>
+        <span>HOST</span>
+        <span class="bar"></span>
+      </div>
       <div class="menu-section-title">Create Room</div>
-      <div class="menu-section-sub">Host a multiplayer match</div>
+      <div class="menu-section-sub">// Host a multiplayer match</div>
       <div class="menu-label">YOUR NAME</div>
-      <input class="menu-input" id="createName" placeholder="Blobby" maxlength="12">
-      <br>
-      <button class="menu-btn" onclick="createRoom()">CREATE</button>
+      <input class="menu-input" id="createName" placeholder="BLOBBY" maxlength="12">
+      <div class="btn-row" style="margin-top:14px;">
+        <button class="menu-btn" onclick="createRoom()">
+          <span><span class="num">&gt;</span>CREATE</span>
+          <span class="arrow">&rsaquo;</span>
+        </button>
+      </div>
       <div class="error-msg" id="createError"></div>
-      <div class="back-link" onclick="showMainMenu()">&#8592; Back</div>
+      <div class="back-link" onclick="showMainMenu()">&larr; BACK</div>
     </div>
 
     <div id="menuJoin" class="menu-container" style="display:none;">
+      <div class="hero-eyebrow">
+        <span class="accent">/03</span>
+        <span>CONNECT</span>
+        <span class="bar"></span>
+      </div>
       <div class="menu-section-title">Join Room</div>
-      <div class="menu-section-sub">Enter a room code to join</div>
+      <div class="menu-section-sub">// Enter a room code to join</div>
       <div class="menu-label">ROOM CODE</div>
       <input class="menu-input" id="joinCode" placeholder="ABCDE" maxlength="5">
       <div class="menu-label">YOUR NAME</div>
-      <input class="menu-input" id="joinName" placeholder="Blobby" maxlength="12">
-      <br>
-      <button class="menu-btn" onclick="joinRoom()">JOIN</button>
+      <input class="menu-input" id="joinName" placeholder="BLOBBY" maxlength="12">
+      <div class="btn-row" style="margin-top:14px;">
+        <button class="menu-btn" onclick="joinRoom()">
+          <span><span class="num">&gt;</span>JOIN</span>
+          <span class="arrow">&rsaquo;</span>
+        </button>
+      </div>
       <div class="error-msg" id="joinError"></div>
-      <div class="back-link" onclick="showMainMenu()">&#8592; Back</div>
+      <div class="back-link" onclick="showMainMenu()">&larr; BACK</div>
     </div>
 
     <div id="menuLobby" class="menu-container" style="display:none;">
+      <div class="hero-eyebrow">
+        <span class="accent">/LOBBY</span>
+        <span>STAND BY</span>
+        <span class="bar"></span>
+      </div>
       <div class="menu-section-title">Room Lobby</div>
-      <div class="menu-section-sub">Room Code</div>
+      <div class="menu-section-sub">// Room Code</div>
       <div class="room-code" id="lobbyCode"></div>
       <div class="menu-label">PLAYERS</div>
       <div class="player-list" id="lobbyPlayers"></div>
       <div class="color-picker-label">YOUR COLOR</div>
       <div class="color-picker" id="lobbyColorPicker"></div>
-      <button class="menu-btn" id="startBtn" onclick="startMultiplayerGame()" style="display:none;">START MATCH</button>
-      <div class="menu-label" id="waitMsg" style="display:none;">Waiting for host to start...</div>
-      <div class="back-link" onclick="leaveRoom()">&#8592; Leave Room</div>
+      <div class="btn-row" style="margin-top:8px;">
+        <button class="menu-btn" id="startBtn" onclick="startMultiplayerGame()" style="display:none;">
+          <span><span class="num">&gt;</span>START MATCH</span>
+          <span class="arrow">&rsaquo;</span>
+        </button>
+      </div>
+      <div class="menu-label" id="waitMsg" style="display:none;">WAITING FOR HOST...</div>
+      <div class="back-link" onclick="leaveRoom()">&larr; LEAVE ROOM</div>
     </div>
 
     <div id="menuResults" class="menu-container" style="display:none;">
+      <div class="hero-eyebrow">
+        <span class="accent">/RESULTS</span>
+        <span>FINAL</span>
+        <span class="bar"></span>
+      </div>
       <div class="menu-section-title">Match Results</div>
-      <div class="menu-section-sub">Final standings</div>
+      <div class="menu-section-sub">// Final standings</div>
       <div class="player-list" id="resultsPlayers" style="min-width:260px;"></div>
-      <button class="menu-btn" id="replayBtn" onclick="returnToLobby()" style="display:none;">PLAY AGAIN</button>
-      <div class="back-link" onclick="leaveRoom()">&#8592; Leave</div>
+      <div class="btn-row" style="margin-top:14px;">
+        <button class="menu-btn" id="replayBtn" onclick="returnToLobby()" style="display:none;">
+          <span><span class="num">&gt;</span>PLAY AGAIN</span>
+          <span class="arrow">&rsaquo;</span>
+        </button>
+      </div>
+      <div class="back-link" onclick="leaveRoom()">&larr; LEAVE</div>
     </div>
   </div>
 
   <div id="pauseOverlay" class="overlay hidden">
-    <div class="pause-title">PAUSED</div>
-    <button class="menu-btn" onclick="resumeGame()">RESUME</button>
-    <button class="menu-btn" onclick="quitToMenu()">LEAVE GAME</button>
-    <div class="controls-hint">Press ESC to resume</div>
+    <div class="menu-container">
+      <div class="pause-title">Paused</div>
+      <div class="pause-sub">// Game suspended</div>
+      <button class="menu-btn" onclick="resumeGame()">
+        <span><span class="num">01</span>RESUME</span>
+        <span class="arrow">&rsaquo;</span>
+      </button>
+      <button class="menu-btn ghost" onclick="quitToMenu()">
+        <span><span class="num">02</span>LEAVE GAME</span>
+        <span class="arrow">&rsaquo;</span>
+      </button>
+      <div class="controls-hint" style="margin-top:18px;">
+        <span class="key">ESC</span>RESUME
+      </div>
+    </div>
   </div>
 
   <div id="countdown"></div>
