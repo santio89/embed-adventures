@@ -5393,6 +5393,23 @@ function _sampleRemoteAt(snaps, renderT) {
     }
   }
   if (a) {
+    // Bit-exact short-circuit: when both bracketing samples are
+    // stationary at the same position, the Hermite formula
+    // (h00*a.x + h01*b.x) is *algebraically* equal to a.x, but
+    // floating-point evaluation drifts by a fraction of a ULP.
+    // That sub-pixel noise gets `Math.floor()`-ed for display and
+    // occasionally snaps to a different pixel, producing the
+    // ~1-px flicker on truly-static remotes that users report.
+    // Returning the constant directly bypasses the entire failure
+    // mode and guarantees pixel-perfect stillness.
+    if (a.x === b.x && a.y === b.y && a.vx === 0 && b.vx === 0 && a.vy === 0 && b.vy === 0) {
+      return {
+        x: a.x, y: a.y, vx: 0, vy: 0,
+        facing: b.facing, anim: b.anim, frame: b.frame,
+        size: b.size, star: b.star, dead: b.dead,
+      };
+    }
+
     var spanMs = b.t - a.t;
     var u = spanMs > 0 ? (renderT - a.t) / spanMs : 0;
     if (u < 0) u = 0; else if (u > 1) u = 1;
