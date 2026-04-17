@@ -1928,7 +1928,13 @@ let showScoreboard = false;
 window.addEventListener('keydown', e => {
   if (e.code === 'Tab') {
     e.preventDefault();
-    if (!e.repeat && multiplayerMode && gameState === 'playing') showScoreboard = true;
+    // Allow the scoreboard to be opened while alive (gameState 'playing'),
+    // after being eliminated (gameState stays 'playing' but `eliminated`
+    // is true), and after finishing the level in MP ('win' state where
+    // we're just waiting for the match to wrap up).
+    if (!e.repeat && multiplayerMode && (gameState === 'playing' || gameState === 'win')) {
+      showScoreboard = true;
+    }
     return;
   }
   if (e.repeat) return;
@@ -6799,41 +6805,132 @@ function drawProgressBar() {
   bx.fillStyle = '#f3eefe';
   bx.fillRect(barX + barW - 3, barY - 2, 1, 1);
 
-  racePlayers.forEach((p, i) => {
-    const col = getPlayerDisplayColor(p.color || 'lavender');
-    const progress = Math.max(0, Math.min(1, p.progress || 0));
-    const px = barX + Math.round(progress * (barW - 4));
-    const isMe = p.id === myPlayerId;
-    const initial = (p.name || '?')[0].toUpperCase();
+  // ---- Player markers ----
+  // With up to 50 players in a room, multiple blobs cluster at similar
+  // progress. Drawing each at the same Y just stacks them on top of each
+  // other so the user only sees a few. We fan overlapping players out
+  // vertically (alternating above / below the bar) so EVERY player is
+  // visible no matter how many are at the same spot. The local player
+  // ALWAYS renders last and centred on the bar with a bright outline
+  // ring + initial, so they stay easy to find.
+  const entries = racePlayers.map(p => ({
+    p,
+    col: getPlayerDisplayColor(p.color || 'lavender'),
+    progress: Math.max(0, Math.min(1, p.progress || 0)),
+    isMe: p.id === myPlayerId,
+  }));
+  entries.sort((a, b) => a.progress - b.progress);
 
-    if (!p.alive && !p.finished) {
-      bx.fillStyle = '#555';
-      bx.beginPath();
-      bx.arc(px + 1, barY + barH / 2, 1.5, 0, Math.PI * 2);
-      bx.fill();
-    } else if (p.finished) {
-      bx.fillStyle = col;
-      bx.beginPath();
-      bx.arc(px + 1.5, barY + barH / 2, 2.5, 0, Math.PI * 2);
-      bx.fill();
+  // Bucket entries into ~6px groups along the bar so we know how to fan.
+  const GROUP_PX = 6;
+  const groups = [];
+  for (const e of entries) {
+    e.px = barX + Math.round(e.progress * (barW - 4));
+    if (groups.length && (e.px - groups[groups.length - 1].px) < GROUP_PX) {
+      groups[groups.length - 1].list.push(e);
     } else {
-      bx.fillStyle = col;
-      const dotR = isMe ? 3 : 2;
-      bx.beginPath();
-      bx.arc(px + 1.5, barY + barH / 2, dotR, 0, Math.PI * 2);
-      bx.fill();
+      groups.push({ px: e.px, list: [e] });
     }
-    if (isMe || p.finished) {
-      bx.save();
-      bx.font = 'bold 5px sans-serif';
-      bx.textAlign = 'center';
-      bx.textBaseline = 'middle';
-      bx.fillStyle = isMe ? '#fff' : col;
-      bx.globalAlpha = 0.9;
-      bx.fillText(initial, px + 1.5, barY - 4);
-      bx.restore();
+  }
+
+  let myEntry = null;
+  for (const g of groups) {
+    // Order within group: dead/finished first, then alive others, then me last.
+    g.list.sort((a, b) => {
+      if (a.isMe) return 1;
+      if (b.isMe) return -1;
+      const ar = a.p.finished ? 2 : (a.p.alive ? 1 : 0);
+      const br = b.p.finished ? 2 : (b.p.alive ? 1 : 0);
+      return ar - br;
+    });
+    let fanIdx = 0;
+    for (const e of g.list) {
+      if (e.isMe) { myEntry = e; continue; }
+      // Fan: 0 = on bar, 1 = up, 2 = down, 3 = up2, 4 = down2 ...
+      let yOff = 0;
+      if (g.list.length > 1) {
+        const k = fanIdx;
+        yOff = (k === 0) ? 0 : ((k % 2 === 1) ? -1 : 1) * Math.ceil(k / 2) * 2.6;
+      }
+      fanIdx++;
+      const cy = barY + barH / 2 + yOff;
+      if (!e.p.alive && !e.p.finished) {
+        bx.fillStyle = '#555';
+        bx.beginPath();
+        bx.arc(e.px + 1, cy, 1.4, 0, Math.PI * 2);
+        bx.fill();
+      } else if (e.p.finished) {
+        bx.fillStyle = e.col;
+        bx.beginPath();
+        bx.arc(e.px + 1.5, cy, 2.2, 0, Math.PI * 2);
+        bx.fill();
+        // Tiny white tick on finishers for legibility
+        bx.fillStyle = '#fff';
+        bx.fillRect(e.px + 1, cy - 0.5, 1, 1);
+      } else {
+        // Subtle dark backplate so a coloured dot stays visible against
+        // the biome zone fill behind it.
+        bx.fillStyle = 'rgba(7,6,12,0.55)';
+        bx.beginPath();
+        bx.arc(e.px + 1.5, cy, 2.4, 0, Math.PI * 2);
+        bx.fill();
+        bx.fillStyle = e.col;
+        bx.beginPath();
+        bx.arc(e.px + 1.5, cy, 1.8, 0, Math.PI * 2);
+        bx.fill();
+      }
     }
-  });
+  }
+
+  // Draw the local player last, ON THE BAR, with a bright ring + initial.
+  if (myEntry) {
+    const cy = barY + barH / 2;
+    const px = myEntry.px + 1.5;
+    // Outer halo ring (pulses softly so the eye snaps to it).
+    const pulse = 0.55 + 0.45 * Math.sin(globalTick * 0.2);
+    bx.save();
+    bx.globalAlpha = 0.55 * pulse;
+    bx.fillStyle = '#fff';
+    bx.beginPath();
+    bx.arc(px, cy, 5.2, 0, Math.PI * 2);
+    bx.fill();
+    bx.restore();
+    // Solid white outline
+    bx.fillStyle = '#fff';
+    bx.beginPath();
+    bx.arc(px, cy, 3.6, 0, Math.PI * 2);
+    bx.fill();
+    // Coloured core
+    bx.fillStyle = myEntry.col;
+    bx.beginPath();
+    bx.arc(px, cy, 2.5, 0, Math.PI * 2);
+    bx.fill();
+    // Initial above the bar with a tiny pixel pin
+    bx.save();
+    bx.font = 'bold 6px sans-serif';
+    bx.textAlign = 'center';
+    bx.textBaseline = 'middle';
+    bx.fillStyle = '#fff';
+    bx.fillText('YOU', px, barY - 6);
+    bx.restore();
+    bx.fillStyle = '#fff';
+    bx.fillRect(myEntry.px + 1, barY - 2, 1, 2);
+  }
+
+  // Initials above finishers (only if there's room — limit to top 6 most recent
+  // finishers near the right edge so we don't drown the bar in letters).
+  const finishers = entries.filter(e => e.p.finished && !e.isMe).slice(-6);
+  for (const e of finishers) {
+    const initial = (e.p.name || '?')[0].toUpperCase();
+    bx.save();
+    bx.font = 'bold 5px sans-serif';
+    bx.textAlign = 'center';
+    bx.textBaseline = 'middle';
+    bx.fillStyle = e.col;
+    bx.globalAlpha = 0.9;
+    bx.fillText(initial, e.px + 1.5, barY - 4);
+    bx.restore();
+  }
 }
 
 // ---------------------------------------------------------------
@@ -6961,8 +7058,20 @@ function drawHUD() {
   drawProgressBar();
 }
 
+// Scoreboard scroll state. Reset when scoreboard re-opens; clamped each
+// frame against the current player count.
+let scoreboardScroll = 0;            // top row index currently shown
+let _lastShowScoreboard = false;
+// Geometry of the most recent scoreboard render — used by mouse handlers
+// for wheel / scrollbar drag hit-testing in canvas-pixel coordinates.
+let _scoreboardGeom = null;
+
 function drawScoreboard() {
-  if (!showScoreboard || !multiplayerMode || racePlayers.length === 0) return;
+  if (!showScoreboard || !multiplayerMode || racePlayers.length === 0) {
+    _scoreboardGeom = null;
+    _lastShowScoreboard = false;
+    return;
+  }
 
   const sorted = racePlayers.slice().sort((a, b) => {
     if (a.finished && !b.finished) return -1;
@@ -6973,104 +7082,327 @@ function drawScoreboard() {
     return (b.progress || 0) - (a.progress || 0);
   });
 
-  const rowH = 9;
-  const titleH = 12;
+  const rowH = 10;
+  const titleH = 13;
   const colHeaderH = 10;
   const headerH = titleH + colHeaderH;
-  const maxVisible = Math.min(sorted.length, 16);
-  const hasMore = sorted.length > maxVisible;
-  const panelH = headerH + maxVisible * rowH + (hasMore ? 12 : 5);
-  const panelW = 236;
+
+  // Use as much vertical space as we can — fit the panel within ~88% of
+  // the viewport so the player can see their blob underneath.
+  const panelW = 240;
   const panelX = Math.floor((VIEW_W - panelW) / 2);
+  const maxPanelH = Math.floor(VIEW_H * 0.88);
+  const padBottom = 9;
+  const maxRowsByHeight = Math.max(4, Math.floor((maxPanelH - headerH - padBottom) / rowH));
+  const visibleRows = Math.min(sorted.length, maxRowsByHeight);
+  const panelH = headerH + visibleRows * rowH + padBottom;
   const panelY = Math.floor((VIEW_H - panelH) / 2);
 
-  const colName = panelX + 18;
-  const colProgC = panelX + 116;
+  // Auto-snap scroll to keep "me" visible the FIRST frame the scoreboard
+  // is opened; after that respect manual scroll position.
+  const myIdx = sorted.findIndex(p => p.id === myPlayerId);
+  if (!_lastShowScoreboard) {
+    if (myIdx >= 0) {
+      scoreboardScroll = Math.max(0, Math.min(sorted.length - visibleRows, myIdx - Math.floor(visibleRows / 2)));
+    } else {
+      scoreboardScroll = 0;
+    }
+  }
+  _lastShowScoreboard = true;
+  const maxScroll = Math.max(0, sorted.length - visibleRows);
+  if (scoreboardScroll < 0) scoreboardScroll = 0;
+  if (scoreboardScroll > maxScroll) scoreboardScroll = maxScroll;
+
+  const colName = panelX + 22;
+  const colProgC = panelX + 118;
   const colCoinsC = panelX + 152;
   const colScoreC = panelX + 188;
   const colStatusC = panelX + 218;
 
-  // Brutalist scoreboard surface — flat dark panel, hard purple offset
-  // shadow, hairline strokes. Matches the menu's panel system.
-  bx.fillStyle = '#6a4dc6';
-  bx.fillRect(panelX + 3, panelY + 3, panelW, panelH);
-  bx.fillStyle = '#0d0b16';
+  // ---- Retro arcade panel ----
+  // Solid two-tone pixel border (dark outer + bright inner), classic SMW /
+  // SNES menu look. No alpha hairlines, no soft shadows — every line is
+  // a chunky 1-px block. The corners get tiny "notch" pixels removed to
+  // mimic stamped-tin arcade cabinet plates.
+  // 1) Outer drop shadow (solid pixel-art shadow, 2px offset)
+  bx.fillStyle = '#0a0710';
+  bx.fillRect(panelX + 2, panelY + 2, panelW, panelH);
+  // 2) Outer dark frame (this is the "back plate")
+  bx.fillStyle = '#1a1230';
   bx.fillRect(panelX, panelY, panelW, panelH);
-  bx.fillStyle = 'rgba(255,255,255,0.32)';
-  bx.fillRect(panelX, panelY, panelW, 1);
-  bx.fillRect(panelX, panelY + panelH - 1, panelW, 1);
-  bx.fillRect(panelX, panelY, 1, panelH);
-  bx.fillRect(panelX + panelW - 1, panelY, 1, panelH);
-  // Tiny purple accent tick in the top-left
+  // 3) Bright pixel border
+  bx.fillStyle = '#f3eefe';
+  bx.fillRect(panelX,            panelY,            panelW, 1); // top
+  bx.fillRect(panelX,            panelY + panelH-1, panelW, 1); // bottom
+  bx.fillRect(panelX,            panelY,            1, panelH); // left
+  bx.fillRect(panelX + panelW-1, panelY,            1, panelH); // right
+  // 4) Inner dark cavity (gives that "sunken" arcade-screen feel)
+  bx.fillStyle = '#0d0b16';
+  bx.fillRect(panelX + 2, panelY + 2, panelW - 4, panelH - 4);
+  // 5) Inner purple accent stroke right inside the bright frame
+  bx.fillStyle = '#6a4dc6';
+  bx.fillRect(panelX + 1, panelY + 1, panelW - 2, 1);
+  bx.fillRect(panelX + 1, panelY + panelH - 2, panelW - 2, 1);
+  bx.fillRect(panelX + 1, panelY + 1, 1, panelH - 2);
+  bx.fillRect(panelX + panelW - 2, panelY + 1, 1, panelH - 2);
+  // 6) Corner notches (knock out 1 corner pixel of the bright frame)
+  bx.fillStyle = '#0a0710';
+  bx.fillRect(panelX,            panelY,            1, 1);
+  bx.fillRect(panelX + panelW-1, panelY,            1, 1);
+  bx.fillRect(panelX,            panelY + panelH-1, 1, 1);
+  bx.fillRect(panelX + panelW-1, panelY + panelH-1, 1, 1);
+
+  // ---- Title strip ----
+  // Solid coloured bar across the top of the panel with the title text
+  // centred — classic Mario Kart / SMW status header.
+  const titleStripY = panelY + 2;
+  const titleStripH = titleH - 1;
+  bx.fillStyle = '#3a2470';
+  bx.fillRect(panelX + 2, titleStripY, panelW - 4, titleStripH);
+  // Top highlight + bottom shadow lines on the strip
+  bx.fillStyle = '#7050b8';
+  bx.fillRect(panelX + 2, titleStripY, panelW - 4, 1);
+  bx.fillStyle = '#1a1040';
+  bx.fillRect(panelX + 2, titleStripY + titleStripH - 1, panelW - 4, 1);
+  // Two purple coin-pixels framing the title
   bx.fillStyle = '#b890ff';
-  bx.fillRect(panelX + 4, panelY + 4, 6, 1);
-  bx.fillRect(panelX + 4, panelY + 4, 1, 4);
+  bx.fillRect(panelX + 6, titleStripY + 4, 3, 3);
+  bx.fillRect(panelX + panelW - 9, titleStripY + 4, 3, 3);
 
-  var titleStr = '/ RACE   ' + racePlayers.length + ' PLAYERS';
+  var titleStr = 'RANKINGS  ' + racePlayers.length + '/50';
   var titleW = titleStr.length * 6;
-  drawPixelText(bx, titleStr, panelX + Math.floor((panelW - titleW) / 2), panelY + 3, '#f3eefe', null);
+  drawPixelText(bx, titleStr, panelX + Math.floor((panelW - titleW) / 2), titleStripY + 3, '#fff5b0', null);
 
+  // ---- Column header row ----
   var colY = panelY + titleH + 1;
-  var hCol = '#9890b0';
-  drawPixelText(bx, '#', panelX + 5, colY, hCol, null);
-  drawPixelText(bx, 'NAME', colName, colY, hCol, null);
-  drawPixelText(bx, 'PROG', colProgC - 12, colY, hCol, null);
-  drawPixelText(bx, 'COINS', colCoinsC - 15, colY, hCol, null);
+  // Column header strip background (slightly lifted from cavity)
+  bx.fillStyle = '#1a1230';
+  bx.fillRect(panelX + 3, colY - 1, panelW - 6, colHeaderH - 1);
+
+  var hCol = '#b890ff';
+  drawPixelText(bx, '#',     panelX + 6,  colY, hCol, null);
+  drawPixelText(bx, 'NAME',  colName,     colY, hCol, null);
+  drawPixelText(bx, 'PROG',  colProgC - 12, colY, hCol, null);
+  drawPixelText(bx, 'COIN',  colCoinsC - 12, colY, hCol, null);
   drawPixelText(bx, 'SCORE', colScoreC - 15, colY, hCol, null);
 
-  bx.fillStyle = 'rgba(255,255,255,0.18)';
-  bx.fillRect(panelX + 4, panelY + headerH - 1, panelW - 8, 1);
+  // Solid white pixel divider between header and rows (no alpha)
+  bx.fillStyle = '#6a4dc6';
+  bx.fillRect(panelX + 3, panelY + headerH - 1, panelW - 6, 1);
 
-  for (var i = 0; i < maxVisible; i++) {
-    var p = sorted[i];
+  // Row clip so dragging the scrollbar can't bleed text outside the panel.
+  bx.save();
+  bx.beginPath();
+  bx.rect(panelX + 3, panelY + headerH, panelW - 6, visibleRows * rowH);
+  bx.clip();
+
+  const startIdx = Math.floor(scoreboardScroll);
+  for (var i = 0; i < visibleRows; i++) {
+    var rowIdx = startIdx + i;
+    if (rowIdx >= sorted.length) break;
+    var p = sorted[rowIdx];
     var col = getPlayerDisplayColor(p.color || 'lavender');
     var rowY = panelY + headerH + i * rowH;
     var isMe = p.id === myPlayerId;
 
+    // Solid alternating row backgrounds (no alpha — arcade flat colour).
+    if (rowIdx % 2 === 1) {
+      bx.fillStyle = '#15102a';
+      bx.fillRect(panelX + 3, rowY, panelW - 6, rowH);
+    }
     if (isMe) {
-      bx.save();
-      bx.globalAlpha = 0.15;
+      // Solid bright row tint in your blob colour, framed with a chunky
+      // 2-px left bar and a 1-px right cap. Stands out instantly even
+      // when the panel is full of opponents.
+      bx.fillStyle = '#2a1c50';
+      bx.fillRect(panelX + 3, rowY, panelW - 6, rowH);
       bx.fillStyle = col;
-      bx.fillRect(panelX + 2, rowY, panelW - 4, rowH);
-      bx.restore();
+      bx.fillRect(panelX + 3, rowY, 2, rowH);
+      bx.fillRect(panelX + panelW - 5, rowY, 2, rowH);
     }
 
-    if (i % 2 === 1 && !isMe) {
-      bx.save();
-      bx.globalAlpha = 0.035;
-      bx.fillStyle = '#fff';
-      bx.fillRect(panelX + 2, rowY, panelW - 4, rowH);
-      bx.restore();
-    }
+    // Rank cell. Gold for #1, silver for #2, bronze for #3. Static after.
+    var rankCol = '#9890b0';
+    if (rowIdx === 0) rankCol = '#ffd86a';
+    else if (rowIdx === 1) rankCol = '#d8d8e8';
+    else if (rowIdx === 2) rankCol = '#e09870';
+    drawPixelText(bx, String(rowIdx + 1), panelX + 6, rowY + 2, rankCol, null);
 
-    drawPixelText(bx, String(i + 1), panelX + 5, rowY + 1, '#9890b0', null);
+    // Tiny coloured player chip (3x3 px) before the name, like the lobby
+    // initial badges — instantly tells you who is who at a glance.
+    bx.fillStyle = col;
+    bx.fillRect(colName - 9, rowY + 3, 3, 3);
+    bx.fillStyle = '#0a0710';
+    bx.fillRect(colName - 9, rowY + 3, 1, 1);
 
     var nameStr = p.name || 'Blobby';
     if (nameStr.length > 12) nameStr = nameStr.substring(0, 12);
-    drawPixelText(bx, nameStr, colName, rowY + 1, col, null);
+    var nameCol = isMe ? '#fff5b0' : col;
+    drawPixelText(bx, nameStr, colName, rowY + 2, nameCol, null);
 
     var pctStr = Math.round((p.progress || 0) * 100) + '%';
-    drawPixelText(bx, pctStr, colProgC - Math.floor(pctStr.length * 3), rowY + 1, '#f3eefe', null);
+    drawPixelText(bx, pctStr, colProgC - Math.floor(pctStr.length * 3), rowY + 2, '#f3eefe', null);
 
     var coinStr = String(p.coins || 0);
-    drawPixelText(bx, coinStr, colCoinsC - Math.floor(coinStr.length * 3), rowY + 1, '#f0d050', null);
+    drawPixelText(bx, coinStr, colCoinsC - Math.floor(coinStr.length * 3), rowY + 2, '#f0d050', null);
 
     var scoreStr = String(p.gameScore || 0);
-    drawPixelText(bx, scoreStr, colScoreC - Math.floor(scoreStr.length * 3), rowY + 1, '#f3eefe', null);
+    drawPixelText(bx, scoreStr, colScoreC - Math.floor(scoreStr.length * 3), rowY + 2, '#f3eefe', null);
 
     var statusStr = '';
     if (p.finished) statusStr = (p.finishTime / 1000).toFixed(1) + 'S';
     else if (!p.alive) statusStr = 'OUT';
     var statusCol = p.finished ? '#80e8a0' : '#ff7090';
-    if (statusStr) drawPixelText(bx, statusStr, colStatusC - Math.floor(statusStr.length * 3), rowY + 1, statusCol, null);
+    if (statusStr) drawPixelText(bx, statusStr, colStatusC - Math.floor(statusStr.length * 3), rowY + 2, statusCol, null);
+
+    // Pixel-dotted divider under each row (skipped on the last visible row)
+    if (i < visibleRows - 1 && rowIdx < sorted.length - 1) {
+      bx.fillStyle = '#22183a';
+      for (var dx = 4; dx < panelW - 8; dx += 2) {
+        bx.fillRect(panelX + dx, rowY + rowH - 1, 1, 1);
+      }
+    }
   }
 
-  if (hasMore) {
-    var moreStr = '+' + (sorted.length - maxVisible) + ' MORE';
-    var moreW = moreStr.length * 6;
-    drawPixelText(bx, moreStr, panelX + Math.floor((panelW - moreW) / 2), panelY + panelH - 10, '#9890b0', null);
+  bx.restore();
+
+  // ---- Scrollbar ----
+  // Chunky pixel-art scrollbar (4 px wide track, solid colours, no alpha)
+  // so it reads as a retro arcade element rather than a modern UI widget.
+  const sbX = panelX + panelW - 8;
+  const sbW = 4;
+  const sbY = panelY + headerH + 1;
+  const sbH = visibleRows * rowH - 2;
+  let thumbY = sbY, thumbH = sbH;
+  if (sorted.length > visibleRows) {
+    // Track: dark recessed channel
+    bx.fillStyle = '#0a0710';
+    bx.fillRect(sbX, sbY, sbW, sbH);
+    bx.fillStyle = '#1a1040';
+    bx.fillRect(sbX + 1, sbY + 1, sbW - 2, sbH - 2);
+    // Thumb
+    thumbH = Math.max(10, Math.round(sbH * (visibleRows / sorted.length)));
+    const trackTravel = sbH - thumbH;
+    const t = maxScroll > 0 ? (scoreboardScroll / maxScroll) : 0;
+    thumbY = sbY + Math.round(t * trackTravel);
+    bx.fillStyle = '#b890ff';
+    bx.fillRect(sbX, thumbY, sbW, thumbH);
+    bx.fillStyle = '#e6d8ff';
+    bx.fillRect(sbX, thumbY, sbW, 1);                       // top hi
+    bx.fillRect(sbX, thumbY, 1, thumbH);                    // left hi
+    bx.fillStyle = '#6a4dc6';
+    bx.fillRect(sbX, thumbY + thumbH - 1, sbW, 1);          // bottom shade
+    bx.fillRect(sbX + sbW - 1, thumbY, 1, thumbH);          // right shade
+    // Center grip dots
+    bx.fillStyle = '#fff';
+    var gripY = thumbY + Math.floor(thumbH / 2) - 2;
+    bx.fillRect(sbX + 1, gripY,     2, 1);
+    bx.fillRect(sbX + 1, gripY + 2, 2, 1);
+    bx.fillRect(sbX + 1, gripY + 4, 2, 1);
+
+    // Pixel-arrow chevrons above/below the track
+    bx.fillStyle = scoreboardScroll > 0 ? '#fff5b0' : '#3a2870';
+    bx.fillRect(sbX + 1, sbY - 3, 2, 1);
+    bx.fillRect(sbX, sbY - 2, 4, 1);
+    bx.fillStyle = scoreboardScroll < maxScroll ? '#fff5b0' : '#3a2870';
+    bx.fillRect(sbX, sbY + sbH + 1, 4, 1);
+    bx.fillRect(sbX + 1, sbY + sbH + 2, 2, 1);
   }
+
+  // ---- Footer ----
+  // Solid coloured footer strip with a row counter on the left and a
+  // status hint on the right. Mirrors the title-strip styling.
+  const footY = panelY + panelH - 7;
+  bx.fillStyle = '#22183a';
+  bx.fillRect(panelX + 3, footY - 1, panelW - 6, 7);
+  bx.fillStyle = '#3a2870';
+  bx.fillRect(panelX + 3, footY - 1, panelW - 6, 1);
+
+  const counterStr = (startIdx + 1) + '-' + Math.min(sorted.length, startIdx + visibleRows) + ' / ' + sorted.length;
+  drawPixelText(bx, counterStr, panelX + 6, footY, '#b890ff', null);
+
+  // Status / hint on the right side. Show different text depending on
+  // whether the player is alive, eliminated, or finished — so a dead
+  // player looking at the standings sees a clear "WAITING FOR MATCH"
+  // rather than just a generic scroll hint.
+  var rightStr;
+  if (eliminated) {
+    rightStr = (Math.floor(globalTick / 30) % 2) ? 'WAITING FOR MATCH' : 'WAITING...';
+  } else if (gameState === 'win') {
+    rightStr = 'YOU FINISHED!';
+  } else if (sorted.length > visibleRows) {
+    rightStr = 'WHEEL/DRAG';
+  } else {
+    rightStr = 'TAB TO HIDE';
+  }
+  var rightCol = eliminated ? '#ff90a8' : (gameState === 'win' ? '#80e8a0' : '#9890b0');
+  var rightW = rightStr.length * 6;
+  drawPixelText(bx, rightStr, panelX + panelW - rightW - 8, footY, rightCol, null);
+
+  _scoreboardGeom = {
+    panelX, panelY, panelW, panelH,
+    rowsArea: { x: panelX + 1, y: panelY + headerH, w: panelW - 2, h: visibleRows * rowH },
+    scrollbar: { x: sbX, y: sbY, w: sbW, h: sbH, thumbY, thumbH },
+    totalRows: sorted.length,
+    visibleRows,
+    maxScroll,
+  };
 }
+
+// Translate a raw mouse event to internal canvas-pixel coordinates
+// (VIEW_W x VIEW_H) regardless of CSS / DPR scaling.
+function _mouseToCanvasPx(e) {
+  const rect = canvas.getBoundingClientRect();
+  const sx = (e.clientX - rect.left) / rect.width * VIEW_W;
+  const sy = (e.clientY - rect.top) / rect.height * VIEW_H;
+  return { x: sx, y: sy };
+}
+
+// Wheel scroll while the scoreboard is open. Each notch advances by one
+// row; trackpads with finer deltas accumulate fractionally so they still
+// scroll. Wheel events are only consumed when the scoreboard is up so
+// the page can still scroll otherwise.
+canvas.addEventListener('wheel', function(e) {
+  if (!showScoreboard || !multiplayerMode || !_scoreboardGeom) return;
+  e.preventDefault();
+  const step = e.deltaMode === 0 ? (e.deltaY / 30) : (e.deltaY > 0 ? 1 : -1);
+  scoreboardScroll += step;
+  // Clamping happens in drawScoreboard each frame.
+}, { passive: false });
+
+// Click-and-drag on the scrollbar thumb (or click in the empty track to
+// page jump). Stays attached even when scoreboard isn't open — the
+// handlers no-op safely.
+let _sbDrag = null; // { startMouseY, startScroll }
+canvas.addEventListener('mousedown', function(e) {
+  if (!showScoreboard || !multiplayerMode || !_scoreboardGeom) return;
+  if (e.button !== 0) return;
+  const { x, y } = _mouseToCanvasPx(e);
+  const sb = _scoreboardGeom.scrollbar;
+  const inTrackX = x >= sb.x - 3 && x <= sb.x + sb.w + 3;
+  const inTrackY = y >= sb.y && y <= sb.y + sb.h;
+  if (!inTrackX || !inTrackY) return;
+  e.preventDefault();
+  if (y >= sb.thumbY && y <= sb.thumbY + sb.thumbH) {
+    _sbDrag = { startMouseY: y, startScroll: scoreboardScroll };
+  } else {
+    // Page jump: clicking above the thumb scrolls up by visibleRows,
+    // below scrolls down. Then begin a drag from new position.
+    const dir = y < sb.thumbY ? -1 : 1;
+    scoreboardScroll += dir * _scoreboardGeom.visibleRows;
+    _sbDrag = { startMouseY: y, startScroll: scoreboardScroll };
+  }
+});
+window.addEventListener('mousemove', function(e) {
+  if (!_sbDrag || !_scoreboardGeom || !showScoreboard) return;
+  const { y } = _mouseToCanvasPx(e);
+  const sb = _scoreboardGeom.scrollbar;
+  const trackTravel = Math.max(1, sb.h - sb.thumbH);
+  const dY = y - _sbDrag.startMouseY;
+  const ratio = dY / trackTravel;
+  scoreboardScroll = _sbDrag.startScroll + ratio * _scoreboardGeom.maxScroll;
+});
+window.addEventListener('mouseup', function() { _sbDrag = null; });
 
 function drawLevel() {
   const startTX = Math.max(0, Math.floor(camera.rx / TILE) - 1);
@@ -7292,7 +7624,9 @@ function render() {
   drawParticles();
   drawMario();
   drawHUD();
-  drawScoreboard();
+  // NOTE: drawScoreboard() is intentionally called LATER (after the
+  // eliminated / win overlays) so the player can still pull up the
+  // standings even while the death/wait overlay is on screen.
 
   // Floating HUD message ("ENTERING FROSTPEAK PASS!" etc.) — flat brutalist
   // chip with thin hairline, slides in from above and fades out at the end.
@@ -7425,6 +7759,11 @@ function render() {
     drawPixelText(bx, prText, Math.round((VIEW_W - prW) / 2), winPY + winPH - 12, '#b890ff', null);
     bx.restore();
   }
+
+  // Tab scoreboard renders LAST so it sits on top of any pause /
+  // eliminated / win overlays. The player should always be able to
+  // pull up live standings until the match results are shown.
+  drawScoreboard();
 
   if (screenShake > 0.3) {
     var shX = (Math.random() - 0.5) * screenShake;
