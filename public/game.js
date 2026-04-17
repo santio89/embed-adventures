@@ -1924,17 +1924,19 @@ function buildLevel() {
   for (let y = 9; y <= 12; y++) map[y][368] = 5;
   map[9][371] = 3; map[9][372] = 2; map[9][373] = 4; map[9][374] = 2;
   map[5][376] = 3;                                   // high ? in clear column (no row 9 below)
-  // Small full pyramid (5-3-1) — answers the desert biome's two big
-  // pyramids and visually balances the lava section's broken-top
-  // volcano silhouette in the background. Same odd-width treatment
-  // as the desert pyramids: stairUp + stairDown produce a clean
-  // single-tile apex at col 380 / row 10. Heights: 1,2,3,2,1.
-  // Cleared columns on both sides (377 and 383) keep the silhouette
-  // reading as a tidy isolated triangle, with the high ?-block at
-  // col 376 and the 1-up at col 384 framing it from a distance.
-  stairUp(378, 3);                                   // base→apex (cols 378-380)
-  stairDown(381, 2);                                 // apex→base (cols 381-382)
-  map[5][384] = 6;                                   // 1-up (lava biome's own life reward, clear column)
+  // Mid-size full pyramid (9-7-5-3-1) — answers the desert biome's
+  // two big pyramids and visually balances the lava section's
+  // broken-top volcano silhouette in the background. Same odd-width
+  // treatment as the desert pyramids: stairUp + stairDown produce a
+  // clean single-tile apex at col 383 / row 8. Heights: 1,2,3,4,5,
+  // 4,3,2,1. The 1-up at col 384 (row 5) hangs in the air directly
+  // above the right shoulder of the pyramid, still hittable from on
+  // top of the apex. The descending right side acts as a natural
+  // launch ramp into lava chasm 1 (cols 389-392), with col 388 as
+  // a one-tile breather of flat ground before the gap.
+  stairUp(379, 5);                                   // base→apex (cols 379-383)
+  stairDown(384, 4);                                 // apex→base (cols 384-387)
+  map[4][385] = 6;                                   // 1-up (lava biome's own life reward) — nudged up-and-right off the pyramid's right shoulder so it reads as a separate prize rather than sitting directly above the descending stairs
   // Lava chasm 1 (389-392)
   ground(393, 410);
   // Floating obsidian islands
@@ -2495,7 +2497,7 @@ function spawnMapCoins() {
     [352, 11], [353, 11],                           // approach to lava (extra)
     // ----- LAVA -----
     [364, 9], [368, 7],                             // obsidian rises
-    [380, 9],                                       // small lava pyramid apex peak (apex tile at row 10)
+    [383, 7],                                       // mid-size lava pyramid apex peak (apex tile at row 8)
     [389, 9], [390, 9], [391, 9], [392, 9],         // lava chasm 1
     [400, 6], [401, 6], [403, 6],                   // floating island (skip col 402 — has ?-block)
     [411, 9], [412, 9], [413, 9],                   // lava chasm 2
