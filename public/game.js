@@ -1788,10 +1788,22 @@ function buildLevel() {
   ground(173, 196);
   // Glacier wall + staircase
   for (let y = 8; y <= 12; y++) map[y][175] = 5;     // 1-tile glacier pillar
-  stairUp(178, 4);
-  // High vault row at row 5 (no row 9 below — clear column for big-form jumps)
+  // 5-step staircase climbing to row 8. Earlier this was a 4-step stair
+  // topping out at row 9, which left the row-5 vault essentially
+  // unreachable: from ground level the row-5 block bottom (y=96) sits
+  // 88px above big-Mario's head, but a single held-jump only climbs
+  // ~71px — meaning the vault required a pixel-perfect double-jump
+  // *and* perfect horizontal alignment with no nearby platform to
+  // stage from. The extra step at col 182 / row 8 puts Mario's head
+  // 8px under the vault, so a single jump from the staircase top
+  // comfortably bonks any of the four blocks in both small and big
+  // form. Big Mario can still walk under the vault on the ground —
+  // row 6 and 7 stay clear.
+  stairUp(178, 5);
+  // High vault row at row 5 — bricks flank a coin ?-block and a 1-up.
+  // Reachable in one jump from the new top step at col 182 row 8.
   map[5][184] = 2; map[5][185] = 3; map[5][187] = 2;
-  map[5][186] = 6;                                   // 1-up surprise (clear column)
+  map[5][186] = 6;                                   // 1-up surprise
   platform(190, 193, 8);
   map[9][191] = 3; map[9][192] = 2;
   // Long crevasse (197-200) — double jump or run
@@ -1800,11 +1812,24 @@ function buildLevel() {
   platform(206, 208, 10);
   platform(212, 215, 8);
   map[5][214] = 3;                                   // row 5 above row 8 platform — both forms can stand flush + bonk
-  // Hardest stretch: tall ice tower
-  for (let y = 6; y <= 12; y++) map[y][220] = 5;
-  for (let y = 8; y <= 12; y++) map[y][224] = 5;
+  // Hardest stretch: ice bridge with hidden mushroom underneath.
+  // Two short ice stubs (cols 220 & 224, rows 6-7) carry a 5-wide bridge
+  // at row 6 — the silhouette reads like an upside-down "Π". Below the
+  // bridge the space is fully open: Mario can walk under at ground level
+  // (rows 11-12) AND a mushroom popped from the hidden ?-block at row 9
+  // can actually fall to the ground without getting trapped.
+  // Earlier the side walls ran rows 6-10 which made a sealed-box vault
+  // — looked nice, but the popped mushroom would oscillate forever
+  // between the two interior walls because the chamber was only 3 tiles
+  // wide and the walls extended right alongside the ?-block, so the
+  // mushroom could never walk off the block edge to fall through the
+  // bottom tunnel. Shortening the side stubs preserves the "find the
+  // secret" landmark while letting powerups behave normally.
+  for (let y = 6; y <= 7; y++) map[y][220] = 5;
+  for (let y = 6; y <= 7; y++) map[y][224] = 5;
   platform(220, 224, 6);                             // bridge across the towers
   map[3][222] = 7;                                   // STAR at row 3 — gives big Mario 8px head clearance over row 6 bridge
+  map[9][222] = 4;                                   // hidden mushroom ?-block dangling under the bridge
   // Run-up to checkpoint
   map[9][230] = 2; map[9][231] = 3; map[9][232] = 2;
   stairUp(234, 4);
@@ -1814,15 +1839,16 @@ function buildLevel() {
   // Sand pyramids, clay pipes, longer flat sprints with cacti.
   // ==========================================================
   ground(240, 268);
-  // Pyramid 1 — 5-step stairs leave a 2-tile flat plateau at the top
-  // (cols 248-249 on row 8). Drop a single apex block at row 7 above
-  // col 248 so the silhouette reads as a proper triangle peak instead
-  // of a flat-topped step. The peak is still trivially walkable / no
-  // dead ends — Mario can hop on top from either side.
-  stairUp(244, 5);
-  stairDown(249, 5);
-  map[7][248] = 5;
-  map[9][254] = 3;
+  // Pyramid 1 — symmetric 11-wide triangular pyramid, single-block
+  // apex at col 249 / row 7. Base spans cols 244-254 with heights
+  // 1,2,3,4,5,6,5,4,3,2,1. We use an ODD base width so the apex
+  // lands on a single centred column naturally — earlier even-width
+  // bases needed a hand-placed capstone that visibly offset the
+  // peak to one side and made the left descending edge look like
+  // it was missing a block.
+  stairUp(244, 6);
+  stairDown(250, 5);
+  map[9][255] = 3;
   map[9][258] = 2; map[9][259] = 3; map[9][260] = 4; map[9][261] = 2;
   // Sand gap (269-271)
   ground(272, 300);
@@ -1832,12 +1858,12 @@ function buildLevel() {
   // Floating oasis platform
   platform(287, 291, 8);
   map[5][289] = 3;                                   // row 5 above row 8 platform — flush stand + bonk on jump
-  // Pyramid 2 (taller) — same apex treatment as pyramid 1: flat 2-tile
-  // top at row 7 (cols 299-300) gets a single capstone block at row 6
-  // for a clean triangular silhouette.
-  stairUp(294, 6);
-  stairDown(300, 6);
-  map[6][299] = 5;
+  // Pyramid 2 (taller) — same odd-width treatment as pyramid 1.
+  // 13-wide base (cols 294-306), heights 1..7..1, apex at col 300
+  // row 6. Single-tile peak with no patched-on capstone, so the
+  // silhouette reads as a clean symmetric triangle.
+  stairUp(294, 7);
+  stairDown(301, 6);
   ground(301, 326);
   // Mid-section: blocks + cactus row (cacti are background only)
   map[9][308] = 2; map[9][309] = 3; map[9][310] = 2;
@@ -1912,10 +1938,21 @@ function buildLevel() {
   // Boss arena: left wall raised dynamically by the intro cutscene.
   // Right wall (BOSS_GATE_X = 510) is permanent — sealed until outro.
   for (let y = 2; y <= 12; y++) map[y][BOSS_GATE_X] = 5;
-  // Centre block(s) inside the arena. The interior is 14 tiles wide
-  // (cols 496..509), so a SINGLE tile cannot be perfectly centred. We
-  // place a 2-tile block spanning cols 502-503 — its midpoint lands
-  // exactly on the centre of the playable arena.
+  // Centre platform inside the arena. The playable interior is an EVEN
+  // 14 tiles wide (cols 496..509), so a single-tile platform can never
+  // be perfectly centred — it would always lean 1 col one way. A
+  // 2-tile platform at cols 502-503 is the smallest shape whose
+  // midpoint lands exactly on the arena centre.
+  //
+  // Symmetry audit (don't change these numbers without re-doing the math):
+  //   left wall right-edge  = 496 * 16 = 7936 px
+  //   right wall left-edge  = 510 * 16 = 8160 px
+  //   interior midpoint     = (7936 + 8160) / 2 = 8048 px
+  //   platform left-edge    = 502 * 16 = 8032 px
+  //   platform right-edge   = 504 * 16 = 8064 px
+  //   platform midpoint     = (8032 + 8064) / 2 = 8048 px ✓
+  //   empty cols to left    = 6   (496,497,498,499,500,501)
+  //   empty cols to right   = 6   (504,505,506,507,508,509)
   map[9][502] = 2;
   map[9][503] = 2;
 
@@ -1978,6 +2015,63 @@ let jumpHeld = false;
 
 let showScoreboard = false;
 
+// ---- Spectator mode ----
+// When a player is eliminated in MP they used to be greeted with a giant
+// "ELIMINATED" curtain that hid the rest of the round. Now the camera
+// detaches and follows one of the still-running opponents instead, so the
+// player can watch how the match plays out. Left/Right arrows cycle the
+// spectated target; Tab still pulls up the live scoreboard on top.
+//
+// `spectatorTargetId` is the player id we're currently following. We keep
+// it sticky across frames as long as the target is still alive AND still
+// in the room — `ensureSpectatorTarget()` re-picks if either condition
+// breaks. `_lastSpectatorPick` is the wall-clock time of the last manual
+// cycle, used purely for the HUD "just swapped" flash.
+let spectatorTargetId = null;
+let _lastSpectatorPick = 0;
+
+function getSpectatableIds() {
+  // Other players in the room that are (a) still alive (b) currently
+  // sending us snapshots, so the spectator camera has something coherent
+  // to follow. Falling back to "any other player in the roster" would
+  // let us point the camera at a slot whose blob never appears on screen.
+  var list = [];
+  for (var i = 0; i < racePlayers.length; i++) {
+    var p = racePlayers[i];
+    if (!p || !p.id || p.id === myPlayerId) continue;
+    if (p.alive === false) continue;
+    if (!remoteStates.has(p.id)) continue;
+    list.push(p.id);
+  }
+  return list;
+}
+
+function ensureSpectatorTarget() {
+  if (spectatorTargetId) {
+    // Drop the target if they vanished from the roster, stopped sending
+    // updates, or just got eliminated themselves.
+    var meta = null;
+    for (var i = 0; i < racePlayers.length; i++) {
+      if (racePlayers[i] && racePlayers[i].id === spectatorTargetId) { meta = racePlayers[i]; break; }
+    }
+    if (meta && meta.alive !== false && remoteStates.has(spectatorTargetId)) return;
+  }
+  var ids = getSpectatableIds();
+  spectatorTargetId = ids.length ? ids[0] : null;
+}
+
+function cycleSpectator(dir) {
+  var ids = getSpectatableIds();
+  if (ids.length === 0) { spectatorTargetId = null; return; }
+  var idx = ids.indexOf(spectatorTargetId);
+  if (idx < 0) {
+    spectatorTargetId = ids[0];
+  } else {
+    spectatorTargetId = ids[(idx + dir + ids.length) % ids.length];
+  }
+  _lastSpectatorPick = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+}
+
 window.addEventListener('keydown', e => {
   if (e.code === 'Tab') {
     e.preventDefault();
@@ -1991,6 +2085,17 @@ window.addEventListener('keydown', e => {
     return;
   }
   if (e.repeat) return;
+
+  // Spectator cycling: while eliminated in MP we re-purpose Left/Right
+  // to swap which opponent the camera follows. Local movement is dead
+  // anyway (`updateMario()` early-returns on `eliminated`), so stealing
+  // the keys here doesn't fight any real input.
+  if (eliminated && multiplayerMode && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) {
+    e.preventDefault();
+    cycleSpectator(e.code === 'ArrowRight' ? 1 : -1);
+    return;
+  }
+
   keys[e.code] = true;
   if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
 
@@ -2038,7 +2143,9 @@ window.addEventListener('keyup', e => {
     jumpHeld = false;
   }
   if (e.code === 'Tab') {
-    showScoreboard = false;
+    // Match-end forces the scoreboard up for everyone. Tab toggles
+    // it normally otherwise.
+    if (!matchEnding) showScoreboard = false;
   }
 });
 
@@ -2223,37 +2330,70 @@ function spawnEnemies() {
   // Each biome gets 4 distinct enemy types (skin variants count). Counts
   // are kept moderate so the level never feels crowded — remember the
   // player has a double-jump, so forgiving spacing keeps it fun.
+  //
+  // SMW-style placement rules followed below:
+  //   • At most 3 enemies inside any ~12-column window. Three is fine,
+  //     four turns into noise the player can't read.
+  //   • Air enemies (swoopers, phantoms) live in their own visual lane,
+  //     so a ground+air pair within 3-5 cols still feels readable.
+  //   • Each biome gets calm stretches between enemy "groups" so the
+  //     player can breathe between encounters instead of being chased
+  //     down a conga-line of monsters.
+  //   • No two enemies sit on the exact same column, and no two sit
+  //     within 1-2 cols of each other (those used to read as a single
+  //     overlapping monster).
 
   // ----- FOREST (0..119): gentle intro — goomba, koopa, piranha, bat -----
-  [22, 35, 50, 70, 84, 96, 104, 116].forEach(x => {
+  // 7 goombas + 3 koopas + 2 swoopers + 3 piranha pipes = 15 enemies.
+  // Earlier the back half had a Goomba-Koopa-Goomba trio at cols
+  // 96/100/104 (3 in 9 cols) which read as a wall of enemies; the
+  // 104 goomba is gone now and the koopa nudged to 102 to space it.
+  [22, 35, 50, 70, 84, 96, 116].forEach(x => {
     entities.push(createGoomba(x * TILE, 12 * TILE));
   });
-  [40, 78, 100].forEach(x => entities.push(createKoopa(x * TILE, 12 * TILE)));
+  [40, 78, 102].forEach(x => entities.push(createKoopa(x * TILE, 12 * TILE)));
   // Forest bat (purple swooper) — adds the 4th distinct type
   [62, 110].forEach(x => entities.push(createSwooper(x * TILE, 6 * TILE)));
 
   // ----- SNOW (120..239): icy goomba, penguin-koopa, frost-buzzy, snow-owl -----
-  [128, 148, 160, 178, 192, 207, 232].forEach(x => {
+  // 6G + 4K + 2B + 2S = 14 enemies (down from 17). Three tight trios were
+  // dissolved: 156-160-165 (the row 9 G/K/B sandwich), 192-195-200 around
+  // the crevasse, and the 225/228/232 finale. Owl moved from 145→142 so
+  // it doesn't crowd the goomba on the next ice floe.
+  [128, 148, 178, 192, 207, 232].forEach(x => {
     entities.push(createGoomba(x * TILE, 12 * TILE));
   });
-  [134, 156, 184, 213, 228].forEach(x => entities.push(createKoopa(x * TILE, 12 * TILE)));
-  [165, 195, 225].forEach(x => entities.push(createBuzzyBeetle(x * TILE, 12 * TILE)));
-  [145, 200].forEach(x => entities.push(createSwooper(x * TILE, 6 * TILE)));
+  [134, 156, 184, 213].forEach(x => entities.push(createKoopa(x * TILE, 12 * TILE)));
+  [165, 225].forEach(x => entities.push(createBuzzyBeetle(x * TILE, 12 * TILE)));
+  [142, 200].forEach(x => entities.push(createSwooper(x * TILE, 6 * TILE)));
 
   // ----- DESERT (240..359): mummy-goomba, cobra-koopa, scarab-buzzy, mirage-phantom -----
-  [254, 277, 290, 308, 320, 336, 344, 356].forEach(x => {
+  // 6G + 2K + 3B + 2P = 13 enemies (down from 16). Most painful clusters
+  // before were the 282/288/290 pipe-buzzy-goomba pile, the 307+308 1-col
+  // overlap (felt like a single enemy), the literal G+Ph stacked on
+  // col 320, and the 336/340/344 G-K-G triple at the dunes. Phantoms
+  // are now at 270 and 328 (moved off 320), and the dune koopa is gone.
+  // (col 257 / col 307 sit on flat ground just past the pyramids — the
+  // pyramid bases reach cols 254 and 306 respectively.)
+  [257, 297, 320, 336, 344, 358].forEach(x => {
     entities.push(createGoomba(x * TILE, 12 * TILE));
   });
-  [262, 305, 340].forEach(x => entities.push(createKoopa(x * TILE, 12 * TILE)));
+  [262, 307].forEach(x => entities.push(createKoopa(x * TILE, 12 * TILE)));
   [288, 314, 350].forEach(x => entities.push(createBuzzyBeetle(x * TILE, 12 * TILE)));
-  [270, 320].forEach(x => entities.push(createPhantom(x * TILE, 8 * TILE)));
+  [270, 328].forEach(x => entities.push(createPhantom(x * TILE, 8 * TILE)));
 
   // ----- LAVA (360..479): charred-goomba, salamander-koopa, magma-buzzy,
   // firebat-swooper, ember-phantom — full lava section, no boss inside -----
-  [370, 384, 396, 418, 444, 467].forEach(x => entities.push(createGoomba(x * TILE, 12 * TILE)));
-  [378, 416, 466].forEach(x => entities.push(createKoopa(x * TILE, 12 * TILE)));
-  [400, 415, 450].forEach(x => entities.push(createBuzzyBeetle(x * TILE, 12 * TILE)));
-  [375, 405, 470].forEach(x => entities.push(createSwooper(x * TILE, 7 * TILE)));
+  // 4G + 2K + 2B + 2S + 3Ph = 13 enemies (down from 18). The middle of
+  // lava used to be a swamp: SIX enemies between cols 400-418 (B/S/Ph/B/K/G,
+  // including a 1-col overlap at 415-416). And the run-out had K 466 + G
+  // 467 stacked. Now the cluster at 400-418 is broken (only S 405 + Ph
+  // 410 remain in the air lane there, with ground action moved out to a
+  // fresh buzzy at 430), and the run-out is just K 466 + S 470.
+  [370, 384, 396, 444].forEach(x => entities.push(createGoomba(x * TILE, 12 * TILE)));
+  [378, 466].forEach(x => entities.push(createKoopa(x * TILE, 12 * TILE)));
+  [430, 450].forEach(x => entities.push(createBuzzyBeetle(x * TILE, 12 * TILE)));
+  [405, 470].forEach(x => entities.push(createSwooper(x * TILE, 7 * TILE)));
   [390, 410, 458].forEach(x => entities.push(createPhantom(x * TILE, 8 * TILE)));
 
   // ----- COSMIC NEXUS (480..540): no enemies in this section. The
@@ -2294,17 +2434,18 @@ function spawnMapCoins() {
     [197, 9], [198, 8], [199, 8], [200, 9],         // long crevasse arc
     [212, 6], [213, 6], [215, 6],                   // platform top (skip col 214 — has ?-block)
     [220, 5], [221, 5], [223, 5], [224, 5],         // tower bridge (skip col 222 — has STAR block)
+    [221, 10], [223, 10],                           // hidden coins inside the ice vault (col 222 has the mushroom ?-block)
     [233, 11], [234, 11],                           // approach to checkpoint (extra)
     // ----- DESERT -----
     // Pyramid coins: side coin at the base + a "peak" coin floating
-    // one tile above the apex block (row 6 above the new apex on row 7
-    // for pyramid 1, row 5 above the new apex on row 6 for pyramid 2).
-    [244, 11], [248, 6],                            // pyramid 1 (base + apex peak)
+    // one tile above the apex block. Pyramid 1 apex is now at col 249
+    // row 7 (single-tile peak), pyramid 2 apex at col 300 row 6.
+    [244, 11], [249, 6],                            // pyramid 1 (base + apex peak)
     [256, 11], [257, 11],                           // sand path (extra)
     [269, 9], [270, 8], [271, 9],                   // sand gap arc
     [287, 6], [288, 6], [290, 6], [291, 6],         // oasis platform top (skip col 289 — has ?-block)
-    [294, 11], [299, 5],                            // pyramid 2 (base + apex peak)
-    [305, 11], [306, 11], [307, 11],
+    [294, 11], [300, 5],                            // pyramid 2 (base + apex peak)
+    [306, 11], [307, 11], [308, 11],                // post-pyramid coin trail (shifted +1 col since pyramid base now reaches col 306)
     [318, 11], [319, 11],                           // sand path (extra)
     [327, 9], [328, 8], [329, 8], [330, 9],         // quicksand gap arc
     [334, 8], [335, 8], [337, 8],                   // platform top (skip col 336 if reused, kept clear)
@@ -3778,13 +3919,16 @@ function updateMarioFireballs() {
 
     entities.forEach(e => {
       if (!e.alive) return;
+      // Piranhas hiding fully inside their pipe (offset >= 0) aren't
+      // visible on screen, so it would feel unfair to hit them through
+      // the pipe. Any other state (emerging, out, retracting) is fair game.
       if (e.type === 'piranha' && e.emergeOffset >= 0) return;
       if (fb.x + fb.w > e.x && fb.x < e.x + e.w &&
           fb.y + fb.h > e.y && fb.y < e.y + e.h) {
-        if (e.type === 'buzzy') {
-          fb.remove = true;
-          return;
-        }
+        // Every enemy type dies to a fireball — previously buzzy beetles
+        // were "fireproof" (classic SMB behaviour) but that left the
+        // fire-flower feeling inconsistent, so now every ground and air
+        // enemy is hittable.
         const pts = ENEMY_POINTS[e.type] || 100;
         e.alive = false;
         e.remove = true;
@@ -3866,6 +4010,43 @@ function updateParticles() {
 }
 
 // ================================================================
+// SPECTATOR CAMERA
+// ================================================================
+// Detached camera used while the local player is eliminated. Locks onto
+// the interpolated world position of `spectatorTargetId` (a remote blob)
+// and lerps toward it the same way the live camera lerps toward Mario.
+// If no target is available (last opponent left, target died, etc.) we
+// freeze in place rather than snapping to the world origin — a stable
+// last-known view is friendlier than the camera teleporting.
+function updateSpectatorCamera() {
+  ensureSpectatorTarget();
+
+  var targetX = null;
+  if (spectatorTargetId) {
+    var rs = remoteStates.get(spectatorTargetId);
+    if (rs) {
+      var nowMs = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      var s = _sampleRemoteAt(rs.snaps, nowMs - REMOTE_INTERP_MS);
+      if (s) {
+        // Center the followed blob horizontally (their sprite is ~14px
+        // wide so +7 puts the blob's mid-line on the screen midline).
+        targetX = Math.round(s.x) - VIEW_W / 2 + 7;
+      }
+    }
+  }
+
+  if (targetX !== null) {
+    camera.targetX = targetX;
+    camera.x += (camera.targetX - camera.x) * 0.15;
+    if (Math.abs(camera.targetX - camera.x) < 0.5) camera.x = camera.targetX;
+  }
+  // Clamp inside level bounds either way (target lerp OR frozen view).
+  if (camera.x < 0) camera.x = 0;
+  var maxCam = LEVEL_WIDTH * TILE - VIEW_W;
+  if (camera.x > maxCam) camera.x = maxCam;
+}
+
+// ================================================================
 // MAIN UPDATE
 // ================================================================
 function update() {
@@ -3898,12 +4079,28 @@ function update() {
       matchEnding = true;
     }
   }
+  // When the match enters its closing phase the scoreboard is forced
+  // up for everyone — alive, eliminated, or finished — so the final
+  // standings are always visible right before the results screen.
+  if (matchEnding && multiplayerMode) {
+    showScoreboard = true;
+  }
   if (eliminated) {
-    globalTick++;
     if (hudMessage) {
       hudMessage.life--;
       if (hudMessage.life <= 0) hudMessage = null;
     }
+    // World keeps simulating so spectator view feels alive (enemies
+    // wander, particles drift, items animate). All damage / collision
+    // hooks already early-return on `mario.dead`, which stays true
+    // post-elimination, so this is side-effect free for the local
+    // player. Mario's own update is intentionally skipped.
+    updateEntities();
+    updateBoss();
+    updateItems();
+    updateMarioFireballs();
+    updateParticles();
+    updateSpectatorCamera();
     return;
   }
   updateMario();
@@ -7506,7 +7703,11 @@ let _lastShowScoreboard = false;
 let _scoreboardGeom = null;
 
 function drawScoreboard() {
-  if (!showScoreboard || !multiplayerMode || racePlayers.length === 0) {
+  // Forced-visible while the match is in its closing countdown so the
+  // standings are always on-screen for everyone (alive, eliminated, or
+  // finished) right before the final results card slides in.
+  var forced = matchEnding && multiplayerMode && racePlayers.length > 0;
+  if (!forced && (!showScoreboard || !multiplayerMode || racePlayers.length === 0)) {
     _scoreboardGeom = null;
     _lastShowScoreboard = false;
     return;
@@ -8294,41 +8495,73 @@ function render() {
   }
 
   if (eliminated && multiplayerMode) {
-    // Smoked-out backdrop
-    bx.fillStyle = 'rgba(7,6,12,0.88)';
-    bx.fillRect(0, 0, VIEW_W, VIEW_H);
-    var elVig = bx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, 0, VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.7);
-    elVig.addColorStop(0, 'rgba(106,77,198,0.10)');
-    elVig.addColorStop(1, 'rgba(0,0,0,0)');
-    bx.fillStyle = elVig;
-    bx.fillRect(0, 0, VIEW_W, VIEW_H);
+    // ---- Spectator HUD ----
+    // The old full-screen "ELIMINATED" curtain is gone — the camera is
+    // now following another player so we let the world breathe through
+    // and just paint two thin strips: a top KO badge and a bottom
+    // spectator info bar with target name + control hints. Tab still
+    // pulls the live scoreboard up over everything.
 
-    var elW2 = 168, elH2 = 110;
-    var elX2 = (VIEW_W - elW2) >> 1;
-    var elY2 = ((VIEW_H - elH2) >> 1) - 6;
-    drawBrutalistPanel(elX2, elY2, elW2, elH2, '#a13050');
-
-    drawPixelText(bx, '/ KO',  elX2 + 14, elY2 + 12, '#ff7090', null);
-    drawBlobIcon(VIEW_W / 2, elY2 + 38, 11, mySelectedColor, true);
-
+    // -- Top KO badge (left-anchored, blinks like a classic CRT alert) --
     var elPhase = Math.floor(globalTick / 7) % 2;
-    var elText = 'ELIMINATED';
-    var elW = elText.length * 6;
-    drawPixelText(bx, elText, Math.round((VIEW_W - elW) / 2), elY2 + 56, elPhase ? '#ff7090' : '#ff90a8', 'rgba(0,0,0,0.85)');
+    var koLabel = '/ KO  ELIMINATED';
+    var koW = koLabel.length * 6 + 12;
+    bx.fillStyle = 'rgba(7,6,12,0.85)';
+    bx.fillRect(4, 4, koW, 14);
+    bx.fillStyle = '#a13050';
+    bx.fillRect(4, 4, koW, 1);
+    bx.fillRect(4, 17, koW, 1);
+    bx.fillStyle = '#ff7090';
+    bx.fillRect(4, 4, 2, 14);
+    drawPixelText(bx, koLabel, 10, 9, elPhase ? '#ff7090' : '#ff90a8', null);
 
-    drawPixelText(bx, 'SCORE',  elX2 + 16, elY2 + 72, '#9890b0', null);
-    drawPixelText(bx, String(score), elX2 + 16, elY2 + 82, '#f3eefe', 'rgba(0,0,0,0.85)');
-    drawPixelText(bx, 'COINS',  elX2 + elW2 - 56, elY2 + 72, '#9890b0', null);
-    drawPixelText(bx, String(coins), elX2 + elW2 - 56, elY2 + 82, '#f3eefe', 'rgba(0,0,0,0.85)');
+    // Resolve the spectated target's display name (truncated like
+    // every other UI surface uses 12 chars + ellipsis).
+    var spName = '';
+    if (spectatorTargetId) {
+      for (var ri = 0; ri < racePlayers.length; ri++) {
+        if (racePlayers[ri] && racePlayers[ri].id === spectatorTargetId) {
+          spName = truncateName(racePlayers[ri].name || '', 12);
+          break;
+        }
+      }
+    }
 
-    var pulseAlpha = 0.55 + 0.45 * Math.sin(globalTick * 0.05);
-    bx.save();
-    bx.globalAlpha = pulseAlpha;
-    var waitText = '> WAITING FOR MATCH...';
-    var waitW = waitText.length * 6;
-    drawPixelText(bx, waitText, Math.round((VIEW_W - waitW) / 2), elY2 + elH2 - 12, '#b890ff', null);
-    bx.restore();
+    // -- Bottom spectator strip --
+    // Left half: SPECTATING <name>  (or pulsing wait msg if no target)
+    // Right half: control hints (< > swap, TAB scores)
+    var bandH = 14;
+    var bandY = VIEW_H - bandH - 2;
+    bx.fillStyle = 'rgba(7,6,12,0.85)';
+    bx.fillRect(0, bandY, VIEW_W, bandH);
+    bx.fillStyle = '#6a4dc6';
+    bx.fillRect(0, bandY, VIEW_W, 1);
+    bx.fillRect(0, bandY + bandH - 1, VIEW_W, 1);
 
+    if (spName) {
+      drawPixelText(bx, '/ SPECTATING', 6, bandY + 5, '#9890b0', null);
+      drawPixelText(bx, spName, 6 + 12 * 6 + 4, bandY + 5, '#f3eefe', null);
+    } else {
+      var pulseAlpha = 0.55 + 0.45 * Math.sin(globalTick * 0.05);
+      bx.save();
+      bx.globalAlpha = pulseAlpha;
+      drawPixelText(bx, '> WAITING FOR PLAYERS...', 6, bandY + 5, '#b890ff', null);
+      bx.restore();
+    }
+
+    // Right-aligned control hints. Only show "< >" hint if there are
+    // multiple spectatable targets to swap between.
+    var hintParts = [];
+    if (getSpectatableIds().length > 1) hintParts.push('< > SWAP');
+    hintParts.push('TAB SCORES');
+    var hintStr = hintParts.join('   ');
+    var hintW = hintStr.length * 6;
+    drawPixelText(bx, hintStr, VIEW_W - hintW - 6, bandY + 5, '#9890b0', null);
+
+    // HUD message (biome banner, "X ELIMINATED" toast, etc.) still
+    // slides in from the top so the spectator gets the same context
+    // updates as everyone else — just shifted up so it doesn't collide
+    // with the KO badge.
     if (hudMessage) {
       var hm2 = hudMessage;
       var fi2 = Math.min(1, (hm2.maxLife - hm2.life) / 15);
@@ -8351,8 +8584,6 @@ function render() {
       drawPixelText(bx, hm2.text, Math.round((VIEW_W - hm2.text.length * 6) / 2), y2 + 1, '#f3eefe', null);
       bx.restore();
     }
-
-    drawProgressBar();
   }
 
   if (gameState === 'win' && !multiplayerMode) {
@@ -8475,6 +8706,12 @@ function quitToMenu() {
 // MULTIPLAYER (WebSocket)
 // ================================================================
 const MATCH_DURATION = 300;
+// Lives granted at the start of every multiplayer match. Solo runs keep
+// the classic 3-life pool; MP gets 5 because long-form races punish a
+// single unlucky death disproportionately and "Play Again" friction is
+// higher when half the lobby is sitting in spectator mode waiting for
+// the round to wrap.
+const MP_LIVES = 5;
 const myPlayerId = 'p_' + Math.random().toString(36).substring(2, 10);
 var ws = null;
 
@@ -8612,11 +8849,16 @@ function connectSocket() {
           // skips these flags in MP (so mid-match respawns don't clear
           // them), so the lobby boundary is the right place to clean up.
           eliminated = false;
-          lives = 3;
+          // MP gives a slightly bigger life pool than solo (5 vs 3) so a
+          // single bad jump can't quietly knock you out of a long-form
+          // multiplayer race.
+          lives = MP_LIVES;
           deathTimer = 0;
           winTimer = 0;
           flagDescending = false;
           matchEnding = false;
+          spectatorTargetId = null;
+          showScoreboard = false;
           if (typeof mario === 'object' && mario) mario.dead = false;
           hudMessage = null;
         }
@@ -8642,6 +8884,8 @@ function connectSocket() {
           roomMatchDuration = data.matchDuration || MATCH_DURATION;
           matchTimeRemaining = roomMatchDuration;
           matchEnding = false;
+          spectatorTargetId = null;
+          showScoreboard = false;
           remoteStates.clear();
           lastStateSend = 0;
           _idleLatch = null;
@@ -8845,6 +9089,8 @@ function cleanupRoom() {
   lastProgressWrite = 0;
   lastStateSend = 0;
   _idleLatch = null;
+  spectatorTargetId = null;
+  showScoreboard = false;
   remoteStates.clear();
 }
 
