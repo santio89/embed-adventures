@@ -5492,25 +5492,34 @@ function drawItems() {
     const sx = Math.floor(item.x - camera.rx);
     if (sx < -TILE || sx > VIEW_W + TILE) return;
     const iy = Math.floor(item.y);
+    // All three powerups render inside a strict 16x16 box (iy..iy+16,
+    // sx..sx+16) — classic SMB-style. No piece pokes out above/below
+    // or to the sides, so the sprite footprint exactly matches the
+    // 16x16 collision box and stays visually the same size regardless
+    // of which powerup it is (mushroom/flower/star) or Mario's form.
     if (item.type === 'mushroom') {
-      const mCapGrad = bx.createRadialGradient(sx + 6, iy - 3, 1, sx + 8, iy, 9);
+      // Cap occupies the upper 8 rows; stem the lower 8.
+      const mCapGrad = bx.createRadialGradient(sx + 6, iy + 3, 1, sx + 8, iy + 6, 8);
       mCapGrad.addColorStop(0, '#f0a0b0');
       mCapGrad.addColorStop(0.6, COL.mushroom);
       mCapGrad.addColorStop(1, '#903050');
       bx.fillStyle = mCapGrad;
-      bx.beginPath(); bx.arc(sx + 8, iy, 8, Math.PI, 0); bx.closePath(); bx.fill();
-      bx.fillRect(sx, iy, 16, 2);
+      bx.beginPath(); bx.arc(sx + 8, iy + 6, 6, Math.PI, 0); bx.closePath(); bx.fill();
+      bx.fillRect(sx + 2, iy + 6, 12, 2);
       bx.fillStyle = COL.mushroomSpots;
-      bx.beginPath(); bx.arc(sx + 8, iy - 3, 3, 0, Math.PI * 2); bx.fill();
-      const stemGrad = bx.createLinearGradient(sx + 2, 0, sx + 14, 0);
+      bx.beginPath(); bx.arc(sx + 8, iy + 4, 2, 0, Math.PI * 2); bx.fill();
+      const stemGrad = bx.createLinearGradient(sx + 4, 0, sx + 12, 0);
       stemGrad.addColorStop(0, '#c8b8e0');
       stemGrad.addColorStop(0.5, '#e8e0f0');
       stemGrad.addColorStop(1, '#c8b8e0');
       bx.fillStyle = stemGrad;
-      bx.fillRect(sx + 3, iy + 2, 10, 10);
-      bx.fillRect(sx + 4, iy + 8, 3, 4);
-      bx.fillRect(sx + 9, iy + 8, 3, 4);
+      bx.fillRect(sx + 4, iy + 8, 8, 6);
+      bx.fillRect(sx + 5, iy + 14, 2, 2);
+      bx.fillRect(sx + 9, iy + 14, 2, 2);
     } else if (item.type === 'flower') {
+      // Flower sits a little smaller than the mushroom overall so the
+      // silhouette never bleeds past the 16x16 box. Four side petals
+      // + center, stem & leaves below.
       const t = Math.floor(Date.now() / 120) % 4;
       const flowerCols = ['#c0a8e8', '#ff80b0', '#fcfcfc', '#e8c850'];
       const stGrad = bx.createLinearGradient(sx + 6, 0, sx + 10, 0);
@@ -5518,38 +5527,35 @@ function drawItems() {
       stGrad.addColorStop(0.5, '#7868c0');
       stGrad.addColorStop(1, '#5848a0');
       bx.fillStyle = stGrad;
-      bx.fillRect(sx + 6, iy + 8, 4, 8);
-      bx.fillRect(sx + 2, iy + 10, 4, 3);
-      bx.fillRect(sx + 10, iy + 10, 4, 3);
+      bx.fillRect(sx + 7, iy + 9, 2, 6);
+      bx.fillRect(sx + 3, iy + 11, 4, 2);
+      bx.fillRect(sx + 9, iy + 11, 4, 2);
       const fcol = flowerCols[t];
-      const fgr = bx.createRadialGradient(sx + 7, iy + 3, 1, sx + 8, iy + 4, 6);
+      const fgr = bx.createRadialGradient(sx + 7, iy + 4, 1, sx + 8, iy + 5, 5);
       fgr.addColorStop(0, '#fcfcfc');
       fgr.addColorStop(0.6, fcol);
       fgr.addColorStop(1, '#805090');
       bx.fillStyle = fgr;
-      bx.beginPath(); bx.arc(sx + 8, iy + 4, 5, 0, Math.PI * 2); bx.fill();
+      bx.beginPath(); bx.arc(sx + 8, iy + 5, 4, 0, Math.PI * 2); bx.fill();
       bx.fillStyle = fcol;
-      bx.beginPath(); bx.arc(sx + 3, iy + 4, 3, 0, Math.PI * 2); bx.fill();
-      bx.beginPath(); bx.arc(sx + 13, iy + 4, 3, 0, Math.PI * 2); bx.fill();
-      bx.beginPath(); bx.arc(sx + 8, iy - 1, 3, 0, Math.PI * 2); bx.fill();
-      bx.beginPath(); bx.arc(sx + 8, iy + 9, 3, 0, Math.PI * 2); bx.fill();
+      bx.beginPath(); bx.arc(sx + 4, iy + 5, 2, 0, Math.PI * 2); bx.fill();
+      bx.beginPath(); bx.arc(sx + 12, iy + 5, 2, 0, Math.PI * 2); bx.fill();
+      bx.beginPath(); bx.arc(sx + 8, iy + 2, 2, 0, Math.PI * 2); bx.fill();
+      bx.beginPath(); bx.arc(sx + 8, iy + 8, 2, 0, Math.PI * 2); bx.fill();
       bx.fillStyle = '#f0d060';
-      bx.beginPath(); bx.arc(sx + 8, iy + 4, 2, 0, Math.PI * 2); bx.fill();
-      bx.save();
-      bx.globalAlpha = 0.4;
-      bx.fillStyle = '#fcfcfc';
-      bx.beginPath(); bx.arc(sx + 7, iy + 3, 1, 0, Math.PI * 2); bx.fill();
-      bx.restore();
+      bx.beginPath(); bx.arc(sx + 8, iy + 5, 1.5, 0, Math.PI * 2); bx.fill();
     } else if (item.type === 'star') {
+      // Star body has a 6px outer radius (down from 7) and glow 7px
+      // (down from 10) so the full sprite fits inside 16x16.
       const t = Math.floor(Date.now() / 100) % 3;
       const starCols = ['#e8c850', '#c0a8e8', '#fcfcfc'];
       const scx = sx + 8, scy = iy + 8;
       bx.save();
       bx.globalAlpha = 0.25;
       bx.fillStyle = starCols[t];
-      bx.beginPath(); bx.arc(scx, scy, 10, 0, Math.PI * 2); bx.fill();
+      bx.beginPath(); bx.arc(scx, scy, 7, 0, Math.PI * 2); bx.fill();
       bx.restore();
-      const sGrad = bx.createRadialGradient(scx - 1, scy - 2, 1, scx, scy, 8);
+      const sGrad = bx.createRadialGradient(scx - 1, scy - 2, 1, scx, scy, 7);
       sGrad.addColorStop(0, '#fcfcfc');
       sGrad.addColorStop(0.4, starCols[t]);
       sGrad.addColorStop(1, '#806020');
@@ -5558,10 +5564,10 @@ function drawItems() {
       for (let i = 0; i < 5; i++) {
         const angle = -Math.PI / 2 + (i * 2 * Math.PI / 5);
         const innerAngle = angle + Math.PI / 5;
-        const ox = scx + Math.cos(angle) * 7;
-        const oy = scy + Math.sin(angle) * 7;
-        const ix = scx + Math.cos(innerAngle) * 3;
-        const iy2 = scy + Math.sin(innerAngle) * 3;
+        const ox = scx + Math.cos(angle) * 6;
+        const oy = scy + Math.sin(angle) * 6;
+        const ix = scx + Math.cos(innerAngle) * 2.5;
+        const iy2 = scy + Math.sin(innerAngle) * 2.5;
         if (i === 0) bx.moveTo(ox, oy); else bx.lineTo(ox, oy);
         bx.lineTo(ix, iy2);
       }
