@@ -2971,14 +2971,25 @@ function updateMario() {
     });
   }
 
-  // Camera (smooth lerp, float precision kept for tracking)
+  // Camera (smooth lerp, float precision kept for tracking).
+  //
+  // We track an integer-rounded mario.x rather than the raw float. Sub-
+  // pixel precision buys nothing — `camera.rx` is `Math.floor(camera.x)`
+  // at render time anyway — and the raw float carries multiplicative-
+  // friction residuals (mario.vx asymptotes to 0 but never reaches it),
+  // so an "idle" mario actually creeps mario.x by ~0.001 px/frame.
+  // Without rounding, those residuals walk camera.targetX across an
+  // integer boundary every few seconds, the whole screen shifts by 1
+  // px, and remote ghost blobs (whose world coords are now perfectly
+  // stable thanks to the sender-side idle latch) appear to "tick" or
+  // briefly clip the screen-edge cull check and vanish for a frame.
   if (bossEncounterActive) {
     const arenaCamX = BOSS_ARENA_LEFT * TILE;
     camera.x += (arenaCamX - camera.x) * 0.15;
     if (Math.abs(arenaCamX - camera.x) < 0.5) camera.x = arenaCamX;
     camera.targetX = camera.x;
   } else {
-    camera.targetX = mario.x - VIEW_W / 2 + 16;
+    camera.targetX = Math.round(mario.x) - VIEW_W / 2 + 16;
     if (camera.targetX < camera.x) camera.targetX = camera.x;
     camera.x += (camera.targetX - camera.x) * 0.1;
     if (Math.abs(camera.targetX - camera.x) < 0.5) camera.x = camera.targetX;
@@ -5459,9 +5470,10 @@ function drawRemoteBlobs() {
     var s = _sampleRemoteAt(rs.snaps, renderT);
     if (!s) return;
     var screenX = s.x - camera.rx;
-    // Cull to the visible viewport plus a small padding so blobs near
-    // the edges still pop in/out smoothly.
-    if (screenX < -24 || screenX > VIEW_W + 24) return;
+    // Cull to the visible viewport plus generous padding so a blob
+    // sitting at the screen edge can't briefly clip the cull check
+    // (and visibly vanish for a frame) when the camera hops by a pixel.
+    if (screenX < -48 || screenX > VIEW_W + 48) return;
     drawGhostBlob(s, meta.color || 'lavender', meta.name || '', _idHash(id));
   });
   if (stale) for (var k = 0; k < stale.length; k++) remoteStates.delete(stale[k]);
