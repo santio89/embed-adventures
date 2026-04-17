@@ -1195,43 +1195,76 @@ const BUZZY_FLAT = [
 ];
 const BUZZY_PALETTE = { 1: '#4050b8', 2: COL.white, 3: COL.black };
 
+// Piranha plant palette. Ten distinct indices so the head, mouth,
+// stem and teeth don't share colors (which was making the sprite
+// read as muddy/noisy before).
+//   1  head main pink/magenta      6  mouth interior (near-black)
+//   2  head white spot             7  stem left-side highlight
+//   3  stem base purple            8  head shadow (under lobes)
+//   4  dark outline                9  tooth (cream, != spot white)
+//   5  stem right-side shadow     10  head top-left highlight
+// The stem now uses a clean left→right gradient (7-3-5 or 7-3-3-3-5)
+// per row instead of the old 3/5 checker, so shading reads as a
+// single lit cylinder rather than speckle noise.
+// Rows 0..6 = head (uses outline index 4 = dark magenta)
+// Rows 7..15 = stem (uses outline index 11 = dark purple)
 const PIRANHA_SPRITE1 = [
-  [0,0,0,4,1,1,0,0,0,1,1,4,0,0,0,0],
-  [0,0,4,1,2,2,4,0,4,2,2,1,4,0,0,0],
-  [0,4,1,2,1,1,4,0,4,1,1,2,1,4,0,0],
-  [0,4,1,1,4,2,6,2,6,2,4,1,1,4,0,0],
-  [0,0,4,4,2,6,2,6,2,6,2,4,4,0,0,0],
-  [0,0,0,4,1,1,1,1,1,1,1,4,0,0,0,0],
-  [0,0,0,0,4,1,1,1,1,1,4,0,0,0,0,0],
-  [0,0,0,0,0,4,3,3,3,4,0,0,0,0,0,0],
-  [0,0,0,0,0,3,5,3,5,3,0,0,0,0,0,0],
-  [0,0,0,0,7,5,3,3,3,5,7,0,0,0,0,0],
-  [0,0,0,0,3,3,5,3,5,3,3,0,0,0,0,0],
-  [0,0,0,0,0,5,3,3,3,5,0,0,0,0,0,0],
-  [0,0,0,0,0,3,5,3,5,3,0,0,0,0,0,0],
-  [0,0,0,0,7,5,3,3,3,5,7,0,0,0,0,0],
-  [0,0,0,0,3,3,5,3,5,3,3,0,0,0,0,0],
-  [0,0,0,0,0,5,3,3,3,5,0,0,0,0,0,0],
+  [0,0,0, 4, 1, 1,0,0,0, 1, 1, 4,0,0,0,0],
+  [0,0, 4, 1,10, 2,4,0, 4, 2,10, 1,4,0,0,0],
+  [0, 4, 1,10, 1, 1,4,0, 4, 1, 1,10, 1,4,0,0],
+  [0, 4, 1, 1, 4, 9,6, 9,6, 9, 4, 1, 1,4,0,0],
+  [0,0, 4, 4, 9, 6,9, 6,9, 6, 9, 4, 4,0,0,0],
+  [0,0,0, 4, 1, 1,1, 1,1, 1, 1, 4,0,0,0,0],
+  [0,0,0,0, 4, 8,1, 1,1, 8, 4,0,0,0,0,0],
+  [0,0,0,0,0,11,3, 3,3,11,0,0,0,0,0,0],
+  [0,0,0,0,0,11,7, 3,5,11,0,0,0,0,0,0],
+  [0,0,0,0,11, 7,3, 3,3, 5,11,0,0,0,0,0],
+  [0,0,0,0,11, 7,3, 3,3, 5,11,0,0,0,0,0],
+  [0,0,0,0,0,11,3, 3,3,11,0,0,0,0,0,0],
+  [0,0,0,0,0,11,7, 3,5,11,0,0,0,0,0,0],
+  [0,0,0,0,11, 7,3, 3,3, 5,11,0,0,0,0,0],
+  [0,0,0,0,11, 7,3, 3,3, 5,11,0,0,0,0,0],
+  [0,0,0,0,0,11,3, 3,3,11,0,0,0,0,0,0],
 ];
 const PIRANHA_SPRITE2 = [
-  [0,0,4,1,1,0,0,0,0,0,1,1,4,0,0,0],
-  [0,4,1,2,2,4,0,0,0,4,2,2,1,4,0,0],
-  [0,4,1,1,2,4,0,0,0,4,2,1,1,4,0,0],
-  [0,4,1,4,2,6,2,6,2,6,2,4,1,4,0,0],
-  [0,0,4,6,6,2,6,2,6,2,6,6,4,0,0,0],
-  [0,0,0,4,1,1,1,1,1,1,1,4,0,0,0,0],
-  [0,0,0,0,4,1,1,1,1,1,4,0,0,0,0,0],
-  [0,0,0,0,0,4,3,3,3,4,0,0,0,0,0,0],
-  [0,0,0,0,0,3,5,3,5,3,0,0,0,0,0,0],
-  [0,0,0,0,7,5,3,3,3,5,7,0,0,0,0,0],
-  [0,0,0,0,3,3,5,3,5,3,3,0,0,0,0,0],
-  [0,0,0,0,0,5,3,3,3,5,0,0,0,0,0,0],
-  [0,0,0,0,0,3,5,3,5,3,0,0,0,0,0,0],
-  [0,0,0,0,7,5,3,3,3,5,7,0,0,0,0,0],
-  [0,0,0,0,3,3,5,3,5,3,3,0,0,0,0,0],
-  [0,0,0,0,0,5,3,3,3,5,0,0,0,0,0,0],
+  [0,0, 4, 1, 1,0,0,0,0,0, 1, 1, 4,0,0,0],
+  [0, 4, 1,10, 2, 4,0,0,0, 4, 2,10, 1, 4,0,0],
+  [0, 4, 1, 1, 2, 4,0,0,0, 4, 2, 1, 1, 4,0,0],
+  [0, 4, 1, 4, 9, 6,9, 6,9, 6, 9, 4, 1, 4,0,0],
+  [0,0, 4, 6, 6, 9,6, 9,6, 9, 6, 6, 4,0,0,0],
+  [0,0,0, 4, 1, 1,1, 1,1, 1, 1, 4,0,0,0,0],
+  [0,0,0,0, 4, 8,1, 1,1, 8, 4,0,0,0,0,0],
+  [0,0,0,0,0,11,3, 3,3,11,0,0,0,0,0,0],
+  [0,0,0,0,0,11,7, 3,5,11,0,0,0,0,0,0],
+  [0,0,0,0,11, 7,3, 3,3, 5,11,0,0,0,0,0],
+  [0,0,0,0,11, 7,3, 3,3, 5,11,0,0,0,0,0],
+  [0,0,0,0,0,11,3, 3,3,11,0,0,0,0,0,0],
+  [0,0,0,0,0,11,7, 3,5,11,0,0,0,0,0,0],
+  [0,0,0,0,11, 7,3, 3,3, 5,11,0,0,0,0,0],
+  [0,0,0,0,11, 7,3, 3,3, 5,11,0,0,0,0,0],
+  [0,0,0,0,0,11,3, 3,3,11,0,0,0,0,0,0],
 ];
-const PIRANHA_PALETTE = { 1: '#e888b8', 2: '#ffffff', 3: '#7060b8', 4: '#b05080', 5: '#3c2878', 6: '#281040', 7: '#9878c8' };
+// SMW-style palette. Two key ideas:
+//  1. Outlines are a DARK VERSION OF THE FILL COLOR, not near-black —
+//     so the head gets a dark-magenta outline and the stem gets a
+//     dark-purple outline. Each region's edge reads as shading of
+//     itself instead of a hard black sticker border.
+//  2. Base colors are brighter/cleaner (SMW cartoon vibrance), and
+//     shadow/highlight pairs stay close to base hue so shading
+//     doesn't darken the silhouette or introduce muddy mid-tones.
+const PIRANHA_PALETTE = {
+  1:  '#d858ac',  // head main pink-magenta (brighter)
+  2:  '#ffffff',  // head spot pure white
+  3:  '#6a58d0',  // stem base purple (brighter)
+  4:  '#6a1858',  // HEAD outline (dark magenta, pairs with pink fill)
+  5:  '#4838a0',  // stem right-side shadow
+  6:  '#200030',  // mouth interior
+  7:  '#a898e8',  // stem left-side highlight
+  8:  '#9a2878',  // head under-lobe shadow
+  9:  '#fffef0',  // tooth cream
+  10: '#f8a8d0',  // head top-left highlight
+  11: '#2a1858',  // STEM outline (dark purple, pairs with purple fill)
+};
 
 const PIXEL_FONT = {
   'A':[0x0E,0x11,0x11,0x1F,0x11,0x11,0x11],'B':[0x1E,0x11,0x11,0x1E,0x11,0x11,0x1E],
@@ -5498,52 +5531,109 @@ function drawItems() {
     // 16x16 collision box and stays visually the same size regardless
     // of which powerup it is (mushroom/flower/star) or Mario's form.
     if (item.type === 'mushroom') {
-      // Cap occupies the upper 8 rows; stem the lower 8.
-      const mCapGrad = bx.createRadialGradient(sx + 6, iy + 3, 1, sx + 8, iy + 6, 8);
-      mCapGrad.addColorStop(0, '#f0a0b0');
-      mCapGrad.addColorStop(0.6, COL.mushroom);
-      mCapGrad.addColorStop(1, '#903050');
+      // ── TOAD-STYLE MUSHROOM ────────────────────────────────────────
+      // Fits in a 16x16 box. Cap = upper 8 rows, stem = lower 8.
+      // Stem is a SOLID cream block with little eye dots — no leg
+      // split (which used to look like teeth).
+
+      // Cap dome: red radial gradient, semicircle r=7 at (sx+8, iy+7).
+      // Light source is top-left, so the gradient origin is up-left and
+      // the darker stop lands on the bottom-right side of the dome.
+      const mCapGrad = bx.createRadialGradient(sx + 5, iy + 2, 1, sx + 9, iy + 6, 9);
+      mCapGrad.addColorStop(0, '#ff98a6');
+      mCapGrad.addColorStop(0.45, COL.mushroom);
+      mCapGrad.addColorStop(1, '#7a1e28');
       bx.fillStyle = mCapGrad;
-      bx.beginPath(); bx.arc(sx + 8, iy + 6, 6, Math.PI, 0); bx.closePath(); bx.fill();
-      bx.fillRect(sx + 2, iy + 6, 12, 2);
-      bx.fillStyle = COL.mushroomSpots;
-      bx.beginPath(); bx.arc(sx + 8, iy + 4, 2, 0, Math.PI * 2); bx.fill();
-      const stemGrad = bx.createLinearGradient(sx + 4, 0, sx + 12, 0);
-      stemGrad.addColorStop(0, '#c8b8e0');
-      stemGrad.addColorStop(0.5, '#e8e0f0');
-      stemGrad.addColorStop(1, '#c8b8e0');
+      bx.beginPath(); bx.arc(sx + 8, iy + 7, 7, Math.PI, 0); bx.closePath(); bx.fill();
+
+      // Specular highlight on the upper-left of the cap — a soft
+      // translucent white arc that gives the dome a glossy sheen.
+      bx.save();
+      bx.globalAlpha = 0.45;
+      bx.fillStyle = '#ffe8ec';
+      bx.beginPath(); bx.arc(sx + 5, iy + 4, 2.2, 0, Math.PI * 2); bx.fill();
+      bx.restore();
+
+      // Dark rim under the cap. Soft red instead of near-black so the
+      // transition to the stem reads as shading, not a hard line.
+      bx.fillStyle = '#9a2838';
+      bx.fillRect(sx + 1, iy + 7, 14, 1);
+
+      // White cap spots — 3 dots, classic Toad arrangement, each with
+      // a faint outer ring so they stand proud of the red cap.
+      // Outer rings first (very subtle pink halo):
+      bx.fillStyle = '#f8d0d8';
+      bx.beginPath(); bx.arc(sx + 8, iy + 3, 2.4, 0, Math.PI * 2); bx.fill();
+      bx.beginPath(); bx.arc(sx + 4, iy + 5, 1.8, 0, Math.PI * 2); bx.fill();
+      bx.beginPath(); bx.arc(sx + 12, iy + 5, 1.8, 0, Math.PI * 2); bx.fill();
+      // White inner spots:
+      bx.fillStyle = '#fcfcfc';
+      bx.beginPath(); bx.arc(sx + 8, iy + 3, 1.9, 0, Math.PI * 2); bx.fill();
+      bx.beginPath(); bx.arc(sx + 4, iy + 5, 1.3, 0, Math.PI * 2); bx.fill();
+      bx.beginPath(); bx.arc(sx + 12, iy + 5, 1.3, 0, Math.PI * 2); bx.fill();
+
+      // Stem: solid cream block, pixel-rounded at the bottom corners.
+      const stemGrad = bx.createLinearGradient(sx + 3, 0, sx + 13, 0);
+      stemGrad.addColorStop(0, '#c8bcd0');
+      stemGrad.addColorStop(0.4, '#fcfcfc');
+      stemGrad.addColorStop(1, '#b8accc');
       bx.fillStyle = stemGrad;
-      bx.fillRect(sx + 4, iy + 8, 8, 6);
-      bx.fillRect(sx + 5, iy + 14, 2, 2);
-      bx.fillRect(sx + 9, iy + 14, 2, 2);
+      bx.fillRect(sx + 3, iy + 8, 10, 7);
+      bx.fillRect(sx + 4, iy + 15, 8, 1);
+
+      // Shoulder chamfer under the cap (1px each side pulled in) so
+      // the corners tuck into the cap rim.
+      bx.fillStyle = '#9a2838';
+      bx.fillRect(sx + 2, iy + 8, 1, 1);
+      bx.fillRect(sx + 13, iy + 8, 1, 1);
+
+      // Toad eyes (1×3 dots — slightly taller than before so they
+      // actually register at this resolution).
+      bx.fillStyle = '#1a1a2e';
+      bx.fillRect(sx + 5, iy + 11, 1, 3);
+      bx.fillRect(sx + 10, iy + 11, 1, 3);
     } else if (item.type === 'flower') {
-      // Flower sits a little smaller than the mushroom overall so the
-      // silhouette never bleeds past the 16x16 box. Four side petals
-      // + center, stem & leaves below.
-      const t = Math.floor(Date.now() / 120) % 4;
-      const flowerCols = ['#c0a8e8', '#ff80b0', '#fcfcfc', '#e8c850'];
-      const stGrad = bx.createLinearGradient(sx + 6, 0, sx + 10, 0);
-      stGrad.addColorStop(0, '#5848a0');
-      stGrad.addColorStop(0.5, '#7868c0');
-      stGrad.addColorStop(1, '#5848a0');
-      bx.fillStyle = stGrad;
+      // ── FIRE-FLOWER-STYLE POWER FLOWER ─────────────────────────────
+      // Concentric petal rings with a white face + eyes (like img3),
+      // sitting on a green stem with two leaves. Full sprite tucked
+      // inside the 16x16 box.
+
+      const t = Math.floor(Date.now() / 150) % 4;
+      // Palette keeps the game's violet/pink/gold rotation but paired
+      // as (outer, middle) rings so it reads as a true petal layer.
+      const outerCols = ['#8a4fc8', '#e03880', '#d8b038', '#e07040'];
+      const midCols   = ['#c0a8e8', '#ff80b0', '#f8e080', '#ffb870'];
+      const outer = outerCols[t];
+      const mid = midCols[t];
+
+      // Stem (green, narrow)
+      bx.fillStyle = '#4a9030';
       bx.fillRect(sx + 7, iy + 9, 2, 6);
-      bx.fillRect(sx + 3, iy + 11, 4, 2);
-      bx.fillRect(sx + 9, iy + 11, 4, 2);
-      const fcol = flowerCols[t];
-      const fgr = bx.createRadialGradient(sx + 7, iy + 4, 1, sx + 8, iy + 5, 5);
-      fgr.addColorStop(0, '#fcfcfc');
-      fgr.addColorStop(0.6, fcol);
-      fgr.addColorStop(1, '#805090');
-      bx.fillStyle = fgr;
-      bx.beginPath(); bx.arc(sx + 8, iy + 5, 4, 0, Math.PI * 2); bx.fill();
-      bx.fillStyle = fcol;
-      bx.beginPath(); bx.arc(sx + 4, iy + 5, 2, 0, Math.PI * 2); bx.fill();
-      bx.beginPath(); bx.arc(sx + 12, iy + 5, 2, 0, Math.PI * 2); bx.fill();
-      bx.beginPath(); bx.arc(sx + 8, iy + 2, 2, 0, Math.PI * 2); bx.fill();
-      bx.beginPath(); bx.arc(sx + 8, iy + 8, 2, 0, Math.PI * 2); bx.fill();
-      bx.fillStyle = '#f0d060';
-      bx.beginPath(); bx.arc(sx + 8, iy + 5, 1.5, 0, Math.PI * 2); bx.fill();
+      // Stem highlight
+      bx.fillStyle = '#7bc058';
+      bx.fillRect(sx + 7, iy + 9, 1, 5);
+
+      // Two leaves at the base
+      bx.fillStyle = '#4a9030';
+      bx.beginPath(); bx.ellipse(sx + 4, iy + 13, 3, 2, -0.3, 0, Math.PI * 2); bx.fill();
+      bx.beginPath(); bx.ellipse(sx + 12, iy + 13, 3, 2, 0.3, 0, Math.PI * 2); bx.fill();
+      bx.fillStyle = '#7bc058';
+      bx.fillRect(sx + 3, iy + 12, 2, 1);
+      bx.fillRect(sx + 11, iy + 12, 2, 1);
+
+      // Outer petal ring
+      bx.fillStyle = outer;
+      bx.beginPath(); bx.arc(sx + 8, iy + 5, 5, 0, Math.PI * 2); bx.fill();
+      // Middle petal ring
+      bx.fillStyle = mid;
+      bx.beginPath(); bx.arc(sx + 8, iy + 5, 3.5, 0, Math.PI * 2); bx.fill();
+      // White face
+      bx.fillStyle = '#fcfcfc';
+      bx.beginPath(); bx.arc(sx + 8, iy + 5, 2.4, 0, Math.PI * 2); bx.fill();
+      // Two little black eyes
+      bx.fillStyle = '#1a1a2e';
+      bx.fillRect(sx + 6, iy + 4, 1, 2);
+      bx.fillRect(sx + 9, iy + 4, 1, 2);
     } else if (item.type === 'star') {
       // Star body has a 6px outer radius (down from 7) and glow 7px
       // (down from 10) so the full sprite fits inside 16x16.
