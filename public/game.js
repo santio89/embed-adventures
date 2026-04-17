@@ -4996,9 +4996,11 @@ function drawMario() {
   const isBig = mario.big;
 
   // Blob body slightly bigger and a touch rounder for a more "huggable" silhouette.
-  const bodyR = isBig ? 9.5 : 6.85;
+  // Big body radius nudged from 9.5 → 9.0 for a slightly less bulky big-blob;
+  // cy bumped 0.5 px down so feet still rest on the ground (body bottom = cy + rY).
+  const bodyR = isBig ? 9.0 : 6.85;
   const cx = px + 7;
-  const cy = isBig ? py + 11 : py + 7;
+  const cy = isBig ? py + 11.5 : py + 7;
 
   let sqX = 1.0, sqY = 1.0, bounceY = 0;
 
@@ -5822,9 +5824,9 @@ function drawGhostBlob(s, colorId, name, phaseSeed) {
   var py = Math.floor(s.y);
   var dir = s.facing < 0 ? -1 : 1;
 
-  var bodyR = isBig ? 9.5 : 6.85;
+  var bodyR = isBig ? 9.0 : 6.85;
   var cx = px + 7;
-  var cy = isBig ? py + 11 : py + 7;
+  var cy = isBig ? py + 11.5 : py + 7;
 
   // Animation: mirror the local player's pose vocabulary at a lighter
   // touch — same silhouette language, no fancy easing.
