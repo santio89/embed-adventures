@@ -2261,6 +2261,13 @@ let deathTimer = 0;
 let winTimer = 0;
 let gameOverTimer = 0;
 let flagDescending = false;
+// Castle-entry cutscene timer. After flag descent + walk to the castle
+// door, this counts up while the blob "enters" the castle (fades out
+// in front of the closed gate). gameState flips to 'win' once this
+// reaches CASTLE_ENTER_DURATION, so the win card pops only after the
+// blob has visually disappeared into the door.
+let castleEnterTimer = 0;
+const CASTLE_ENTER_DURATION = 32;
 let flagY = 0;
 let hitBlocks = new Set();
 let emptyBlocks = new Set();
@@ -2346,6 +2353,7 @@ function resetLevel() {
   deathTimer = 0;
   winTimer = 0;
   flagDescending = false;
+  castleEnterTimer = 0;
   flagY = 0;
   hitBlocks = new Set();
   emptyBlocks = new Set();
@@ -2898,15 +2906,32 @@ function updateMario() {
 
   if (flagDescending) {
     winTimer++;
-    mario.vy = 1.8;
-    mario.y += mario.vy;
-    if (mario.y >= 12 * TILE) {
-      mario.y = 12 * TILE;
-      mario.vx = 1.5;
-      mario.x += mario.vx;
+    // Phase A — slide down the flagpole until feet touch the ground row.
+    if (mario.y < 12 * TILE) {
+      mario.vy = 1.8;
+      mario.y += mario.vy;
+      if (mario.y >= 12 * TILE) mario.y = 12 * TILE;
+    } else {
+      // Phase B — walk right toward the castle door.
+      // Door center sits at (CASTLE_X * TILE) + 40 (door inner half-width
+      // 8 + door inset 32). Subtract 8 so mario.x lands the blob's
+      // 16-px body squarely centred under the arch.
       mario.facing = 1;
+      const doorEntryX = (CASTLE_X * TILE) + 32;
+      if (mario.x < doorEntryX && castleEnterTimer === 0) {
+        mario.vx = 1.5;
+        mario.x += mario.vx;
+        if (mario.x >= doorEntryX) mario.x = doorEntryX;
+      } else {
+        // Phase C — entering the castle. Hold position under the arch
+        // and let drawMario fade the blob out (see castleEnterTimer
+        // alpha block in drawMario). Once fully faded, flip to 'win'.
+        mario.x = doorEntryX;
+        mario.vx = 0;
+        castleEnterTimer++;
+      }
     }
-    if (winTimer > 200) {
+    if (castleEnterTimer >= CASTLE_ENTER_DURATION) {
       if (!multiplayerMode && timeBonus === 0 && time > 0) {
         timeBonus = time * 50;
         score += timeBonus;
@@ -4990,10 +5015,27 @@ function drawMario() {
     if (Math.floor(mario.invincible / blinkRate) % 3 === 0) return;
   }
 
+  // Castle-entry fade: while castleEnterTimer is counting up, the blob
+  // is "stepping into" the castle door. Fade alpha to 0 over the
+  // entry duration so the blob disappears smoothly into the gate
+  // before the win card appears. Skip drawing entirely once fully
+  // faded so we don't waste a draw call on an invisible blob.
+  let castleAlpha = 1;
+  if (castleEnterTimer > 0) {
+    castleAlpha = Math.max(0, 1 - castleEnterTimer / CASTLE_ENTER_DURATION);
+    if (castleAlpha <= 0) return;
+  }
+
   const px = Math.floor(mario.x - camera.rx);
   const py = Math.floor(mario.y);
   const dir = mario.facing;
   const isBig = mario.big;
+
+  // Wrap entire body draw in a save/restore so the entry fade can
+  // dial down the entire blob (body + eyes + smile + feet) uniformly
+  // without per-shape alpha plumbing.
+  bx.save();
+  if (castleAlpha < 1) bx.globalAlpha *= castleAlpha;
 
   // Blob body slightly bigger and a touch rounder for a more "huggable" silhouette.
   // Big body radius nudged from 9.5 → 9.0 for a slightly less bulky big-blob;
@@ -5232,6 +5274,9 @@ function drawMario() {
     bx.stroke();
     bx.restore();
   }
+
+  // Close the castle-entry alpha wrapper opened at the top of drawMario.
+  bx.restore();
 }
 
 function drawEntities() {
@@ -7032,38 +7077,64 @@ function drawCastle() {
   bx.fillRect(starX, starY + 2, 1, 2);
   bx.restore();
 
-  // ----- 6. DOOR (cosmic portal) -----
+  // ----- 6. DOOR (solid wooden castle gate) -----
+  // Solid material — no portal stars / cosmic gradient bleeding through.
+  // The wooden gate is set into a slightly darker stone arch so the
+  // doorway still reads as a recessed entrance even against the deep
+  // cosmic backdrop. The blob walks INTO this door at the end of the
+  // win cutscene (see updateMario flagDescending block).
   const doorW = TILE;
   const doorH = 2 * TILE;
   const doorX = Math.round(ccx + (W - doorW) / 2);
   const doorY = 11 * TILE;
-  // Dark interior + arched top
-  bx.fillStyle = '#070315';
+  // Stone arch shadow (frames the gate)
+  bx.fillStyle = '#1a0e2a';
   bx.fillRect(doorX, doorY, doorW, doorH);
   bx.beginPath();
   bx.arc(doorX + doorW / 2, doorY, doorW / 2, Math.PI, 0, false);
   bx.fill();
-  // Cosmic glow inside the door
-  const dg = bx.createLinearGradient(0, doorY - 6, 0, doorY + doorH);
-  dg.addColorStop(0, 'rgba(180,120,255,0.45)');
-  dg.addColorStop(1, 'rgba(40,20,80,0)');
-  bx.fillStyle = dg;
+  // Wooden gate planks (warm brown vertical gradient = lit from above)
+  const plankX = doorX + 1;
+  const plankW = doorW - 2;
+  const plankTop = doorY + 2;
+  const plankH = doorH - 2;
+  const plankG = bx.createLinearGradient(0, plankTop, 0, plankTop + plankH);
+  plankG.addColorStop(0, '#5a2818');
+  plankG.addColorStop(0.5, '#4a2010');
+  plankG.addColorStop(1, '#2a1008');
+  bx.fillStyle = plankG;
+  bx.fillRect(plankX, plankTop, plankW, plankH);
+  // Arched top of the gate (matches planks, sits inside the stone arch)
+  bx.fillStyle = '#4a2010';
   bx.beginPath();
-  bx.arc(doorX + doorW / 2, doorY, doorW / 2, Math.PI, 0, false);
+  bx.arc(doorX + doorW / 2, plankTop, doorW / 2 - 1, Math.PI, 0, false);
   bx.fill();
-  bx.fillRect(doorX + 1, doorY, doorW - 2, doorH);
-  // Animated star sparkles drifting up inside the door
-  for (let s = 0; s < 3; s++) {
-    const sx = doorX + 3 + s * 4;
-    const cycle = doorH + 4;
-    const sy = doorY + doorH - ((globalTick * 0.6 + s * 14) % cycle);
-    const sa = 0.4 + Math.sin(globalTick * 0.12 + s * 2) * 0.4;
-    if (sa > 0.05) {
-      bx.fillStyle = `rgba(255,240,160,${Math.max(0, sa).toFixed(2)})`;
-      bx.fillRect(sx | 0, sy | 0, 1, 1);
-    }
-  }
-  // Soft golden frame around the door
+  // Vertical plank seams (3 planks across)
+  bx.fillStyle = 'rgba(0,0,0,0.45)';
+  bx.fillRect(plankX + 4, plankTop + 1, 1, plankH - 1);
+  bx.fillRect(plankX + 9, plankTop + 1, 1, plankH - 1);
+  // Iron horizontal bands (top + bottom)
+  bx.fillStyle = '#1a1018';
+  bx.fillRect(plankX, doorY + 7, plankW, 2);
+  bx.fillRect(plankX, doorY + doorH - 6, plankW, 2);
+  // Iron stud dots on the bands (tiny rivets)
+  bx.fillStyle = '#4a3038';
+  bx.fillRect(plankX + 1, doorY + 7, 1, 1);
+  bx.fillRect(plankX + plankW - 2, doorY + 7, 1, 1);
+  bx.fillRect(plankX + 1, doorY + doorH - 6, 1, 1);
+  bx.fillRect(plankX + plankW - 2, doorY + doorH - 6, 1, 1);
+  // Brass handle on the right plank
+  bx.fillStyle = '#8a6018';
+  bx.fillRect(plankX + plankW - 4, doorY + 13, 1, 1);
+  bx.fillStyle = '#6a4818';
+  bx.fillRect(plankX + plankW - 4, doorY + 14, 1, 1);
+  // Subtle top highlight on the arch (catches ambient cosmic light)
+  bx.fillStyle = 'rgba(255,200,120,0.30)';
+  bx.beginPath();
+  bx.arc(doorX + doorW / 2, plankTop + 1, doorW / 2 - 2, Math.PI, 0, false);
+  bx.fill();
+  // Soft golden frame around the doorway (ties the gate visually to
+  // the windows' golden frames)
   bx.fillStyle = 'rgba(255,200,80,0.30)';
   bx.fillRect(doorX, doorY + 1, 1, doorH - 1);
   bx.fillRect(doorX + doorW - 1, doorY + 1, 1, doorH - 1);
@@ -9008,6 +9079,7 @@ function connectSocket() {
           deathTimer = 0;
           winTimer = 0;
           flagDescending = false;
+          castleEnterTimer = 0;
           matchEnding = false;
           spectatorTargetId = null;
           showScoreboard = false;
