@@ -1,4 +1,20 @@
 // ================================================================
+// EMBEDDABLE INTEGRATION
+// ================================================================
+// When embedded via embeddables, game.js loads before React renders
+// the CustomHTML containing the canvas. This IIFE polls for the
+// canvas element before initializing. Set GAME_SERVER_URL to the
+// Render multiplayer server; leave empty for same-origin (standalone).
+var GAME_SERVER_URL = window.GAME_SERVER_URL ||
+  (location.hostname === 'embed-adventures.onrender.com' ? '' : 'https://embed-adventures.onrender.com');
+
+(function _embeddableBootstrap() {
+if (!document.getElementById('gameCanvas')) {
+  setTimeout(_embeddableBootstrap, 80);
+  return;
+}
+
+// ================================================================
 // CANVAS SETUP
 // ================================================================
 const canvas = document.getElementById('gameCanvas');
@@ -9050,7 +9066,8 @@ var prevRoomState = null;
 
 function connectSocket() {
   if (ws && ws.connected) return;
-  ws = io({ reconnection: true, reconnectionDelay: 500, reconnectionAttempts: 10 });
+  var ioOpts = { reconnection: true, reconnectionDelay: 500, reconnectionAttempts: 10 };
+  ws = GAME_SERVER_URL ? io(GAME_SERVER_URL, ioOpts) : io(ioOpts);
 
   ws.on('room_state', function(data) {
     var playersList = Object.values(data.players || {});
@@ -9621,3 +9638,22 @@ if ((location.hostname === 'localhost' || location.hostname === '127.0.0.1') &&
   startSinglePlayer();
 }
 requestAnimationFrame(gameLoop);
+
+// Expose menu functions to the global scope so onclick handlers
+// in the HTML (including embeddable CustomHTML) can call them.
+window.toggleScanlines = toggleScanlines;
+window.showSinglePlayerSetup = showSinglePlayerSetup;
+window.showMainMenu = showMainMenu;
+window.showCreateRoom = showCreateRoom;
+window.showJoinRoom = showJoinRoom;
+window.startSinglePlayer = startSinglePlayer;
+window.createRoom = createRoom;
+window.joinRoom = joinRoom;
+window.startMultiplayerGame = startMultiplayerGame;
+window.returnToLobby = returnToLobby;
+window.leaveRoom = leaveRoom;
+window.resumeGame = resumeGame;
+window.quitToMenu = quitToMenu;
+window.selectColor = selectColor;
+
+})(); // end _embeddableBootstrap IIFE
