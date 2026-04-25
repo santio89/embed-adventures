@@ -4142,6 +4142,124 @@ function updateParticles() {
 // If no target is available (last opponent left, target died, etc.) we
 // freeze in place rather than snapping to the world origin — a stable
 // last-known view is friendlier than the camera teleporting.
+// ----------------------------------------------------------------
+// Phantom collider for spectator mode.
+//
+// While the local player is eliminated and watching a remote player,
+// this runs a lightweight "ghost mario" collision pass against the
+// LOCAL world using the spectated player's interpolated position
+// (sourced from the same Hermite-sampled snapshot stream that drives
+// the spectator camera and remote-blob rendering). Coins, items, and
+// stomp-killable enemies vanish locally as the spectated player
+// walks over / lands on them, so spectator view feels like a real
+// live broadcast instead of a ghost flying past frozen props.
+//
+// Side-effect free for other players: no score, no sound, no entity
+// state propagated over the wire. Purely cosmetic local state
+// mutation. It's a best-effort approximation — local entity
+// positions and the spectated player's actual interactions can drift
+// (each client simulates entities independently), but for typical
+// match lengths the parity is convincing because:
+//   • coins are static positions identical across clients,
+//   • items don't wander far before being grabbed,
+//   • enemies are deterministic patrollers spawned from the same
+//     map data on every client.
+//
+// Conservative kill rules so we don't over-promise:
+//   • coins / items: any AABB overlap → consume locally.
+//   • piranha plants: overlap while emerged → kill (matches game).
+//   • other enemies: only kill on a stomp (player coming down on
+//     top: vy>0 AND player's bottom near enemy's top), OR while
+//     the spectated player has star power (overlap = kill).
+//   • koopas without stomp/star: leave alone (spectated player
+//     would have died side-on, and we don't want to falsely
+//     "shellify" a koopa they actually just walked past).
+function updateSpectatorInteractions() {
+  if (!eliminated || !spectatorTargetId) return;
+  if (gameState !== 'playing') return;
+  var rs = remoteStates.get(spectatorTargetId);
+  if (!rs || !rs.snaps || rs.snaps.length === 0) return;
+  var nowMs = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  var s = _sampleRemoteAt(rs.snaps, nowMs - REMOTE_INTERP_MS);
+  if (!s || s.dead) return;
+
+  var px = s.x;
+  var py = s.y;
+  var pw = 16;
+  var ph = (s.size >= 1) ? 24 : 16;
+  var pvy = s.vy || 0;
+  var hasStar = !!s.star;
+
+  // ---- Map coins (passive pickups, always collect on overlap) ----
+  for (var ci = 0; ci < mapCoins.length; ci++) {
+    var c = mapCoins[ci];
+    if (c.collected) continue;
+    if (px + pw > c.x && px < c.x + 8 && py + ph > c.y && py < c.y + 8) {
+      c.collected = true;
+      coinAnims.push({ x: c.x, y: c.y - 8, vy: -3, life: 25 });
+    }
+  }
+
+  // ---- Items (mushroom/flower/star, always consume on overlap) ----
+  for (var ki = 0; ki < items.length; ki++) {
+    var it = items[ki];
+    if (!it.active || it.emerging) continue;
+    if (px + pw > it.x && px < it.x + it.w && py + ph > it.y && py < it.y + it.h) {
+      it.active = false;
+      for (var ip = 0; ip < 4; ip++) {
+        var ia = Math.random() * Math.PI * 2;
+        var iv = 0.4 + Math.random() * 0.8;
+        dustParticles.push({
+          x: it.x + it.w / 2, y: it.y + it.h / 2,
+          vx: Math.cos(ia) * iv, vy: Math.sin(ia) * iv - 0.5,
+          life: 10, maxLife: 14, sparkle: true,
+        });
+      }
+    }
+  }
+
+  // ---- Enemies (kill on stomp, star, or piranha emerged overlap) ----
+  for (var ji = 0; ji < entities.length; ji++) {
+    var e = entities[ji];
+    if (!e.alive) continue;
+
+    var ey = e.y;
+    var eh = e.h;
+    if (e.type === 'piranha') {
+      if (e.emergeOffset >= 0) continue; // tucked into the pipe
+      eh = Math.abs(e.emergeOffset);
+    }
+
+    if (px + pw <= e.x || px >= e.x + e.w || py + ph <= ey || py >= ey + eh) continue;
+
+    var stomped = pvy > 0 && (py + ph - ey) < 10;
+    if (!hasStar && !stomped && e.type !== 'piranha') continue;
+
+    if (e.type === 'goomba' || e.type === 'buzzy' || e.type === 'swooper' ||
+        e.type === 'phantom' || e.type === 'piranha') {
+      e.alive = false;
+      if (e.type === 'piranha') e.remove = true;
+      e.vx = 0;
+      for (var sp = 0; sp < 4; sp++) {
+        var sa = Math.random() * Math.PI * 2;
+        var sv = 0.5 + Math.random() * 1.0;
+        dustParticles.push({
+          x: e.x + e.w / 2, y: ey + eh * 0.5,
+          vx: Math.cos(sa) * sv, vy: Math.sin(sa) * sv - 0.5,
+          life: 10, maxLife: 14, sparkle: false,
+        });
+      }
+    } else if (e.type === 'koopa') {
+      // Only retract on stomp/star — never on a side-on overlap.
+      if (!e.shell) {
+        e.shell = true;
+        e.shellMoving = false;
+        e.vx = 0;
+      }
+    }
+  }
+}
+
 function updateSpectatorCamera() {
   ensureSpectatorTarget();
 
@@ -4224,6 +4342,12 @@ function update() {
     updateItems();
     updateMarioFireballs();
     updateParticles();
+    // Phantom collider pass: the spectated remote player picks up
+    // local coins / items and stomp-kills local enemies they touch,
+    // so the spectator camera shows real interactions instead of a
+    // ghost flying through frozen pickups. See updateSpectatorInteractions
+    // header for the conservative kill rules and design rationale.
+    updateSpectatorInteractions();
     updateSpectatorCamera();
     return;
   }
@@ -9101,11 +9225,18 @@ function connectSocket() {
     var playersList = Object.values(data.players || {});
     isHost = data.hostId === myPlayerId;
 
-    // Compute taken colors (everyone except us). Used by glue files to
-    // disable already-picked colors in the lobby color picker.
-    var takenColors = playersList
-      .filter(function(p) { return p.id !== myPlayerId; })
-      .map(function(p) { return p.color; });
+    // Color picking is intentionally UNRESTRICTED in multiplayer:
+    // many players can join a single room, so we let the color set
+    // wrap around / repeat freely. Each blob is uniquely identified
+    // in-game by its nameplate above the sprite (and in the lobby /
+    // results panel by name), so colour collisions don't impair
+    // readability. Emit an empty taken-list so all four color-picker
+    // UI surfaces (game.js renderColorPicker, embeddable-glue's
+    // renderLobbyColorPicker + applyTakenColorsToOptionSelector,
+    // standalone-glue's renderColorPicker) treat every swatch as
+    // available — no X overlay, no .taken CSS dim, no pointer-events
+    // block.
+    var takenColors = [];
 
     switch (data.state) {
       case 'waiting':
