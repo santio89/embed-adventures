@@ -153,7 +153,9 @@
     var div = $('emb-lobby-players');
     if (!div) return;
     var myId = Engine.getMyPlayerId();
-    div.innerHTML = (players || []).map(function(p, i) {
+    var count = (players || []).length;
+    var html = '<div style="color:#b890ff;border-bottom:2px solid #6a4dc6;font-size:9px;padding:4px 8px;text-transform:uppercase;">Players (' + count + ')</div>';
+    html += (players || []).map(function(p, i) {
       var col = getPlayerDisplayColor(p.color || 'lavender');
       var nm = truncateName(p.name, 12);
       return '<div class="emb-player-row" style="color:' + col + '">' +
@@ -162,6 +164,7 @@
              (p.id === myId ? ' <span class="emb-you-tag">(YOU)</span>' : '') +
              '</div>';
     }).join('');
+    div.innerHTML = html;
   }
 
   function renderLobbyColorPicker(takenColors) {

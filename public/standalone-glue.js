@@ -149,7 +149,9 @@
     var div = $('lobbyPlayers');
     if (!div) return;
     var myId = Engine.getMyPlayerId();
-    div.innerHTML = (players || []).map(function(p, i) {
+    var count = (players || []).length;
+    var html = '<div style="color:#b890ff;border-bottom:2px solid #6a4dc6;font-size:9px;">Players (' + count + ')</div>';
+    html += (players || []).map(function(p, i) {
       var col = getPlayerDisplayColor(p.color || 'lavender');
       var nm = truncateName(p.name, 12);
       return '<div style="color:' + col + '">' +
@@ -158,6 +160,7 @@
              (p.id === myId ? ' (You)' : '') +
              '</div>';
     }).join('');
+    div.innerHTML = html;
   }
 
   function showResults(rankings, isHost) {
