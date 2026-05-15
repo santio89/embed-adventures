@@ -9083,6 +9083,20 @@ function render() {
     var hintW = hintStr.length * 6;
     drawPixelText(bx, hintStr, VIEW_W - hintW - 6, bandY + 5, '#9890b0', null);
 
+    // When the local player has finished their run but is still waiting
+    // for the match to end, show a small status indicator at the right
+    // side of the band — before the control hints.
+    if (myPlayerFinished) {
+      var waitParts = [];
+      waitParts.push('RUN COMPLETE');
+      waitParts.push('WAITING FOR MATCH');
+      var waitStr = waitParts.join(' · ');
+      var waitW = waitStr.length * 6;
+      var waitPhase = Math.floor(globalTick / 8) % 2;
+      drawPixelText(bx, waitStr, VIEW_W - waitW - hintW - 14, bandY + 5,
+        waitPhase ? '#80e8a0' : '#a0f8c0', null);
+    }
+
     // HUD message (biome banner, "X ELIMINATED" toast, etc.) still
     // slides in from the top so the spectator gets the same context
     // updates as everyone else — just shifted up so it doesn't collide
