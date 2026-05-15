@@ -1343,6 +1343,8 @@ const PIXEL_FONT = {
   '!':[0x04,0x04,0x04,0x04,0x04,0x00,0x04],' ':[0x00,0x00,0x00,0x00,0x00,0x00,0x00],
   'x':[0x00,0x00,0x11,0x0A,0x04,0x0A,0x11],'.':[0x00,0x00,0x00,0x00,0x00,0x00,0x04],
   '=':[0x00,0x00,0x1F,0x00,0x1F,0x00,0x00],'+':[0x00,0x04,0x04,0x1F,0x04,0x04,0x00],
+  '/':[0x01,0x02,0x02,0x04,0x08,0x08,0x10],'<':[0x00,0x04,0x02,0x01,0x02,0x04,0x00],
+  '>':[0x00,0x04,0x08,0x10,0x08,0x04,0x00],'·':[0x00,0x00,0x00,0x04,0x00,0x00,0x00],
 };
 
 // Compact 3x5 bitmap font for floating nameplates / micro-labels.
@@ -1394,7 +1396,7 @@ function drawPixelText(ctx, text, x, y, color, shadowColor) {
   const str = String(text).toUpperCase();
   for (let i = 0; i < str.length; i++) {
     const glyph = PIXEL_FONT[str[i]];
-    if (!glyph) { x += 6; continue; }
+    if (!glyph) continue;
     const cx = x + i * 6;
     for (let row = 0; row < 7; row++) {
       const bits = glyph[row];
@@ -4337,10 +4339,7 @@ function update() {
     showScoreboard = true;
   }
   if (eliminated) {
-    if (hudMessage) {
-      hudMessage.life--;
-      if (hudMessage.life <= 0) hudMessage = null;
-    }
+    // hudMessage decay is handled inside updateParticles().
     // World keeps simulating so spectator view feels alive (enemies
     // wander, particles drift, items animate). All damage / collision
     // hooks already early-return on `mario.dead`, which stays true
@@ -9084,16 +9083,16 @@ function render() {
     drawPixelText(bx, hintStr, VIEW_W - hintW - 6, bandY + 5, '#9890b0', null);
 
     // When the local player has finished their run but is still waiting
-    // for the match to end, show a small status indicator at the right
-    // side of the band — before the control hints.
+    // for the match to end, show a small status indicator left of the
+    // control hints. If there's not enough room, anchor it at x=6.
     if (myPlayerFinished) {
-      var waitParts = [];
-      waitParts.push('RUN COMPLETE');
-      waitParts.push('WAITING FOR MATCH');
-      var waitStr = waitParts.join(' · ');
+      var waitStr = 'RUN COMPLETE · WAITING FOR MATCH';
       var waitW = waitStr.length * 6;
+      var hintsStartX = VIEW_W - hintW - 6;
+      var waitX = hintsStartX - waitW - 8;
+      if (waitX < 6) waitX = 6;
       var waitPhase = Math.floor(globalTick / 8) % 2;
-      drawPixelText(bx, waitStr, VIEW_W - waitW - hintW - 14, bandY + 5,
+      drawPixelText(bx, waitStr, waitX, bandY + 5,
         waitPhase ? '#80e8a0' : '#a0f8c0', null);
     }
 
@@ -9453,6 +9452,7 @@ function connectSocket() {
           // where the original init was missed).
           roomStartTime = data.startTime;
           roomMatchDuration = data.matchDuration || MATCH_DURATION;
+          if (matchTimeRemaining > 0) matchEnding = false;
         }
         if (!eliminated) {
           var localProgress = Math.min(1, mario.x / ((LEVEL_WIDTH - 15) * TILE));
@@ -9654,12 +9654,26 @@ function cleanupRoom() {
   if (ws) ws.emit('leave_room');
   prevRoomState = null;
   roomStartTime = 0;
+  roomMatchDuration = 300;
+  matchTimeRemaining = 300;
   matchEnding = false;
+  eliminated = false;
+  myPlayerFinished = false;
+  lives = MP_LIVES;
+  score = 0;
+  coins = 0;
+  time = 400;
+  deathTimer = 0;
+  winTimer = 0;
+  flagDescending = false;
+  castleEnterTimer = 0;
+  hudMessage = null;
   lastProgressWrite = 0;
   lastStateSend = 0;
   _idleLatch = null;
   spectatorTargetId = null;
   showScoreboard = false;
+  if (typeof mario === 'object' && mario) mario.dead = false;
   remoteStates.clear();
 }
 
