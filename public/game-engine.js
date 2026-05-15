@@ -9064,7 +9064,8 @@ function render() {
 
     if (spName) {
       drawPixelText(bx, '/ SPECTATING', 6, bandY + 5, '#9890b0', null);
-      drawPixelText(bx, spName, 6 + 12 * 6 + 4, bandY + 5, '#f3eefe', null);
+      drawPixelText(bx, '·', 6 + 12 * 6 + 4, bandY + 5, '#5a4a8a', null);
+      drawPixelText(bx, spName, 6 + 13 * 6 + 8, bandY + 5, '#f3eefe', null);
     } else {
       var pulseAlpha = 0.55 + 0.45 * Math.sin(globalTick * 0.05);
       bx.save();
