@@ -1478,7 +1478,7 @@ const BUZZY_PALETTE_BY_BIOME = [
 ];
 const SWOOPER_COLORS_BY_BIOME = [
   { wing: '#5838a0', bodyHi: '#9068c8', bodyMid: '#5838a0', bodyLo: '#2a1050' }, // Forest bat
-  { wing: '#7090c0', bodyHi: '#c0d8f0', bodyMid: '#7090c0', bodyLo: '#304870' }, // Snow owl
+  { wing: '#5a78a8', bodyHi: '#a0b8d8', bodyMid: '#5a78a8', bodyLo: '#203858' }, // Snow owl
   { wing: '#a06030', bodyHi: '#d8a060', bodyMid: '#a06030', bodyLo: '#502810' }, // Desert hawk
   { wing: '#a02810', bodyHi: '#ffa040', bodyMid: '#a02810', bodyLo: '#380808' }, // Lava firebat
   { wing: '#6018a0', bodyHi: '#c878f0', bodyMid: '#6018a0', bodyLo: '#200840' }, // Cosmic stellar-bat
@@ -2178,7 +2178,7 @@ window.addEventListener('keydown', e => {
     // after being eliminated (gameState stays 'playing' but `eliminated`
     // is true), and after finishing the level in MP ('win' state where
     // we're just waiting for the match to wrap up).
-    if (!e.repeat && multiplayerMode && (gameState === 'playing' || gameState === 'win')) {
+    if (!e.repeat && multiplayerMode && gameState === 'playing') {
       showScoreboard = true;
     }
     return;
@@ -2228,7 +2228,7 @@ window.addEventListener('keydown', e => {
   }
 
   if (e.code === 'Enter' && gameState === 'win' && !multiplayerMode) {
-    lives = 3;
+    lives = 5;
     time = 400;
     checkpointIndex = -1;
     resetLevel();
@@ -2327,6 +2327,7 @@ let hitBlocks = new Set();
 let emptyBlocks = new Set();
 let dustParticles = [];
 let eliminated = false;
+let myPlayerFinished = false; // true in MP when local player finishes the level
 let racePlayers = [];
 let checkpointIndex = -1;
 let mapCoins = [];
@@ -2951,6 +2952,10 @@ function updateMario() {
           checkpointIndex = -1;
           gameState = 'gameover';
         }
+      } else if (multiplayerMode) {
+        // MP: skip life-lost card — respawn immediately
+        gameState = 'playing';
+        resetLevel();
       } else {
         gameState = 'lifeLost';
       }
@@ -2992,8 +2997,12 @@ function updateMario() {
       }
       if (multiplayerMode) {
         writePlayerFinished();
+        myPlayerFinished = true;
+        eliminated = true;
+        flagDescending = false;
+      } else {
+        gameState = 'win';
       }
-      gameState = 'win';
     }
     if (multiplayerMode) {
       writeProgress();
@@ -4453,30 +4462,42 @@ function drawBackground() {
     bx.save();
     bx.globalAlpha = a;
     if (Bm.id === 0) {
-      const glowG = bx.createRadialGradient(VIEW_W * 0.78, VIEW_H * 0.18, 0, VIEW_W * 0.78, VIEW_H * 0.18, VIEW_W * 0.65);
-      glowG.addColorStop(0, 'rgba(255,240,180,0.20)');
-      glowG.addColorStop(0.4, 'rgba(200,240,160,0.08)');
-      glowG.addColorStop(1, 'rgba(0,0,0,0)');
+      const glowG = _cachedGrad('atmo_forestGlow', function() {
+        const g = bx.createRadialGradient(VIEW_W * 0.78, VIEW_H * 0.18, 0, VIEW_W * 0.78, VIEW_H * 0.18, VIEW_W * 0.65);
+        g.addColorStop(0, 'rgba(255,240,180,0.20)');
+        g.addColorStop(0.4, 'rgba(200,240,160,0.08)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        return g;
+      });
       bx.fillStyle = glowG; bx.fillRect(0, 0, VIEW_W, VIEW_H);
     } else if (Bm.id === 1) {
-      const auG = bx.createLinearGradient(0, 0, 0, VIEW_H * 0.6);
-      auG.addColorStop(0, 'rgba(180,220,255,0.10)');
-      auG.addColorStop(1, 'rgba(180,220,255,0)');
+      const auG = _cachedGrad('atmo_snowAurora', function() {
+        const g = bx.createLinearGradient(0, 0, 0, VIEW_H * 0.6);
+        g.addColorStop(0, 'rgba(180,220,255,0.10)');
+        g.addColorStop(1, 'rgba(180,220,255,0)');
+        return g;
+      });
       bx.fillStyle = auG; bx.fillRect(0, 0, VIEW_W, VIEW_H * 0.6);
       // Moon stays at a screen-fixed position so it doesn't pop on/off-screen
       const moonX = VIEW_W * 0.78;
       const moonY = 32;
-      const mG = bx.createRadialGradient(moonX, moonY, 1, moonX, moonY, 14);
-      mG.addColorStop(0, '#ffffff');
-      mG.addColorStop(0.5, '#dde8f4');
-      mG.addColorStop(1, 'rgba(220,232,244,0)');
+      const mG = _cachedGrad('atmo_snowMoon', function() {
+        const g = bx.createRadialGradient(VIEW_W * 0.78, 32, 1, VIEW_W * 0.78, 32, 14);
+        g.addColorStop(0, '#ffffff');
+        g.addColorStop(0.5, '#dde8f4');
+        g.addColorStop(1, 'rgba(220,232,244,0)');
+        return g;
+      });
       bx.fillStyle = mG; bx.beginPath(); bx.arc(moonX, moonY, 14, 0, Math.PI * 2); bx.fill();
     } else if (Bm.id === 2) {
       const sunX = 50, sunY = 36;
-      const sG = bx.createRadialGradient(sunX, sunY, 1, sunX, sunY, 30);
-      sG.addColorStop(0, '#fff8c8');
-      sG.addColorStop(0.4, '#fbd070');
-      sG.addColorStop(1, 'rgba(240,160,80,0)');
+      const sG = _cachedGrad('atmo_desertSun', function() {
+        const g = bx.createRadialGradient(50, 36, 1, 50, 36, 30);
+        g.addColorStop(0, '#fff8c8');
+        g.addColorStop(0.4, '#fbd070');
+        g.addColorStop(1, 'rgba(240,160,80,0)');
+        return g;
+      });
       bx.fillStyle = sG; bx.fillRect(0, 0, VIEW_W, VIEW_H);
       bx.fillStyle = '#fff8c8'; bx.beginPath(); bx.arc(sunX, sunY, 11, 0, Math.PI * 2); bx.fill();
       bx.fillStyle = 'rgba(120,40,10,0.6)';
@@ -4488,10 +4509,13 @@ function drawBackground() {
       bx.lineWidth = 0.8;
       bx.stroke();
     } else if (Bm.id === 3) {
-      const vG = bx.createRadialGradient(VIEW_W * 0.5, VIEW_H * 0.95, 5, VIEW_W * 0.5, VIEW_H * 0.95, VIEW_W * 0.7);
-      vG.addColorStop(0, 'rgba(255,140,40,0.22)');
-      vG.addColorStop(0.5, 'rgba(220,60,20,0.12)');
-      vG.addColorStop(1, 'rgba(80,0,10,0)');
+      const vG = _cachedGrad('atmo_lavaGlow', function() {
+        const g = bx.createRadialGradient(VIEW_W * 0.5, VIEW_H * 0.95, 5, VIEW_W * 0.5, VIEW_H * 0.95, VIEW_W * 0.7);
+        g.addColorStop(0, 'rgba(255,140,40,0.22)');
+        g.addColorStop(0.5, 'rgba(220,60,20,0.12)');
+        g.addColorStop(1, 'rgba(80,0,10,0)');
+        return g;
+      });
       bx.fillStyle = vG; bx.fillRect(0, 0, VIEW_W, VIEW_H);
     } else if (Bm.id === 4) {
       // Cosmic Nexus: pure pixel-art deep space.
@@ -4767,16 +4791,23 @@ function drawBackground() {
         bx.fill();
       }
       bx.restore();
+      const cloudGradKey = 'cloudBump_' + Bm.id;
+      const cGrad = _cachedGrad(cloudGradKey, function() {
+        const g = bx.createRadialGradient(-2, -cloudR * 0.3, cloudR * 0.1, 0, 0, cloudR);
+        g.addColorStop(0, Bm.cloudCol);
+        g.addColorStop(0.6, Bm.cloudCol);
+        g.addColorStop(1, Bm.cloudShade);
+        return g;
+      });
       for (let i = 0; i < bumps; i++) {
         const ccx = sx + i * spacing + cloudR;
-        const cGrad = bx.createRadialGradient(ccx - 2, cy + cloudR - cloudR * 0.3, cloudR * 0.1, ccx, cy + cloudR, cloudR);
-        cGrad.addColorStop(0, Bm.cloudCol);
-        cGrad.addColorStop(0.6, Bm.cloudCol);
-        cGrad.addColorStop(1, Bm.cloudShade);
+        bx.save();
+        bx.translate(ccx, cy + cloudR);
         bx.fillStyle = cGrad;
         bx.beginPath();
-        bx.arc(ccx, cy + cloudR, cloudR, Math.PI, 0, false);
+        bx.arc(0, 0, cloudR, Math.PI, 0, false);
         bx.fill();
+        bx.restore();
       }
       bx.fillStyle = Bm.cloudShade;
       bx.fillRect(sx, cy + cloudR, totalW, 2);
@@ -4868,17 +4899,24 @@ function drawBackground() {
       // cap chord (must match the top of the stem, not sit 1px above).
       if (tx % 11 === 3 && r > 0.2) {
         const bumps = 1 + Math.floor(r * 3);
+        const bushGradKey = 'bushBump_' + Bm.id;
+        const buGrad = _cachedGrad(bushGradKey, function() {
+          const g = bx.createRadialGradient(-2, -5, 1, 0, 0, 9);
+          g.addColorStop(0, Bm.bushHi);
+          g.addColorStop(0.55, Bm.bushMid);
+          g.addColorStop(1, Bm.bushLo);
+          return g;
+        });
         for (let i = 0; i < bumps; i++) {
           const bcx = sx + i * 14 + 8;
           if (bcx < -20 || bcx > VIEW_W + 20) continue;
-          const buGrad = bx.createRadialGradient(bcx - 2, GY - 5, 1, bcx, GY, 9);
-          buGrad.addColorStop(0, Bm.bushHi);
-          buGrad.addColorStop(0.55, Bm.bushMid);
-          buGrad.addColorStop(1, Bm.bushLo);
+          bx.save();
+          bx.translate(bcx, GY);
           bx.fillStyle = buGrad;
           bx.beginPath();
-          bx.arc(bcx, GY, 9, Math.PI, 0, false);
+          bx.arc(0, 0, 9, Math.PI, 0, false);
           bx.fill();
+          bx.restore();
           // Highlight
           bx.fillStyle = 'rgba(255,255,255,0.18)';
           bx.beginPath();
@@ -7377,6 +7415,16 @@ let _progressZoneGrads = null;
 let _pitDepthGrad = null;
 let _lavaBedGrad = null;
 const _staticSkyGrads = {};
+// Gradient cache: avoids per-frame allocate/discard of CanvasGradient objects
+// for patterns that repeat every frame (clouds, bushes, atmosphere glows).
+// Keys are biome-specific strings; values are lazily-created CanvasGradient
+// instances positioned at the origin (caller saves/translates the canvas).
+const _gradCache = {};
+function _cachedGrad(key, factory) {
+  if (_gradCache[key] !== undefined) return _gradCache[key];
+  _gradCache[key] = factory();
+  return _gradCache[key];
+}
 
 // ---------------------------------------------------------------
 // Cosmic Nexus sprite cache.
@@ -8011,6 +8059,65 @@ function getHudCoinSprite() {
   // 5. HUD sprites.
   if (typeof getHudStripSprite === 'function') getHudStripSprite();
   if (typeof getHudCoinSprite === 'function') getHudCoinSprite();
+  // 6. Background gradients (atmosphere, clouds, bushes) — forcing their
+  //    lazy creation here means the renderer never allocates a CanvasGradient
+  //    during gameplay, eliminating the first-frame hitch on biome entry.
+  for (let bi = 0; bi < BIOMES.length; bi++) {
+    const Bm = BIOMES[bi];
+    if (Bm.id === 0) {
+      _cachedGrad('atmo_forestGlow', function() {
+        const g = bx.createRadialGradient(VIEW_W * 0.78, VIEW_H * 0.18, 0, VIEW_W * 0.78, VIEW_H * 0.18, VIEW_W * 0.65);
+        g.addColorStop(0, 'rgba(255,240,180,0.20)');
+        g.addColorStop(0.4, 'rgba(200,240,160,0.08)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        return g;
+      });
+    } else if (Bm.id === 1) {
+      _cachedGrad('atmo_snowAurora', function() {
+        const g = bx.createLinearGradient(0, 0, 0, VIEW_H * 0.6);
+        g.addColorStop(0, 'rgba(180,220,255,0.10)');
+        g.addColorStop(1, 'rgba(180,220,255,0)');
+        return g;
+      });
+      _cachedGrad('atmo_snowMoon', function() {
+        const g = bx.createRadialGradient(VIEW_W * 0.78, 32, 1, VIEW_W * 0.78, 32, 14);
+        g.addColorStop(0, '#ffffff');
+        g.addColorStop(0.5, '#dde8f4');
+        g.addColorStop(1, 'rgba(220,232,244,0)');
+        return g;
+      });
+    } else if (Bm.id === 2) {
+      _cachedGrad('atmo_desertSun', function() {
+        const g = bx.createRadialGradient(50, 36, 1, 50, 36, 30);
+        g.addColorStop(0, '#fff8c8');
+        g.addColorStop(0.4, '#fbd070');
+        g.addColorStop(1, 'rgba(240,160,80,0)');
+        return g;
+      });
+    } else if (Bm.id === 3) {
+      _cachedGrad('atmo_lavaGlow', function() {
+        const g = bx.createRadialGradient(VIEW_W * 0.5, VIEW_H * 0.95, 5, VIEW_W * 0.5, VIEW_H * 0.95, VIEW_W * 0.7);
+        g.addColorStop(0, 'rgba(255,140,40,0.22)');
+        g.addColorStop(0.5, 'rgba(220,60,20,0.12)');
+        g.addColorStop(1, 'rgba(80,0,10,0)');
+        return g;
+      });
+    }
+    _cachedGrad('cloudBump_' + Bm.id, function() {
+      const g = bx.createRadialGradient(-2, -10 * 0.3, 10 * 0.1, 0, 0, 10);
+      g.addColorStop(0, Bm.cloudCol);
+      g.addColorStop(0.6, Bm.cloudCol);
+      g.addColorStop(1, Bm.cloudShade);
+      return g;
+    });
+    _cachedGrad('bushBump_' + Bm.id, function() {
+      const g = bx.createRadialGradient(-2, -5, 1, 0, 0, 9);
+      g.addColorStop(0, Bm.bushHi);
+      g.addColorStop(0.55, Bm.bushMid);
+      g.addColorStop(1, Bm.bushLo);
+      return g;
+    });
+  }
 })();
 
 function drawHUD() {
@@ -8020,18 +8127,34 @@ function drawHUD() {
   const labelCol = '#9890b0';   // mono-mute (matches menu --fg-mute)
   const valCol = '#f3eefe';     // crisp white for values
 
+  // When eliminated/finished in MP, show the spectated player's stats
+  // instead of the local (dead) player's score/coins.
+  var hudScore = score;
+  var hudCoins = coins;
+  var hudLives = lives;
+  if (eliminated && multiplayerMode && spectatorTargetId) {
+    for (var hi = 0; hi < racePlayers.length; hi++) {
+      if (racePlayers[hi] && racePlayers[hi].id === spectatorTargetId) {
+        hudScore = racePlayers[hi].gameScore || 0;
+        hudCoins = racePlayers[hi].coins || 0;
+        hudLives = racePlayers[hi].alive !== false ? 10 : 0;
+        break;
+      }
+    }
+  }
+
   // Layout: small uppercase mono label on row 4, value on row 14.
   // Columns at px: 6 / 64 / 122 / 168 / 200 (multiplayer fits in same space)
   drawPixelText(bx, 'BLOB',   6,  4, labelCol, sh);
-  drawPixelText(bx, String(score).padStart(6, '0'), 6, 14, valCol, sh);
+  drawPixelText(bx, String(hudScore).padStart(6, '0'), 6, 14, valCol, sh);
 
   // Coin glyph (cached gold disc sprite) + count
   bx.drawImage(getHudCoinSprite(), 60, 12);
-  drawPixelText(bx, 'x' + String(coins).padStart(2, '0'), 70, 14, valCol, sh);
+  drawPixelText(bx, 'x' + String(hudCoins).padStart(2, '0'), 70, 14, valCol, sh);
 
   drawPixelText(bx, 'LIVES', 100, 4, labelCol, sh);
-  const livesStr = 'x' + (lives - 1);
-  const livesCol = lives <= 1 ? '#ff7090' : valCol;
+  const livesStr = 'x' + Math.max(0, hudLives - 1);
+  const livesCol = hudLives <= 1 ? '#ff7090' : valCol;
   drawPixelText(bx, livesStr, 100, 14, livesCol, sh);
 
   drawPixelText(bx, 'ZONE', 138, 4, labelCol, sh);
@@ -8349,16 +8472,16 @@ function drawScoreboard() {
   // player looking at the standings sees a clear "WAITING FOR MATCH"
   // rather than just a generic scroll hint.
   var rightStr;
-  if (eliminated) {
-    rightStr = (Math.floor(globalTick / 30) % 2) ? 'WAITING FOR MATCH' : 'WAITING...';
-  } else if (gameState === 'win') {
+  if (myPlayerFinished) {
     rightStr = 'YOU FINISHED!';
+  } else if (eliminated) {
+    rightStr = (Math.floor(globalTick / 30) % 2) ? 'WAITING FOR MATCH' : 'WAITING...';
   } else if (sorted.length > visibleRows) {
     rightStr = 'WHEEL/DRAG';
   } else {
     rightStr = 'TAB TO HIDE';
   }
-  var rightCol = eliminated ? '#ff90a8' : (gameState === 'win' ? '#80e8a0' : '#9890b0');
+  var rightCol = myPlayerFinished ? '#80e8a0' : (eliminated ? '#ff90a8' : '#9890b0');
   var rightW = rightStr.length * 6;
   drawPixelText(bx, rightStr, panelX + panelW - rightW - 9, footTextY, rightCol, null);
 
@@ -8903,18 +9026,18 @@ function render() {
     // spectator info bar with target name + control hints. Tab still
     // pulls the live scoreboard up over everything.
 
-    // -- Top KO badge (left-anchored, blinks like a classic CRT alert) --
+    // -- Top status badge (left-anchored, blinks like a classic CRT alert) --
     var elPhase = Math.floor(globalTick / 7) % 2;
-    var koLabel = '/ KO  ELIMINATED';
-    var koW = koLabel.length * 6 + 12;
+    var statusLabel = myPlayerFinished ? '/ MISSION COMPLETE' : '/ KO  ELIMINATED';
+    var koW = statusLabel.length * 6 + 12;
     bx.fillStyle = 'rgba(7,6,12,0.85)';
     bx.fillRect(4, 4, koW, 14);
-    bx.fillStyle = '#a13050';
+    bx.fillStyle = myPlayerFinished ? '#308050' : '#a13050';
     bx.fillRect(4, 4, koW, 1);
     bx.fillRect(4, 17, koW, 1);
-    bx.fillStyle = '#ff7090';
+    bx.fillStyle = myPlayerFinished ? '#80e8a0' : '#ff7090';
     bx.fillRect(4, 4, 2, 14);
-    drawPixelText(bx, koLabel, 10, 9, elPhase ? '#ff7090' : '#ff90a8', null);
+    drawPixelText(bx, statusLabel, 10, 9, elPhase ? (myPlayerFinished ? '#80e8a0' : '#ff7090') : (myPlayerFinished ? '#a0f8c0' : '#ff90a8'), null);
 
     // Resolve the spectated target's display name (truncated like
     // every other UI surface uses 12 chars + ellipsis).
@@ -9112,7 +9235,7 @@ const MATCH_DURATION = 300;
 // single unlucky death disproportionately and "Play Again" friction is
 // higher when half the lobby is sitting in spectator mode waiting for
 // the round to wrap.
-const MP_LIVES = 5;
+const MP_LIVES = 10;
 const myPlayerId = 'p_' + Math.random().toString(36).substring(2, 10);
 var ws = null;
 
@@ -9167,6 +9290,18 @@ const MARIO_COLOR_OPTIONS = [
   { id: 'lime',     label: 'Lime',     hat: '#80d840', overalls: '#58a828', skin: '#b0f080', brown: '#388818' },
   { id: 'gold',     label: 'Gold',     hat: '#e8a828', overalls: '#c08010', skin: '#f0c868', brown: '#906000' },
   { id: 'white',    label: 'White',    hat: '#e0e0e8', overalls: '#a8a8b8', skin: '#f0f0f8', brown: '#787888' },
+  { id: 'coral',    label: 'Coral',    hat: '#f07868', overalls: '#c84840', skin: '#f8b0a0', brown: '#983028' },
+  { id: 'teal',     label: 'Teal',     hat: '#40b8c0', overalls: '#208890', skin: '#80d8e0', brown: '#086870' },
+  { id: 'rose',     label: 'Rose',     hat: '#e070a0', overalls: '#b04878', skin: '#f0a8c8', brown: '#882858' },
+  { id: 'sky',      label: 'Sky',      hat: '#78b8f0', overalls: '#4890c8', skin: '#b0d8f8', brown: '#2870a0' },
+  { id: 'tan',      label: 'Tan',      hat: '#d0a870', overalls: '#a08048', skin: '#e8c898', brown: '#786030' },
+  { id: 'plum',     label: 'Plum',     hat: '#9868c8', overalls: '#6848a0', skin: '#c0a0e0', brown: '#402878' },
+  { id: 'sage',     label: 'Sage',     hat: '#78b888', overalls: '#489060', skin: '#a0d8b0', brown: '#287048' },
+  { id: 'peach',    label: 'Peach',    hat: '#f0b878', overalls: '#c89050', skin: '#f8d0a0', brown: '#987038' },
+  { id: 'indigo',   label: 'Indigo',   hat: '#4868c8', overalls: '#2848a0', skin: '#8098e8', brown: '#183078' },
+  { id: 'aqua',     label: 'Aqua',     hat: '#48d0c8', overalls: '#28a098', skin: '#80e8e0', brown: '#187870' },
+  { id: 'crimson',  label: 'Crimson',  hat: '#d83848', overalls: '#a82838', skin: '#e87880', brown: '#781828' },
+  { id: 'olive',    label: 'Olive',    hat: '#90a840', overalls: '#688028', skin: '#b8c870', brown: '#486018' },
 ];
 
 function getColorOption(colorId) {
@@ -9251,6 +9386,7 @@ function connectSocket() {
           // skips these flags in MP (so mid-match respawns don't clear
           // them), so the lobby boundary is the right place to clean up.
           eliminated = false;
+          myPlayerFinished = false;
           // MP gives a slightly bigger life pool than solo (5 vs 3) so a
           // single bad jump can't quietly knock you out of a long-form
           // multiplayer race.
@@ -9530,7 +9666,7 @@ function _engineStartSinglePlayer(opts) {
   if (opts.color) setSelectedColor(opts.color);
   multiplayerMode = false;
   gameState = 'playing';
-  lives = 3;
+  lives = 5;
   time = 400;
   checkpointIndex = -1;
   if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {

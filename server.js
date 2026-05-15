@@ -65,6 +65,7 @@ function removePlayer(io, room, playerId) {
   }
 
   io.to(room.code).emit('room_state', roomSnapshot(room));
+  if (room.state === 'playing') checkMatchEnd(room);
 }
 
 // ---- Realtime world-tick broadcast --------------------------------
@@ -285,7 +286,7 @@ io.on('connection', (socket) => {
     const room = rooms.get(roomCode);
     if (!room || !playerId) return;
     const p = room.players.get(playerId);
-    if (!p) return;
+    if (!p || p.finished) return;
     p.finished = true;
     p.finishTime = msg.finishTime || (Date.now() - (room.startTime || Date.now()));
     p.progress = 1;
@@ -299,7 +300,7 @@ io.on('connection', (socket) => {
     const room = rooms.get(roomCode);
     if (!room || !playerId) return;
     const p = room.players.get(playerId);
-    if (!p) return;
+    if (!p || !p.alive) return;
     p.alive = false;
     p.coins = msg.coins || 0;
     p.gameScore = msg.gameScore || 0;
@@ -344,7 +345,10 @@ function checkMatchEnd(room) {
   if (room.state !== 'playing') return;
   const players = [...room.players.values()];
   if (players.length === 0) return;
-  if (players.some(p => p.finished) || players.every(p => p.finished || !p.alive)) {
+  // DQ'd players (dead / disconnected) are ignored.
+  // The match ends only when EVERY active (alive) player has finished.
+  const active = players.filter(p => p.alive);
+  if (active.length > 0 && active.every(p => p.finished)) {
     endMatch(room);
   }
 }
@@ -355,14 +359,19 @@ function endMatch(room) {
   const finished = players.filter(p => p.finished).sort((a, b) => a.finishTime - b.finishTime);
   const alive = players.filter(p => !p.finished && p.alive).sort((a, b) => b.progress - a.progress);
   const dead = players.filter(p => !p.finished && !p.alive).sort((a, b) => b.progress - a.progress);
-  const posBonus = [5000, 3000, 2000, 1500, 1000, 500, 250, 100];
 
   const rankings = [...finished, ...alive, ...dead].map((p, i) => {
-    let s = posBonus[i] || 50;
-    if (p.finished && p.finishTime) s += Math.max(0, Math.floor((dur * 1000 - p.finishTime) / 50));
+    let s = 0;
+    if (p.finished) {
+      s = 30000;
+      if (p.finishTime != null) {
+        s += Math.max(0, Math.floor((dur * 1000 - p.finishTime) / 50));
+      }
+    } else {
+      s += Math.floor(Math.min(8000, (p.progress || 0) * 8000));
+    }
     s += (p.coins || 0) * 200;
     s += (p.gameScore || 0);
-    if (!p.finished) s += Math.floor((p.progress || 0) * 2000);
     return {
       id: p.id, name: p.name, color: p.color || 'lavender',
       progress: p.progress, finished: p.finished, finishTime: p.finishTime,
