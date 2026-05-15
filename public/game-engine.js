@@ -9432,6 +9432,12 @@ function connectSocket() {
           lastStateSend = 0;
           _idleLatch = null;
           emit('match_started');
+        } else {
+          // Always sync roomStartTime from server on every room_state
+          // broadcast (covers reconnection mid-match and any edge case
+          // where the original init was missed).
+          roomStartTime = data.startTime;
+          roomMatchDuration = data.matchDuration || MATCH_DURATION;
         }
         if (!eliminated) {
           var localProgress = Math.min(1, mario.x / ((LEVEL_WIDTH - 15) * TILE));

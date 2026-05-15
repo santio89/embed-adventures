@@ -345,6 +345,13 @@ function checkMatchEnd(room) {
   if (room.state !== 'playing') return;
   const players = [...room.players.values()];
   if (players.length === 0) return;
+
+  // Safety: never end a match that has been running less than 30 seconds.
+  // This prevents any edge case where timestamps / player-state gets
+  // corrupted early (e.g. startTime = null evaluates to epoch epoch).
+  const elapsed = room.startTime ? (Date.now() - room.startTime) / 1000 : 0;
+  if (elapsed < 30) return;
+
   // DQ'd players (dead / disconnected) are ignored.
   // The match ends only when EVERY active (alive) player has finished.
   const active = players.filter(p => p.alive);
