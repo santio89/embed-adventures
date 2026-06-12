@@ -3435,6 +3435,11 @@ function mariodie() {
 // ================================================================
 function updateEntities() {
   entities.forEach(e => {
+    if (!e.alive && e.deathTimer) {
+      e.deathTimer--;
+      if (e.deathTimer <= 0) e.remove = true;
+      return;
+    }
     if (!e.alive && (e.type === 'goomba' || e.type === 'buzzy' || e.type === 'swooper' || e.type === 'phantom') && e.flat) {
       e.flatTimer--;
       if (e.flatTimer <= 0) e.remove = true;
@@ -4097,11 +4102,24 @@ function updateMarioFireballs() {
         // enemy is hittable.
         const pts = ENEMY_POINTS[e.type] || 100;
         e.alive = false;
-        e.remove = true;
+        e.deathTimer = 18;
+        e.vx = 0;
+        e.vy = 0;
         score += pts;
         enemiesKilled++;
         addScorePopup(e.x, e.y - 8, pts);
         fb.remove = true;
+        for (var fi = 0; fi < 8; fi++) {
+          var fLife = 8 + Math.floor(Math.random() * 8);
+          dustParticles.push({
+            x: e.x + e.w / 2 + (Math.random() - 0.5) * 12,
+            y: e.y + e.h * 0.5 + (Math.random() - 0.5) * 8,
+            vx: (Math.random() - 0.5) * 2.5,
+            vy: -Math.random() * 2 - 1,
+            life: fLife, maxLife: fLife,
+            color: ['#ff6600', '#ff9900', '#ffcc00', '#ff3300'][Math.floor(Math.random() * 4)],
+          });
+        }
       }
     });
 
@@ -5527,7 +5545,8 @@ function drawMario() {
 
 function drawEntities() {
   entities.forEach(e => {
-    if (!e.alive && e.type !== 'goomba' && e.type !== 'buzzy' && e.type !== 'swooper' && e.type !== 'phantom') return;
+    if (!e.alive && !e.flat && !e.deathTimer) return;
+    if (!e.alive && e.deathTimer && (e.deathTimer % 4 < 2)) return;
     const sx = Math.floor(e.x - camera.rx);
     if (sx < -TILE || sx > VIEW_W + TILE) return;
 
@@ -6341,7 +6360,7 @@ function drawParticles() {
     var alpha = (1 - t * t) * (d.sparkle ? 0.8 : 0.55);
     bx.save();
     bx.globalAlpha = alpha;
-    bx.fillStyle = d.sparkle ? '#fcf0a0' : '#d8c8f0';
+    bx.fillStyle = d.color || (d.sparkle ? '#fcf0a0' : '#d8c8f0');
     bx.beginPath();
     bx.arc(dsx + 1, Math.floor(d.y) + 1, rad, 0, Math.PI * 2);
     bx.fill();
