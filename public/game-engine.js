@@ -2088,6 +2088,7 @@ const AIR_FRICTION = 0.03;
 const SKID_DECEL = 0.32;
 const COYOTE_FRAMES = 6;
 const JUMP_BUFFER_FRAMES = 6;
+const LEDGE_GRACE_FRAMES = 6;
 
 const FLAGPOLE_X = 527;
 const CASTLE_X = 529;
@@ -2369,6 +2370,7 @@ function resetMario() {
     dead: false,
     invincible: checkpointIndex >= 0 ? 120 : 0,
     coyoteTimer: 0,
+    ledgeGraceTimer: 0,
     wasOnGround: false,
     skidding: false,
     crouching: false,
@@ -3080,6 +3082,27 @@ function updateMario() {
     mario.coyoteTimer--;
   }
 
+  // Ledge grace: brief hover when walking off an edge.
+  // Counts down each airborne frame; vy is held at 0 during the window
+  // so the player doesn't instantly drop. Cleared on jump or if ground
+  // is present directly below (lets the ground-snap handle that case).
+  if (mario.onGround) {
+    mario.ledgeGraceTimer = LEDGE_GRACE_FRAMES;
+  } else if (mario.ledgeGraceTimer > 0) {
+    var feetTY = Math.floor((mario.y + mario.h) / TILE);
+    var leftTX = Math.floor((mario.x + 2) / TILE);
+    var rightTX = Math.floor((mario.x + mario.w - 3) / TILE);
+    var groundBelow = false;
+    for (var gt = leftTX; gt <= rightTX; gt++) {
+      if (isSolid(getTile(gt, feetTY))) { groundBelow = true; break; }
+    }
+    if (groundBelow) {
+      mario.ledgeGraceTimer = 0;
+    } else {
+      mario.ledgeGraceTimer--;
+    }
+  }
+
   if (mario.doubleJumpAnim > 0) mario.doubleJumpAnim--;
   if (mario.landSquash > 0) mario.landSquash--;
 
@@ -3095,6 +3118,7 @@ function updateMario() {
     mario.vy = JUMP_VEL;
     mario.onGround = false;
     mario.coyoteTimer = 0;
+    mario.ledgeGraceTimer = 0;
     mario.jumpsUsed = 1;
     jumpBufferTimer = 0;
     playSound('jump');
@@ -3105,6 +3129,7 @@ function updateMario() {
   } else if (jumpPressed && canDoubleJump) {
     mario.vy = JUMP_VEL * 0.82;
     mario.jumpsUsed = 2;
+    mario.ledgeGraceTimer = 0;
     mario.doubleJumpAnim = 20;
     jumpBufferTimer = 0;
     playSound('jump');
@@ -3121,6 +3146,12 @@ function updateMario() {
   }
 
   jumpPressed = false;
+
+  // Ledge grace: hold vy at 0 while the grace window is open so the
+  // player briefly hovers at the edge instead of instantly dropping.
+  if (mario.ledgeGraceTimer > 0 && !mario.onGround) {
+    mario.vy = 0;
+  }
 
   // Gravity (dual system)
   if (mario.vy < 0) {
