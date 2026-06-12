@@ -9051,8 +9051,7 @@ function render() {
     }
 
     // -- Bottom spectator strip --
-    // Left half: SPECTATING <name>  (or pulsing wait msg if no target)
-    // Right half: control hints (< > swap, TAB scores)
+    // Left half: status / spectating info. Right half: control hints.
     var bandH = 14;
     var bandY = VIEW_H - bandH - 2;
     bx.fillStyle = 'rgba(7,6,12,0.85)';
@@ -9061,39 +9060,42 @@ function render() {
     bx.fillRect(0, bandY, VIEW_W, 1);
     bx.fillRect(0, bandY + bandH - 1, VIEW_W, 1);
 
-    if (spName) {
+    if (myPlayerFinished) {
+      // Player finished their run: show combined status + name on the
+      // left, and only TAB SCORES on the right (no swap hint — they're
+      // waiting, not actively browsing). Top-left badge already says
+      // "/ MISSION COMPLETE", so "RUN COMPLETE" here is enough context.
+      var doneStr = 'RUN COMPLETE';
+      var donePhase = Math.floor(globalTick / 8) % 2;
+      drawPixelText(bx, doneStr, 6, bandY + 5,
+        donePhase ? '#80e8a0' : '#a0f8c0', null);
+      if (spName) {
+        drawPixelText(bx, '·', 6 + doneStr.length * 6 + 4, bandY + 5, '#5a4a8a', null);
+        drawPixelText(bx, spName, 6 + (doneStr.length + 1) * 6 + 8, bandY + 5, '#f3eefe', null);
+      }
+      drawPixelText(bx, 'TAB SCORES', VIEW_W - 9 * 6 - 6, bandY + 5, '#9890b0', null);
+    } else if (spName) {
+      // Normal spectating: show / SPECTATING · <name>. Use shorter hints
+      // if the name is long enough to collide with the right side.
       drawPixelText(bx, '/ SPECTATING', 6, bandY + 5, '#9890b0', null);
       drawPixelText(bx, '·', 6 + 12 * 6 + 4, bandY + 5, '#5a4a8a', null);
       drawPixelText(bx, spName, 6 + 13 * 6 + 8, bandY + 5, '#f3eefe', null);
+      var hintStr = (getSpectatableIds().length > 1) ? '< > SWAP   TAB SCORES' : 'TAB SCORES';
+      var leftEnd = 6 + 13 * 6 + 8 + spName.length * 6;
+      var rightStart = VIEW_W - hintStr.length * 6 - 6;
+      if (leftEnd >= rightStart) hintStr = 'TAB SCORES';
+      drawPixelText(bx, hintStr, VIEW_W - hintStr.length * 6 - 6, bandY + 5, '#9890b0', null);
     } else {
       var pulseAlpha = 0.55 + 0.45 * Math.sin(globalTick * 0.05);
       bx.save();
       bx.globalAlpha = pulseAlpha;
       drawPixelText(bx, '> WAITING FOR PLAYERS...', 6, bandY + 5, '#b890ff', null);
       bx.restore();
-    }
-
-    // Right-aligned control hints. Only show "< >" hint if there are
-    // multiple spectatable targets to swap between.
-    var hintParts = [];
-    if (getSpectatableIds().length > 1) hintParts.push('< > SWAP');
-    hintParts.push('TAB SCORES');
-    var hintStr = hintParts.join('   ');
-    var hintW = hintStr.length * 6;
-    drawPixelText(bx, hintStr, VIEW_W - hintW - 6, bandY + 5, '#9890b0', null);
-
-    // When the local player has finished their run but is still waiting
-    // for the match to end, show a small status indicator left of the
-    // control hints. If there's not enough room, anchor it at x=6.
-    if (myPlayerFinished) {
-      var waitStr = 'RUN COMPLETE · WAITING FOR MATCH';
-      var waitW = waitStr.length * 6;
-      var hintsStartX = VIEW_W - hintW - 6;
-      var waitX = hintsStartX - waitW - 8;
-      if (waitX < 6) waitX = 6;
-      var waitPhase = Math.floor(globalTick / 8) % 2;
-      drawPixelText(bx, waitStr, waitX, bandY + 5,
-        waitPhase ? '#80e8a0' : '#a0f8c0', null);
+      var hintStr = (getSpectatableIds().length > 1) ? '< > SWAP   TAB SCORES' : 'TAB SCORES';
+      var leftEnd = 6 + '> WAITING FOR PLAYERS...'.length * 6;
+      var rightStart = VIEW_W - hintStr.length * 6 - 6;
+      if (leftEnd >= rightStart) hintStr = 'TAB SCORES';
+      drawPixelText(bx, hintStr, VIEW_W - hintStr.length * 6 - 6, bandY + 5, '#9890b0', null);
     }
 
     // HUD message (biome banner, "X ELIMINATED" toast, etc.) still
