@@ -4573,6 +4573,14 @@ function update() {
 
     multiplayerMode = _savedMP;
 
+    // Apply the spectated player's block state to the global Sets every
+    // frame so the renderer and collision code always see the correct
+    // hit/empty/break state.  This covers the period between the async
+    // requestSpectatorBlockState() callback and any delayed real-time
+    // block_event messages, and provides a guaranteed frame-by-frame
+    // fallback regardless of network timing.
+    if (spectatorTargetId) applyBlockStateToGlobal(spectatorTargetId);
+
     // Phantom collider pass: the spectated remote player picks up
     // local coins / items and stomp-kills local enemies they touch,
     // so the spectator camera shows real interactions instead of a
