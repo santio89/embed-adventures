@@ -2175,6 +2175,7 @@ function ensureSpectatorTarget() {
       applyEntityKillsToAll(spectatorTargetId);
       requestSpectatorBlockState();
       requestSpectatorEntityKillState();
+      _prevSpecDead = null;
     }
   }
 }
@@ -2193,6 +2194,7 @@ function cycleSpectator(dir) {
   applyEntityKillsToAll(spectatorTargetId);
   requestSpectatorBlockState();
   requestSpectatorEntityKillState();
+  _prevSpecDead = null;
 }
 
 // Copy the backing-store block state for `pid` into the global Sets that
@@ -2259,7 +2261,8 @@ function requestSpectatorEntityKillState() {
 
 // Re-initialize the local entity/item/boss list to match what the
 // spectated player sees, then apply their stored entity kills.
-function applyEntityKillsToAll(pid) {
+// Set skipKills=true on respawn (old kills are stale after resetLevel).
+function applyEntityKillsToAll(pid, skipKills) {
   if (!pid) return;
   entities = [];
   items = [];
@@ -2280,10 +2283,12 @@ function applyEntityKillsToAll(pid) {
   spawnEnemies();
   spawnMapCoins();
   spawnBoss();
-  var kp = _playerEntityKills.get(pid);
-  if (kp) {
-    for (var ki = 0; ki < kp.length; ki++) {
-      applyEntityKillToLocal(kp[ki]);
+  if (!skipKills) {
+    var kp = _playerEntityKills.get(pid);
+    if (kp) {
+      for (var ki = 0; ki < kp.length; ki++) {
+        applyEntityKillToLocal(kp[ki]);
+      }
     }
   }
 }
@@ -2442,6 +2447,7 @@ let breakBlocks = new Set();
 // Per-player block state for spectating. Maps playerId → { hitBlocks: Set, emptyBlocks: Set }.
 // Populated from server block_event messages; used by the renderer when eliminated.
 var _playerBlockStates = new Map();
+var _prevSpecDead = null; // null=uninitialized, true=dead, false=alive; for respawn detection
 let dustParticles = [];
 let eliminated = false;
 let myPlayerFinished = false; // true in MP when local player finishes the level
@@ -3696,6 +3702,7 @@ function updateEntities() {
         mario.jumpsUsed = 1;
         addScorePopup(e.x, e.y - 8, 100);
         playSound('stomp');
+        sendEntityKill({ entity: 'koopa', x: Math.round(e.x), y: Math.round(e.y), killType: 'shell_kick', shell: true, shellMoving: true, vx: e.vx });
         return;
       }
       if (e.type === 'koopa' && e.shell && e.shellMoving && e.kickGrace > 0) {
@@ -3742,9 +3749,11 @@ function updateEntities() {
           } else if (e.shellMoving) {
             e.shellMoving = false;
             e.vx = 0;
+            sendEntityKill({ entity: 'koopa', x: Math.round(e.x), y: Math.round(e.y), killType: 'stomp', shell: true, shellMoving: false, vx: 0 });
           } else {
             e.shellMoving = true;
             e.vx = mario.x < e.x ? 3.5 : -3.5;
+            sendEntityKill({ entity: 'koopa', x: Math.round(e.x), y: Math.round(e.y), killType: 'stomp', shell: true, shellMoving: true, vx: e.vx });
           }
         }
         mario.vy = -4.5;
@@ -4555,6 +4564,28 @@ function update() {
           mario.fire = (_s.size || 0) >= 2;
           mario.crouching = false;
         }
+      }
+    }
+
+    // Detect when the spectated player respawns (dead → alive) so we
+    // refresh entities/items/boss/coins to match their reset world.
+    // skipKills=true because old stored kills are stale after the player's
+    // resetLevel() — applying them would re-kill respawned enemies.  The
+    // real-time entity_kill handler will apply new kills as they arrive.
+    if (spectatorTargetId) {
+      var _rrs = remoteStates.get(spectatorTargetId);
+      if (_rrs && _rrs.snaps.length > 0) {
+        var _rAlive = !_rrs.snaps[_rrs.snaps.length - 1].dead;
+        if (_prevSpecDead !== null && _prevSpecDead && _rAlive) {
+          levelMap = buildLevel();
+          _playerBlockStates.set(spectatorTargetId, { hitBlocks: new Set(), emptyBlocks: new Set(), breakBlocks: new Set() });
+          hitBlocks = new Set();
+          emptyBlocks = new Set();
+          breakBlocks = new Set();
+          applyEntityKillsToAll(spectatorTargetId, true);
+          applyBlockStateToGlobal(spectatorTargetId);
+        }
+        _prevSpecDead = !_rAlive;
       }
     }
 
@@ -9780,7 +9811,7 @@ function connectSocket() {
       _playerBlockStates.set(pid, bs);
     }
     var showFx = eliminated && pid === spectatorTargetId;
-    var useGlobally = !eliminated || pid === spectatorTargetId;
+    var useGlobally = showFx;
 
     if (msg.hit) {
       bs.hitBlocks.add(msg.hit);
@@ -9880,23 +9911,35 @@ function applyEntityKillToLocal(data) {
     if (d < bestDist) { bestDist = d; best = e; }
   }
   if (!best) return;
-  best.alive = false;
-  best.vx = 0;
-  best.vy = 0;
-  if (data.remove) {
-    best.remove = true;
-  } else if (data.flat) {
-    best.flat = true;
-    best.flatTimer = 30;
-  }
-  if (data.deathTimer) {
-    best.deathTimer = data.deathTimer;
-  }
+  // Koopa/shell: stay alive, apply shell state transitions.
   if (data.shell && best.type === 'koopa') {
-    best.shell = true;
-    best.shellMoving = false;
-    best.h = 16;
-    best.y += 8;
+    if (!best.shell) {
+      // Initial koopa → shell transition (stomp).
+      best.shell = true;
+      best.shellMoving = false;
+      best.h = 16;
+      best.y += 8;
+      best.vx = 0;
+      best.vy = 0;
+    }
+    if (data.shellMoving !== undefined) {
+      best.shellMoving = data.shellMoving;
+      best.vx = data.vx || 0;
+      if (data.shellMoving) best.kickGrace = 12;
+    }
+  } else {
+    best.alive = false;
+    best.vx = 0;
+    best.vy = 0;
+    if (data.remove) {
+      best.remove = true;
+    } else if (data.flat) {
+      best.flat = true;
+      best.flatTimer = 30;
+    }
+    if (data.deathTimer) {
+      best.deathTimer = data.deathTimer;
+    }
   }
 }
 

@@ -336,6 +336,8 @@ io.on('connection', (socket) => {
       y: msg.y,
       killType: msg.killType || 'stomp',
       shell: !!msg.shell,
+      shellMoving: !!msg.shellMoving,
+      vx: msg.vx || 0,
       deathTimer: msg.deathTimer || 0,
       flat: !!msg.flat,
       remove: !!msg.remove,
