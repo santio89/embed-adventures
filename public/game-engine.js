@@ -57,6 +57,16 @@ function emit(evt, payload) {
   }
 }
 
+function emitBlockEvent(type, key) {
+  if (!multiplayerMode || !ws) return;
+  ws.emit('block_event', { [type]: key });
+}
+
+function sendEntityKill(data) {
+  if (!multiplayerMode || !ws) return;
+  ws.emit('entity_kill', data);
+}
+
 // ================================================================
 // CANVAS SETUP
 // ================================================================
@@ -2149,9 +2159,8 @@ function getSpectatableIds() {
 }
 
 function ensureSpectatorTarget() {
+  var prev = spectatorTargetId;
   if (spectatorTargetId) {
-    // Drop the target if they vanished from the roster, stopped sending
-    // updates, or just got eliminated themselves.
     var meta = null;
     for (var i = 0; i < racePlayers.length; i++) {
       if (racePlayers[i] && racePlayers[i].id === spectatorTargetId) { meta = racePlayers[i]; break; }
@@ -2160,6 +2169,14 @@ function ensureSpectatorTarget() {
   }
   var ids = getSpectatableIds();
   spectatorTargetId = ids.length ? ids[0] : null;
+  if (spectatorTargetId) {
+    applyBlockStateToGlobal(spectatorTargetId);
+    if (spectatorTargetId !== prev) {
+      applyEntityKillsToAll(spectatorTargetId);
+      requestSpectatorBlockState();
+      requestSpectatorEntityKillState();
+    }
+  }
 }
 
 function cycleSpectator(dir) {
@@ -2172,15 +2189,108 @@ function cycleSpectator(dir) {
     spectatorTargetId = ids[(idx + dir + ids.length) % ids.length];
   }
   _lastSpectatorPick = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  applyBlockStateToGlobal(spectatorTargetId);
+  applyEntityKillsToAll(spectatorTargetId);
+  requestSpectatorBlockState();
+  requestSpectatorEntityKillState();
+}
+
+// Copy the backing-store block state for `pid` into the global Sets that
+// the renderer and collision code read every frame.  Called synchronously
+// when the spectator target changes so the very next frame is correct
+// (the async requestSpectatorBlockState call just fills any gaps).
+function applyBlockStateToGlobal(pid) {
+  var bs = _playerBlockStates.get(pid);
+  if (!bs) { hitBlocks.clear(); emptyBlocks.clear(); breakBlocks.clear(); return; }
+  hitBlocks = new Set(bs.hitBlocks);
+  emptyBlocks = new Set(bs.emptyBlocks);
+  breakBlocks = new Set(bs.breakBlocks);
+}
+
+function requestSpectatorBlockState() {
+  if (!ws || !multiplayerMode) return;
+  var target = spectatorTargetId;
+  if (!target) return;
+  ws.emit('get_block_state', { targetId: target }, function(res) {
+    if (res && res.ok && res.hitBlocks && spectatorTargetId === target) {
+      var bs = _playerBlockStates.get(target);
+      if (!bs) {
+        bs = { hitBlocks: new Set(), emptyBlocks: new Set(), breakBlocks: new Set() };
+        _playerBlockStates.set(target, bs);
+      }
+      for (var hi = 0; hi < res.hitBlocks.length; hi++) {
+        var hk = res.hitBlocks[hi];
+        bs.hitBlocks.add(hk);
+        hitBlocks.add(hk);
+      }
+      for (var ei = 0; ei < res.emptyBlocks.length; ei++) {
+        var ek = res.emptyBlocks[ei];
+        bs.emptyBlocks.add(ek);
+        emptyBlocks.add(ek);
+      }
+      for (var bi = 0; bi < res.breakBlocks.length; bi++) {
+        var bk = res.breakBlocks[bi];
+        bs.breakBlocks.add(bk);
+        breakBlocks.add(bk);
+        var bp = bk.split(',');
+        var btx = parseInt(bp[0], 10), bty = parseInt(bp[1], 10);
+        if (levelMap[bty] && levelMap[bty][btx]) levelMap[bty][btx] = 0;
+      }
+    }
+  });
+}
+
+function requestSpectatorEntityKillState() {
+  if (!ws || !multiplayerMode) return;
+  var target = spectatorTargetId;
+  if (!target) return;
+  ws.emit('get_entity_kill_state', { targetId: target }, function(res) {
+    if (res && res.ok && res.kills && spectatorTargetId === target) {
+      var kp = _playerEntityKills.get(target);
+      if (!kp) { kp = []; _playerEntityKills.set(target, kp); }
+      for (var ki = 0; ki < res.kills.length; ki++) {
+        kp.push(res.kills[ki]);
+        if (kp.length > 500) kp.shift();
+        applyEntityKillToLocal(res.kills[ki]);
+      }
+    }
+  });
+}
+
+// Re-initialize the local entity/item/boss list to match what the
+// spectated player sees, then apply their stored entity kills.
+function applyEntityKillsToAll(pid) {
+  if (!pid) return;
+  entities = [];
+  items = [];
+  mapCoins = [];
+  marioFireballs = [];
+  coinAnims = [];
+  particles = [];
+  scorePopups = [];
+  dustParticles = [];
+  boss = null;
+  bossFireballs = [];
+  bossShockwaves = [];
+  bossEncounterActive = false;
+  bossIntroPhase = 0;
+  bossIntroTimer = 0;
+  bossOutroPhase = 0;
+  bossOutroTimer = 0;
+  spawnEnemies();
+  spawnMapCoins();
+  spawnBoss();
+  var kp = _playerEntityKills.get(pid);
+  if (kp) {
+    for (var ki = 0; ki < kp.length; ki++) {
+      applyEntityKillToLocal(kp[ki]);
+    }
+  }
 }
 
 window.addEventListener('keydown', e => {
   if (e.code === 'Tab') {
     e.preventDefault();
-    // Allow the scoreboard to be opened while alive (gameState 'playing'),
-    // after being eliminated (gameState stays 'playing' but `eliminated`
-    // is true), and after finishing the level in MP ('win' state where
-    // we're just waiting for the match to wrap up).
     if (!e.repeat && multiplayerMode && gameState === 'playing') {
       showScoreboard = true;
     }
@@ -2328,10 +2438,15 @@ const CASTLE_ENTER_DURATION = 32;
 let flagY = 0;
 let hitBlocks = new Set();
 let emptyBlocks = new Set();
+let breakBlocks = new Set();
+// Per-player block state for spectating. Maps playerId → { hitBlocks: Set, emptyBlocks: Set }.
+// Populated from server block_event messages; used by the renderer when eliminated.
+var _playerBlockStates = new Map();
 let dustParticles = [];
 let eliminated = false;
 let myPlayerFinished = false; // true in MP when local player finishes the level
 let racePlayers = [];
+let _playerEntityKills = new Map(); // playerId → [{entity, x, y, killType, shell, deathTimer, flat, remove, bossHp}]
 let checkpointIndex = -1;
 let mapCoins = [];
 let enemiesKilled = 0;
@@ -2416,6 +2531,9 @@ function resetLevel() {
   flagY = 0;
   hitBlocks = new Set();
   emptyBlocks = new Set();
+  breakBlocks = new Set();
+  _playerBlockStates.clear();
+  _playerEntityKills.clear();
   jumpBufferTimer = 0;
   jumpPressed = false;
   boss = null;
@@ -2831,6 +2949,7 @@ const ENEMY_POINTS = { goomba: 100, koopa: 200, buzzy: 300, piranha: 400, swoope
 // ================================================================
 function getTile(tx, ty) {
   if (tx < 0 || tx >= LEVEL_WIDTH || ty < 0 || ty >= LEVEL_HEIGHT) return 0;
+  if (eliminated && breakBlocks.has(tx + ',' + ty)) return 0;
   return levelMap[ty][tx];
 }
 
@@ -2864,6 +2983,7 @@ function hitBlock(tx, ty) {
       return;
     }
     emptyBlocks.add(key);
+    emitBlockEvent('empty', key);
     if (tile === 3) {
       score += 200;
       coins++;
@@ -2894,11 +3014,13 @@ function hitBlock(tx, ty) {
       });
     }
     hitBlocks.add(key);
+    emitBlockEvent('hit', key);
     particles.push({ x: tx * TILE, y: ty * TILE, type: 'bump', timer: 8, origY: ty * TILE });
     playSound('bump');
   } else if (tile === 2) {
     if (mario.big) {
       levelMap[ty][tx] = 0;
+      emitBlockEvent('break', key);
       screenShake = 2;
       playSound('brick');
       for (let i = 0; i < 4; i++) {
@@ -2914,6 +3036,7 @@ function hitBlock(tx, ty) {
       score += 50;
     } else {
       hitBlocks.add(key);
+      emitBlockEvent('hit', key);
       particles.push({ x: tx * TILE, y: ty * TILE, type: 'bump', timer: 8, origY: ty * TILE });
       playSound('bump');
     }
@@ -3477,6 +3600,7 @@ function updateEntities() {
         score += pts; enemiesKilled++;
         addScorePopup(e.x, e.y - 8, pts);
         playSound('stomp');
+        sendEntityKill({ entity: 'piranha', x: Math.round(e.x), y: Math.round(e.y), killType: 'star', remove: true });
         return;
       }
       if (mario.invincible > 0) return;
@@ -3558,6 +3682,7 @@ function updateEntities() {
       enemiesKilled++;
       addScorePopup(e.x, e.y - 8, pts);
       playSound('stomp');
+      sendEntityKill({ entity: e.type, x: Math.round(e.x), y: Math.round(e.y), killType: 'star', remove: true });
       return;
     }
 
@@ -3595,12 +3720,14 @@ function updateEntities() {
           }
           enemiesKilled++;
           addScorePopup(e.x, e.y - 8, pts);
-          if (e.type === 'swooper' || e.type === 'phantom') {
+          var swooperOrPhantom = e.type === 'swooper' || e.type === 'phantom';
+          if (swooperOrPhantom) {
             e.remove = true;
           } else {
             e.flat = true;
             e.flatTimer = 30;
           }
+          sendEntityKill({ entity: e.type, x: Math.round(e.x), y: Math.round(e.y), killType: 'stomp', remove: swooperOrPhantom, flat: !swooperOrPhantom });
         } else if (e.type === 'koopa') {
           if (!e.shell) {
             e.shell = true;
@@ -3611,6 +3738,7 @@ function updateEntities() {
             score += pts;
             enemiesKilled++;
             addScorePopup(e.x, e.y - 8, pts);
+            sendEntityKill({ entity: 'koopa', x: Math.round(e.x), y: Math.round(e.y), killType: 'stomp', shell: true });
           } else if (e.shellMoving) {
             e.shellMoving = false;
             e.vx = 0;
@@ -3646,6 +3774,7 @@ function updateEntities() {
         score += pts;
         enemiesKilled++;
         addScorePopup(other.x, other.y - 8, pts);
+        sendEntityKill({ entity: other.type, x: Math.round(other.x), y: Math.round(other.y), killType: 'shell', remove: true });
       }
     });
   });
@@ -3675,11 +3804,13 @@ function updateEntities() {
           screenShake = 8;
           playSound('bossdie');
           onBossDefeated();
+          sendEntityKill({ entity: 'boss', x: Math.round(boss.x), y: Math.round(boss.y), killType: 'boss_shell', bossHp: 0 });
         } else {
           playSound('bosshit');
           addScorePopup(boss.x, boss.y - 8, 500);
           score += 500;
           boss.vx = (shell.x < boss.x ? 1 : -1) * 1.5;
+          sendEntityKill({ entity: 'boss', x: Math.round(boss.x), y: Math.round(boss.y), killType: 'boss_shell', bossHp: boss.hp });
         }
       }
     });
@@ -3950,8 +4081,10 @@ function updateBoss() {
       score += ENEMY_POINTS.boss; addScorePopup(boss.x, boss.y - 16, ENEMY_POINTS.boss);
       enemiesKilled++; playSound('bossdie');
       onBossDefeated();
+      sendEntityKill({ entity: 'boss', x: Math.round(boss.x), y: Math.round(boss.y), killType: 'boss_star', bossHp: 0 });
     } else {
       playSound('bosshit'); addScorePopup(boss.x, boss.y - 8, 500); score += 500;
+      sendEntityKill({ entity: 'boss', x: Math.round(boss.x), y: Math.round(boss.y), killType: 'boss_star', bossHp: boss.hp });
     }
     return;
   }
@@ -3978,11 +4111,13 @@ function updateBoss() {
         screenShake = 8;
         playSound('bossdie');
         onBossDefeated();
+        sendEntityKill({ entity: 'boss', x: Math.round(boss.x), y: Math.round(boss.y), killType: 'boss_stomp', bossHp: 0 });
       } else {
         playSound('bosshit');
         addScorePopup(boss.x, boss.y - 8, 500);
         score += 500;
         boss.vx = (mario.x < boss.x ? 1 : -1) * 1.5;
+        sendEntityKill({ entity: 'boss', x: Math.round(boss.x), y: Math.round(boss.y), killType: 'boss_stomp', bossHp: boss.hp });
       }
     } else if (mario.invincible <= 0 && boss.invincible <= 0) {
       mariodie();
@@ -4109,6 +4244,7 @@ function updateMarioFireballs() {
         enemiesKilled++;
         addScorePopup(e.x, e.y - 8, pts);
         fb.remove = true;
+        sendEntityKill({ entity: e.type, x: Math.round(e.x), y: Math.round(e.y), killType: 'fireball', deathTimer: 18 });
         for (var fi = 0; fi < 8; fi++) {
           var fLife = 8 + Math.floor(Math.random() * 8);
           dustParticles.push({
@@ -4145,10 +4281,12 @@ function updateMarioFireballs() {
           screenShake = 8;
           playSound('bossdie');
           onBossDefeated();
+          sendEntityKill({ entity: 'boss', x: Math.round(boss.x), y: Math.round(boss.y), killType: 'boss_fireball', bossHp: 0 });
         } else {
           addScorePopup(boss.x, boss.y - 8, 500);
           score += 500;
           boss.vx = (fb.x < boss.x ? 1 : -1) * 1.5;
+          sendEntityKill({ entity: 'boss', x: Math.round(boss.x), y: Math.round(boss.y), killType: 'boss_fireball', bossHp: boss.hp });
         }
       }
     }
@@ -4388,17 +4526,53 @@ function update() {
     showScoreboard = true;
   }
   if (eliminated) {
-    // hudMessage decay is handled inside updateParticles().
-    // World keeps simulating so spectator view feels alive (enemies
-    // wander, particles drift, items animate). All damage / collision
-    // hooks already early-return on `mario.dead`, which stays true
-    // post-elimination, so this is side-effect free for the local
-    // player. Mario's own update is intentionally skipped.
+    // Suppress sendEntityKill while spectating — kills are attributed
+    // by the real player's entity_kill messages over the wire, not by
+    // the spectator's local collision sim.
+    var _savedMP = multiplayerMode;
+    multiplayerMode = false;
+
+    // Save mario state so entity/boss AI can temporarily read the
+    // spectated player's position, then restore afterward.
+    var _savedMX = mario.x, _savedMY = mario.y, _savedMD = mario.dead;
+    var _savedMI = mario.invincible, _savedMS = mario.starPower;
+    var _savedMVy = mario.vy, _savedMB = mario.big, _savedMF = mario.fire;
+    var _savedMC = mario.crouching;
+
+    if (spectatorTargetId) {
+      var _rs = remoteStates.get(spectatorTargetId);
+      if (_rs && _rs.snaps.length > 0) {
+        var _n = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+        var _s = _sampleRemoteAt(_rs.snaps, _n - REMOTE_INTERP_MS);
+        if (_s && !_s.dead) {
+          mario.x = _s.x;
+          mario.y = _s.y;
+          mario.dead = false;
+          mario.invincible = 9999;
+          mario.starPower = _s.star || 0;
+          mario.vy = _s.vy || 0;
+          mario.big = (_s.size || 0) >= 1;
+          mario.fire = (_s.size || 0) >= 2;
+          mario.crouching = false;
+        }
+      }
+    }
+
+    // World keeps simulating so spectator view feels alive.
     updateEntities();
     updateBoss();
     updateItems();
     updateMarioFireballs();
     updateParticles();
+
+    // Restore local mario state
+    mario.x = _savedMX; mario.y = _savedMY; mario.dead = _savedMD;
+    mario.invincible = _savedMI; mario.starPower = _savedMS;
+    mario.vy = _savedMVy; mario.big = _savedMB; mario.fire = _savedMF;
+    mario.crouching = _savedMC;
+
+    multiplayerMode = _savedMP;
+
     // Phantom collider pass: the spectated remote player picks up
     // local coins / items and stomp-kills local enemies they touch,
     // so the spectator camera shows real interactions instead of a
@@ -4440,7 +4614,9 @@ function drawTile(x, y, tile) {
       break;
     }
     case 2: {
-      bx.drawImage(getTileSprite(2, B), sxI, yI);
+      if (!eliminated || !breakBlocks.has(tileX + ',' + tileY)) {
+        bx.drawImage(getTileSprite(2, B), sxI, yI);
+      }
       break;
     }
     case 3: case 4: case 6: case 7: {
@@ -9581,6 +9757,176 @@ function connectSocket() {
       rs.lastUpdate = now;
     }
   });
+
+  // Receive block state events from other players, used when spectating.
+  // We always update the per-player backing store so switching targets
+  // picks up the correct state.  But we only update the global Sets that
+  // the renderer reads when this event belongs to the player we're
+  // currently spectating (or when we're alive and should see all state).
+  ws.on('block_event', function(msg) {
+    if (!multiplayerMode || !msg || !msg.p) return;
+    var pid = msg.p;
+    var bs = _playerBlockStates.get(pid);
+    if (!bs) {
+      bs = { hitBlocks: new Set(), emptyBlocks: new Set(), breakBlocks: new Set() };
+      _playerBlockStates.set(pid, bs);
+    }
+    var showFx = eliminated && pid === spectatorTargetId;
+    var useGlobally = !eliminated || pid === spectatorTargetId;
+
+    if (msg.hit) {
+      bs.hitBlocks.add(msg.hit);
+      if (useGlobally) hitBlocks.add(msg.hit);
+      if (showFx) {
+        var parts = msg.hit.split(',');
+        particles.push({
+          x: parseInt(parts[0], 10) * TILE,
+          y: parseInt(parts[1], 10) * TILE,
+          type: 'bump', timer: 8, origY: parseInt(parts[1], 10) * TILE,
+        });
+        playSound('bump');
+      }
+    }
+
+    if (msg.empty) {
+      bs.emptyBlocks.add(msg.empty);
+      if (useGlobally) emptyBlocks.add(msg.empty);
+      if (showFx) {
+        spawnSpectatorItem(msg.empty);
+      }
+    }
+
+    if (msg.break) {
+      bs.breakBlocks.add(msg.break);
+      if (useGlobally) breakBlocks.add(msg.break);
+      var parts = msg.break.split(',');
+      var btx = parseInt(parts[0], 10);
+      var bty = parseInt(parts[1], 10);
+      if (useGlobally && levelMap[bty] && levelMap[bty][btx]) levelMap[bty][btx] = 0;
+      if (showFx) {
+        for (var di = 0; di < 4; di++) {
+          particles.push({
+            type: 'debris',
+            x: btx * TILE + (di % 2) * 8,
+            y: bty * TILE + Math.floor(di / 2) * 8,
+            vx: (di % 2 === 0 ? -1.5 : 1.5) + (Math.random() - 0.5),
+            vy: -3.5 - Math.random() * 1.5,
+            life: 45,
+          });
+        }
+        particles.push({
+          x: btx * TILE, y: bty * TILE,
+          type: 'bump', timer: 8, origY: bty * TILE,
+        });
+        playSound('brick');
+      }
+    }
+  });
+
+  // Receive entity kill events from other players.
+  // Finds the closest matching local entity and marks it dead so the
+  // spectator's view stays in sync with the player they're watching.
+  ws.on('entity_kill', function(msg) {
+    if (!multiplayerMode || !msg || !msg.p || !msg.entity) return;
+    var kp = _playerEntityKills.get(msg.p);
+    if (!kp) { kp = []; _playerEntityKills.set(msg.p, kp); }
+    kp.push({
+      entity: msg.entity, x: msg.x, y: msg.y,
+      killType: msg.killType || 'stomp',
+      shell: !!msg.shell, deathTimer: msg.deathTimer || 0,
+      flat: !!msg.flat, remove: !!msg.remove, bossHp: msg.bossHp,
+    });
+    if (kp.length > 500) kp.splice(0, kp.length - 500);
+    if (!eliminated || msg.p !== spectatorTargetId) return;
+    applyEntityKillToLocal(msg);
+  });
+
+  // Full entity kill state request — counterpart to get_block_state.
+  // Note: handled via ACK callback in requestSpectatorEntityKillState(), not here.
+}
+
+// Apply a single entity_kill payload to the local entity/boss list.
+// Matches by entity type and proximity so position drift between clients
+// doesn't prevent the kill from rendering.
+function applyEntityKillToLocal(data) {
+  if (data.entity === 'boss') {
+    if (!boss || !boss.alive) return;
+    boss.hp = data.bossHp !== undefined ? data.bossHp : boss.hp;
+    if (boss.hp <= 0 && boss.alive) {
+      boss.alive = false;
+      boss.dying = true;
+      boss.vy = -5;
+      boss.deathTimer = 0;
+      screenShake = Math.max(screenShake, 8);
+      playSound('bossdie');
+    }
+    return;
+  }
+  // Regular entity: find closest alive match by type within 64px
+  var best = null, bestDist = 64 * 64;
+  for (var ei = 0; ei < entities.length; ei++) {
+    var e = entities[ei];
+    if (!e.alive || e.type !== data.entity) continue;
+    var dx = e.x - data.x, dy = e.y - data.y;
+    var d = dx * dx + dy * dy;
+    if (d < bestDist) { bestDist = d; best = e; }
+  }
+  if (!best) return;
+  best.alive = false;
+  best.vx = 0;
+  best.vy = 0;
+  if (data.remove) {
+    best.remove = true;
+  } else if (data.flat) {
+    best.flat = true;
+    best.flatTimer = 30;
+  }
+  if (data.deathTimer) {
+    best.deathTimer = data.deathTimer;
+  }
+  if (data.shell && best.type === 'koopa') {
+    best.shell = true;
+    best.shellMoving = false;
+    best.h = 16;
+    best.y += 8;
+  }
+}
+
+// Spawn the item that came out of a ?-block on the spectator's screen.
+// `key` is a "tx,ty" string, e.g. "10,5".
+function spawnSpectatorItem(key) {
+  var parts = key.split(',');
+  var tx = parseInt(parts[0], 10), ty = parseInt(parts[1], 10);
+  var tile = getTile(tx, ty);
+  if (tile === 3) {
+    coinAnims.push({ x: tx * TILE + 4, y: ty * TILE - 16, vy: -3.5, life: 35 });
+    playSound('coin');
+  } else if (tile === 6) {
+    addScorePopup(tx * TILE, ty * TILE - 16, '1UP');
+    playSound('1up');
+  } else if (tile === 7) {
+    items.push({
+      type: 'star',
+      x: tx * TILE, y: ty * TILE - TILE,
+      vx: 1.2, vy: -2,
+      w: 16, h: 16,
+      emerging: true, emergeY: ty * TILE,
+      active: true,
+    });
+    playSound('bump');
+  } else if (tile === 4) {
+    var rs = remoteStates.get(spectatorTargetId);
+    var big = rs && rs.snaps.length > 0 && rs.snaps[rs.snaps.length - 1].size >= 1;
+    items.push({
+      type: big ? 'flower' : 'mushroom',
+      x: tx * TILE, y: ty * TILE - TILE,
+      vx: big ? 0 : 1.0, vy: 0,
+      w: 16, h: 16,
+      emerging: true, emergeY: ty * TILE,
+      active: true,
+    });
+    playSound('bump');
+  }
 }
 
 function writeProgress() {
@@ -9727,6 +10073,8 @@ function cleanupRoom() {
   showScoreboard = false;
   if (typeof mario === 'object' && mario) mario.dead = false;
   remoteStates.clear();
+  _playerBlockStates.clear();
+  _playerEntityKills.clear();
 }
 
 window.addEventListener('beforeunload', function() {

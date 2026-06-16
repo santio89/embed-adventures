@@ -178,6 +178,8 @@ io.on('connection', (socket) => {
       live: new Map(),
       tickInterval: null,
       createdAt: Date.now(),
+      blockStates: new Map(), // playerId → { hitBlocks, emptyBlocks, breakBlocks: string[] }
+      entityKills: new Map(), // playerId → [{ entity, x, y, killType, ... }]
     };
 
     rooms.set(code, room);
@@ -242,6 +244,8 @@ io.on('connection', (socket) => {
         p.alive = true; p.coins = 0; p.gameScore = 0;
       }
       if (room.live) room.live.clear();
+      room.blockStates.clear();
+      room.entityKills.clear();
       startWorldTick(io, room);
       io.to(roomCode).emit('room_state', roomSnapshot(room));
     }, 3000);
@@ -269,6 +273,94 @@ io.on('connection', (socket) => {
       dead: msg.dead ? 1 : 0,
       seenAt: Date.now(),
     });
+  });
+
+  // Block state sync: players broadcast which blocks they've hit/emptied.
+  // The server stores the per-player state and forwards it to the room so
+  // spectators see the spectated player's block state, not their own.
+  socket.on('block_event', (msg) => {
+    const room = rooms.get(roomCode);
+    if (!room || !playerId || room.state !== 'playing') return;
+    if (!msg || typeof msg !== 'object') return;
+    if (!room.blockStates.has(playerId)) {
+      room.blockStates.set(playerId, { hitBlocks: [], emptyBlocks: [], breakBlocks: [] });
+    }
+    const bs = room.blockStates.get(playerId);
+    if (msg.hit && typeof msg.hit === 'string') {
+      if (!bs.hitBlocks.includes(msg.hit)) bs.hitBlocks.push(msg.hit);
+    }
+    if (msg.empty && typeof msg.empty === 'string') {
+      if (!bs.emptyBlocks.includes(msg.empty)) bs.emptyBlocks.push(msg.empty);
+    }
+    if (msg.break && typeof msg.break === 'string') {
+      if (!bs.breakBlocks.includes(msg.break)) bs.breakBlocks.push(msg.break);
+    }
+    // Forward to all clients with the originating playerId
+    socket.to(roomCode).emit('block_event', Object.assign({ p: playerId }, msg));
+  });
+
+  // Full block state request — used when a player starts spectating
+  // someone mid-game so they get the complete block history.
+  socket.on('get_block_state', (msg, ack) => {
+    const room = rooms.get(roomCode);
+    if (!room || !msg || !msg.targetId) {
+      if (typeof ack === 'function') ack({ ok: false });
+      return;
+    }
+    const bs = room.blockStates.get(msg.targetId);
+    if (typeof ack === 'function') {
+      ack({
+        ok: true,
+        hitBlocks: bs ? bs.hitBlocks.slice() : [],
+        emptyBlocks: bs ? bs.emptyBlocks.slice() : [],
+        breakBlocks: bs ? bs.breakBlocks.slice() : [],
+      });
+    }
+  });
+
+  // Entity kill sync: when a player kills an enemy (stomp, fireball,
+  // shell, star) they broadcast it so spectators can mirror the kill
+  // on their local entity list. Stored per-player so late-joining
+  // spectators can fetch the full history on target switch.
+  socket.on('entity_kill', (msg) => {
+    const room = rooms.get(roomCode);
+    if (!room || !playerId || room.state !== 'playing') return;
+    if (!msg || typeof msg !== 'object') return;
+    if (!room.entityKills.has(playerId)) {
+      room.entityKills.set(playerId, []);
+    }
+    const kills = room.entityKills.get(playerId);
+    const entry = {
+      entity: msg.entity,
+      x: msg.x,
+      y: msg.y,
+      killType: msg.killType || 'stomp',
+      shell: !!msg.shell,
+      deathTimer: msg.deathTimer || 0,
+      flat: !!msg.flat,
+      remove: !!msg.remove,
+      bossHp: msg.bossHp,
+    };
+    kills.push(entry);
+    // Forward to the room (including the sender so the sender's own
+    // spectator view works on another device)
+    socket.to(roomCode).emit('entity_kill', Object.assign({ p: playerId }, entry));
+  });
+
+  // Full entity kill state request — counterpart to get_block_state.
+  socket.on('get_entity_kill_state', (msg, ack) => {
+    const room = rooms.get(roomCode);
+    if (!room || !msg || !msg.targetId) {
+      if (typeof ack === 'function') ack({ ok: false });
+      return;
+    }
+    const kills = room.entityKills.get(msg.targetId);
+    if (typeof ack === 'function') {
+      ack({
+        ok: true,
+        kills: kills ? kills.slice() : [],
+      });
+    }
   });
 
   socket.on('progress', (msg) => {
